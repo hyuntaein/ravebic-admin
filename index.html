@@ -90,7 +90,7 @@ function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!seven
 function removeSevenItem(id){sevenResults=sevenResults.filter(r=>r.id!=id);renderSeven();}
 function handleSevenFile(file){const reader=new FileReader();reader.onload=function(e){let res=analyzeSeven(file,e.target.result);sevenResults.push(res);renderSeven();};reader.readAsText(file);}
 document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
-const GOOGLE_SCHEDULE_API_URL = "https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec";
+const GOOGLE_SCHEDULE_API_URL = 'https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec';
 
 let latestGoogleScheduleSheetName = '주황색 탭';
 let latestGoogleScheduleRange = 'E1:K79';
