@@ -1,38 +1,140 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>RAVEBIC 관리자앱</title>
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RAVEBIC 관리자 최종 수정본 일정표 직접열기</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-body{font-family:Arial,sans-serif;background:#f4f4f4;padding:40px}
-.status{
-display:inline-block;
-padding:12px 18px;
-border-radius:12px;
-background:#22c55e;
-color:#fff;
-font-weight:bold;
-}
-</style>
-</head>
-<body>
+*{box-sizing:border-box}body{margin:0;padding:18px;background:#f4f7fb;font-family:Arial,'Malgun Gothic',sans-serif;color:#10213f}.wrap{max-width:1180px;margin:0 auto;background:white;border:1px solid #cfe0f8;border-radius:24px;padding:22px;box-shadow:0 8px 24px rgba(15,23,42,.06)}h1{margin:0;color:#123f7a}.sub{color:#64748b;margin:6px 0 14px}.badge{display:inline-block;padding:10px 14px;border:1px solid #b8d3fb;background:#eef6ff;border-radius:14px;font-weight:900;color:#123f7a}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}.card{border:1px solid #ead8a8;background:#fffdf5;border-radius:16px;padding:14px}.num{font-size:24px;font-weight:900;color:#0b3b77}.filters{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1fr;gap:10px;padding:14px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px}button{border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.gray{background:#e5e7eb}.red{background:#b03a3a;color:white}.btns{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left;vertical-align:top}th{background:#eaf4ff;color:#0b3b77}.filelink{display:inline-block;margin:2px 0;color:#2563eb}.small{font-size:12px;color:#64748b}.section{margin-top:34px;padding-top:28px;border-top:3px solid #e5eefb}.section h2{margin:0 0 8px;color:#123f7a}.notice{font-size:13px;color:#555;line-height:1.55;margin:8px 0 16px}.tool-grid{display:grid;grid-template-columns:1fr;gap:22px}.tool-card{border:1px solid #d7e6fb;background:#fbfdff;border-radius:20px;padding:18px}.drop{border:3px dashed #7b8794;border-radius:18px;background:#fff;min-height:130px;display:flex;align-items:center;justify-content:center;text-align:center;margin:14px 0;padding:18px;transition:.15s}.drop.drag{background:#eef6ff;border-color:#1464c8}.drop p{font-size:16px;line-height:1.55;margin:0 0 8px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 18px}.box{background:#fffdf5;border:1px solid #ead8a8;border-radius:12px;padding:13px;text-align:center}.box b{display:block;font-size:22px;margin-top:4px}.smallbtn{padding:7px 11px;border-radius:8px;font-size:13px;background:#777;color:white}.err{color:#b00020;font-size:13px}td.store{text-align:left;font-weight:700}.analyzer-table th,.analyzer-table td{text-align:center;border:1px solid #d7d7d7}.analyzer-table th{background:#eef0f2;color:#111}.analyzer-table td.store{text-align:left}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{background:#e5e7eb;color:#111}.tab.active{background:#2563eb;color:#fff}.hidden{display:none}@media(max-width:800px){body{padding:8px}.wrap{padding:16px;border-radius:18px}.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}table{font-size:12px}.summary{grid-template-columns:repeat(2,1fr)}th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){display:none}}
+</style></head><body><div class="wrap"><h1>RAVEBIC 관리자 테스트 V3 - 일정표 직접열기</h1><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">Firebase 연결 확인 중...</div>
+<div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
+<div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
+<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button></div>
+<div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th></tr></thead><tbody id="tbody"><tr><td colspan="9" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
 
-<h1>RAVEBIC 관리자 테스트 V3</h1>
 
-<button id="connectionStatus" class="status">연결 완료</button>
+<div class="section">
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-  const statusBtn = document.getElementById('connectionStatus');
+  <h2>구글 일정 승인 시스템</h2>
 
-  if (statusBtn) {
-    statusBtn.innerText = '연결 완료';
-    statusBtn.style.background = '#22c55e';
-    statusBtn.style.color = '#ffffff';
+  <div class="notice">
+    현재 구글시트의 주황색 탭을 자동으로 읽어옵니다.
+  </div>
+
+  <div class="btns">
+
+    <button class="blue" onclick="loadGoogleSchedule()">
+      구글 일정 불러오기
+    </button>
+
+    <button class="green" onclick="approveGoogleSchedule()">
+      직원용 일정표 승인 반영
+    </button>
+
+    <button class="gray" onclick="downloadGoogleScheduleExcel()">
+      불러온 일정 PDF 다시 열기
+    </button>
+
+  </div>
+
+  <div id="googleScheduleStatus" class="badge">아직 구글 일정을 불러오지 않았습니다.</div>
+
+  
+</div>
+
+
+<div class="section"><h2>업로드 파일 분석 도구</h2><div class="notice">관리자 화면 하단에 추가한 분석 기능입니다. 직원이 올린 파일을 내려받은 뒤, 아래에 다시 끌어다 놓으면 점포별 건수/시간/수량을 별도로 집계할 수 있습니다.</div>
+<div class="tabs"><button class="tab active" id="tabEmart" onclick="showAnalyzer('emart')">이마트24 엑셀 분석</button><button class="tab" id="tabSeven" onclick="showAnalyzer('seven')">세븐일레븐 J파일 분석</button></div>
+
+<div id="emartTool" class="tool-card">
+<h2>이마트24 업로드파일 분석</h2>
+<div id="emartDrop" class="drop"><div><p><b>엑셀 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 파일을 한 번에 올리거나, 나중에 추가로 올려도 결과가 계속 누적됩니다.</p><input id="emartFileInput" type="file" multiple /></div></div>
+<div class="btns"><button id="emartDownloadBtn" class="green" disabled>결과 엑셀 다운로드</button><button id="emartCsvBtn" class="gray" disabled>CSV 다운로드</button><button id="emartResetBtn" class="red">전체 초기화</button></div>
+<div class="notice">기준: 점포명 = 파일명에서 확장자/괄호코드 제거 · 총건수 = 4번째 행부터의 데이터 행 수 · 총걸린시간 = 날짜시간값 중 최대값 - 최소값 · 실사수량1건수 = 실사수량 열에서 값이 1인 행 수</div>
+<div class="summary"><div class="box">파일 수<b id="emartSumFiles">0</b></div><div class="box">총건수 합계<b id="emartSumRows">0</b></div><div class="box">실사수량 1 합계<b id="emartSumOnes">0</b></div><div class="box">총걸린시간 합계<b id="emartSumTime">0초</b></div></div>
+<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>점포명</th><th>총건수</th><th>총걸린시간</th><th>실사수량1건수</th><th>시작시간</th><th>종료시간</th><th>비고</th><th>삭제</th></tr></thead><tbody id="emartTbody"><tr><td colspan="9">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
+</div>
+
+<div id="sevenTool" class="tool-card hidden">
+<h2>세븐일레븐 J파일 분석</h2>
+<div id="sevenDrop" class="drop"><div><p><b>J파일/텍스트 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 번 끌어다 놓으면 계속 누적됩니다.</p><input type="file" id="sevenFileInput" multiple></div></div>
+<div class="btns"><button id="sevenExcelBtn" class="green" disabled>엑셀 다운로드</button><button id="sevenClearBtn" class="red">전체 초기화</button></div>
+<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>파일명</th><th>건수</th><th>작업시간</th><th>1개건수</th><th>삭제</th></tr></thead><tbody id="sevenTbody"><tr><td colspan="6">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
+</div>
+</div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script><script>
+const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13",measurementId:"G-EEN6GM72JT"};
+firebase.initializeApp(firebaseConfig);const db=firebase.firestore();
+let allRows=[];let filtered=[];function dtOf(r){return r.submittedAt&&r.submittedAt.toDate?r.submittedAt.toDate():new Date(r.submittedAtText||r.date||0)}
+async function loadData(){document.getElementById('tbody').innerHTML='<tr><td colspan="9" style="text-align:center;padding:35px">불러오는 중...</td></tr>';try{const snap=await db.collection('submissions').get();allRows=[];snap.forEach(d=>allRows.push({id:d.id,...d.data()}));allRows.sort((a,b)=>dtOf(b)-dtOf(a));document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';applyFilters();}catch(e){console.error(e);document.getElementById('conn').textContent='연결 실패';document.getElementById('tbody').innerHTML='<tr><td colspan="9">Firebase 연결 실패: '+e.message+'</td></tr>';}}
+function applyFilters(){const q=document.getElementById('q').value.trim().toLowerCase();const from=document.getElementById('from').value;const to=document.getElementById('to').value;const region=document.getElementById('region').value;const brand=document.getElementById('brand').value;const work=document.getElementById('workType').value;filtered=allRows.filter(r=>{const text=((r.name||'')+' '+(r.store||'')+' '+(r.note||'')).toLowerCase();const d=dtOf(r);if(q&&!text.includes(q))return false;if(from&&d<new Date(from+'T00:00:00'))return false;if(to&&d>new Date(to+'T23:59:59'))return false;if(region&&r.region!==region)return false;if(brand&&r.brand!==brand)return false;if(work&&r.workType!==work)return false;return true;});render();}
+function render(){const todayStr=new Date().toDateString();document.getElementById('total').textContent=filtered.length;document.getElementById('today').textContent=filtered.filter(r=>dtOf(r).toDateString()===todayStr).length;document.getElementById('s0').textContent=filtered.filter(r=>(r.status||'미확인')==='미확인').length;document.getElementById('s1').textContent=filtered.filter(r=>r.status==='확인완료').length;document.getElementById('s2').textContent=filtered.filter(r=>r.status==='보완요청').length;const tb=document.getElementById('tbody');if(!filtered.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';return;}tb.innerHTML=filtered.map(r=>{const files=(r.files||[]).map((f,i)=>'<a class="filelink" target="_blank" href="'+f.url+'">첨부 '+(i+1)+' 보기</a>').join('<br>')||'<span class="small">없음</span>';return '<tr><td>'+dtOf(r).toLocaleString()+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.store)+'</td><td>'+esc(r.region)+'</td><td>'+esc(r.brand)+'</td><td>'+esc(r.workType)+'</td><td>'+esc(r.note||'')+'</td><td>'+files+'</td><td><select onchange="changeStatus(\''+r.id+'\',this.value)"><option '+sel(r,'미확인')+'>미확인</option><option '+sel(r,'확인완료')+'>확인완료</option><option '+sel(r,'보완요청')+'>보완요청</option></select></td></tr>';}).join('');}
+function esc(v){return String(v||'').replace(/[&<>'"]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s]));}function sel(r,v){return (r.status||'미확인')===v?'selected':''}
+async function changeStatus(id,status){await db.collection('submissions').doc(id).update({status:status,statusUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()});const r=allRows.find(x=>x.id===id);if(r)r.status=status;applyFilters();}
+function resetFilters(){['q','from','to','region','brand','workType'].forEach(id=>document.getElementById(id).value='');applyFilters();}
+function downloadCSV(){const headers=['제출시간','직원명','점포명','지역','브랜드','업무','특이사항','첨부파일수','상태'];const lines=[headers.join(',')];filtered.forEach(r=>{const vals=[dtOf(r).toLocaleString(),r.name,r.store,r.region,r.brand,r.workType,r.note,(r.files||[]).length,r.status||'미확인'].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"');lines.push(vals.join(','));});const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ravebic_submissions.csv';a.click();URL.revokeObjectURL(a.href);}
+loadData();
+
+function showAnalyzer(which){document.getElementById('emartTool').classList.toggle('hidden',which!=='emart');document.getElementById('sevenTool').classList.toggle('hidden',which!=='seven');document.getElementById('tabEmart').classList.toggle('active',which==='emart');document.getElementById('tabSeven').classList.toggle('active',which==='seven');}
+
+const emartResults=[];const emartDrop=document.getElementById('emartDrop'),emartInput=document.getElementById('emartFileInput'),emartTbody=document.getElementById('emartTbody');
+function cleanStoreName(name){return name.replace(/\.[^/.]+$/,'').replace(/\s*\(\s*\d+\s*\)\s*/g,' ').replace(/\s+/g,' ').trim();}function isEmpty(v){return v===undefined||v===null||String(v).trim()===''}function onlyDigits(v){return String(v??'').replace(/[^0-9]/g,'')}function parseDate14(v){const s=onlyDigits(v);if(!/^20\d{12}$/.test(s))return null;const y=+s.slice(0,4),m=+s.slice(4,6),d=+s.slice(6,8),h=+s.slice(8,10),mi=+s.slice(10,12),se=+s.slice(12,14);if(m<1||m>12||d<1||d>31||h>23||mi>59||se>59)return null;const dt=new Date(y,m-1,d,h,mi,se);if(dt.getFullYear()!==y||dt.getMonth()!==m-1||dt.getDate()!==d)return null;return dt;}function fmtDate(dt){if(!dt)return'';const p=n=>String(n).padStart(2,'0');return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;}function fmtDuration(ms){if(!isFinite(ms)||ms<0)return'0초';let sec=Math.floor(ms/1000),h=Math.floor(sec/3600);sec%=3600;let m=Math.floor(sec/60);sec%=60;const arr=[];if(h)arr.push(`${h}시간`);if(m)arr.push(`${m}분`);arr.push(`${sec}초`);return arr.join(' ');}function findHeaderCol(rows,keywords){const limit=Math.min(rows.length,12);for(let r=0;r<limit;r++)for(let c=0;c<(rows[r]||[]).length;c++){const text=String(rows[r][c]??'').replace(/\s/g,'');if(keywords.some(k=>text.includes(k)))return c;}return-1;}function guessTimeCol(dataRows){const scores={};dataRows.forEach(row=>row.forEach((v,c)=>{if(parseDate14(v))scores[c]=(scores[c]||0)+1;}));let best=-1,score=0;Object.keys(scores).forEach(c=>{if(scores[c]>score){score=scores[c];best=+c;}});return best;}function guessQtyCol(rows,dataRows){let col=findHeaderCol(rows,['실사수량','실사 수량']);if(col>=0)return col;col=findHeaderCol(rows,['수량']);if(col>=0)return col;let best=-1,bestScore=-1;const maxCols=Math.max(...dataRows.map(r=>r.length),0);for(let c=0;c<maxCols;c++){let ones=0,nums=0;for(const row of dataRows){const n=Number(String(row[c]??'').replace(/,/g,'').trim());if(!isNaN(n)){nums++;if(n===1)ones++;}}const score=ones*3+nums*0.05;if(ones>0&&score>bestScore){bestScore=score;best=c;}}return best;}
+async function analyzeEmartFile(file){const buffer=await file.arrayBuffer();let wb;try{wb=XLSX.read(buffer,{type:'array',cellDates:false});}catch(e){return{store:cleanStoreName(file.name),total:0,ones:0,durationMs:0,start:null,end:null,note:'엑셀 파일을 읽지 못했습니다.'};}const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});const dataRows=rows.slice(3).filter(r=>r.some(v=>!isEmpty(v)));const timeCol=guessTimeCol(dataRows);const qtyCol=guessQtyCol(rows,dataRows);const times=[];if(timeCol>=0)dataRows.forEach(r=>{const dt=parseDate14(r[timeCol]);if(dt)times.push(dt);});let start=null,end=null,durationMs=0;if(times.length){start=new Date(Math.min(...times));end=new Date(Math.max(...times));durationMs=end-start;}let ones=0;if(qtyCol>=0)dataRows.forEach(r=>{const n=Number(String(r[qtyCol]??'').replace(/,/g,'').trim());if(n===1)ones++;});const notes=[];if(timeCol<0)notes.push('날짜시간 열 자동 인식 실패');if(qtyCol<0)notes.push('실사수량 열 자동 인식 실패');return{store:cleanStoreName(file.name),total:dataRows.length,ones,durationMs,start,end,note:notes.join(' / ')};}
+async function handleEmartFiles(files){for(const file of files){const r=await analyzeEmartFile(file);emartResults.push(r);}renderEmart();}
+function renderEmart(){if(!emartResults.length){emartTbody.innerHTML='<tr><td colspan="9">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=true;}else{emartTbody.innerHTML=emartResults.map((r,i)=>`<tr><td>${i+1}</td><td class="store">${esc(r.store)}</td><td>${r.total.toLocaleString()}</td><td>${fmtDuration(r.durationMs)}</td><td>${r.ones.toLocaleString()}</td><td>${fmtDate(r.start)}</td><td>${fmtDate(r.end)}</td><td class="err">${esc(r.note||'')}</td><td><button class="smallbtn" onclick="delEmartRow(${i})">삭제</button></td></tr>`).join('');document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=false;}document.getElementById('emartSumFiles').textContent=emartResults.length.toLocaleString();document.getElementById('emartSumRows').textContent=emartResults.reduce((a,b)=>a+b.total,0).toLocaleString();document.getElementById('emartSumOnes').textContent=emartResults.reduce((a,b)=>a+b.ones,0).toLocaleString();document.getElementById('emartSumTime').textContent=fmtDuration(emartResults.reduce((a,b)=>a+b.durationMs,0));}
+function delEmartRow(i){emartResults.splice(i,1);renderEmart();}
+function exportEmartXlsx(){const aoa=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','비고']];emartResults.forEach((r,i)=>aoa.push([i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),r.note]));const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:6},{wch:28},{wch:12},{wch:18},{wch:16},{wch:22},{wch:22},{wch:28}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'재고조사요약');XLSX.writeFile(wb,'이마트24_재고조사_요약결과.xlsx');}
+function exportEmartCsv(){const lines=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','비고'],...emartResults.map((r,i)=>[i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),r.note])];const csv='\uFEFF'+lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='이마트24_재고조사_요약결과.csv';a.click();URL.revokeObjectURL(a.href);}
+emartDrop.addEventListener('dragover',e=>{e.preventDefault();emartDrop.classList.add('drag')});emartDrop.addEventListener('dragleave',()=>emartDrop.classList.remove('drag'));emartDrop.addEventListener('drop',e=>{e.preventDefault();emartDrop.classList.remove('drag');handleEmartFiles(e.dataTransfer.files)});emartInput.addEventListener('change',e=>handleEmartFiles(e.target.files));document.getElementById('emartDownloadBtn').addEventListener('click',exportEmartXlsx);document.getElementById('emartCsvBtn').addEventListener('click',exportEmartCsv);document.getElementById('emartResetBtn').addEventListener('click',()=>{if(confirm('전체 결과를 초기화할까요?')){emartResults.length=0;emartInput.value='';renderEmart();}});
+
+let sevenResults=[];const sevenDrop=document.getElementById('sevenDrop');function secToText(s){let h=Math.floor(s/3600);let m=Math.floor((s%3600)/60);let sec=s%60;return(h>0?h+'시간 ':'')+m+'분 '+sec+'초';}
+function analyzeSeven(file,text){const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>0);let secs=[],single=0;lines.forEach(l=>{let d=l.replace(/\D/g,'');if(d.length>=45){let t=d.substring(18,24);let q=parseInt(d.substring(30,35));let hh=parseInt(t.substring(0,2));let mm=parseInt(t.substring(2,4));let ss=parseInt(t.substring(4,6));if(!isNaN(hh)&&!isNaN(mm)&&!isNaN(ss)){secs.push(hh*3600+mm*60+ss);}if(q===1)single++;}});secs.sort((a,b)=>a-b);let dur=secs.length?secs[secs.length-1]-secs[0]:0;return{id:Date.now()+Math.random(),file:file.name,count:lines.length,duration:dur,single:single};}
+function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!sevenResults.length){tbody.innerHTML='<tr><td colspan="6">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('sevenExcelBtn').disabled=true;return;}tbody.innerHTML='';sevenResults.forEach((r,i)=>{let tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${esc(r.file)}</td><td>${r.count.toLocaleString()}</td><td>${secToText(r.duration)}</td><td>${r.single.toLocaleString()}</td><td><button class="smallbtn" onclick="removeSevenItem('${r.id}')">삭제</button></td>`;tbody.appendChild(tr);});document.getElementById('sevenExcelBtn').disabled=false;}
+function removeSevenItem(id){sevenResults=sevenResults.filter(r=>r.id!=id);renderSeven();}
+function handleSevenFile(file){const reader=new FileReader();reader.onload=function(e){let res=analyzeSeven(file,e.target.result);sevenResults.push(res);renderSeven();};reader.readAsText(file);}
+document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
+const GOOGLE_SCHEDULE_API_URL = "https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec";
+
+let latestGoogleScheduleSheetName = '주황색 탭';
+let latestGoogleScheduleRange = 'E1:K79';
+let latestGoogleSchedulePdfUrl = GOOGLE_SCHEDULE_API_URL;
+
+function openPdfInBrowser(url) {
+  if (!url) {
+    alert('일정표 주소가 없습니다.');
+    return;
   }
-});
-</script>
+  window.open(url, '_blank');
+}
 
-</body>
-</html>
+function loadGoogleSchedule() {
+  latestGoogleSchedulePdfUrl = GOOGLE_SCHEDULE_API_URL;
+  openPdfInBrowser(latestGoogleSchedulePdfUrl);
+
+  const status = document.getElementById('googleScheduleStatus');
+  if (status) {
+    status.textContent = '일정표 화면을 새 창으로 열었습니다. 새 창에서 PDF가 보이는지 확인하세요.';
+  }
+}
+
+function downloadGoogleScheduleExcel() {
+  latestGoogleSchedulePdfUrl = GOOGLE_SCHEDULE_API_URL;
+  openPdfInBrowser(latestGoogleSchedulePdfUrl);
+}
+
+async function approveGoogleSchedule() {
+  latestGoogleSchedulePdfUrl = GOOGLE_SCHEDULE_API_URL;
+
+  try {
+    await db.collection('settings').doc('approvedSchedule').set({
+      sheetName: latestGoogleScheduleSheetName,
+      range: latestGoogleScheduleRange,
+      pdfUrl: latestGoogleSchedulePdfUrl,
+      scheduleUrl: latestGoogleSchedulePdfUrl,
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      source: 'apps_script_html_viewer'
+    });
+
+    alert('승인 저장 완료\n\n직원용 일정표에서 Apps Script 일정표 화면을 열 수 있도록 Firebase에 저장했습니다.');
+  } catch(err) {
+    alert('승인 저장 실패:\n\n' + err);
+  }
+}
+</script></body></html>
