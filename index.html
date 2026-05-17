@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAVEBIC 관리자앱</title>
+<style>
+body{font-family:Arial,sans-serif;background:#f4f4f4;padding:40px}
+.status{
+display:inline-block;
+padding:12px 18px;
+border-radius:12px;
+background:#22c55e;
+color:#fff;
+font-weight:bold;
+}
+</style>
+</head>
+<body>
+
+<h1>RAVEBIC 관리자 테스트 V3</h1>
+
+<button id="connectionStatus" class="status">연결 완료</button>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const statusBtn = document.getElementById('connectionStatus');
+
+  if (statusBtn) {
+    statusBtn.innerText = '연결 완료';
+    statusBtn.style.background = '#22c55e';
+    statusBtn.style.color = '#ffffff';
+  }
+});
+</script>
+
+</body>
+</html>
