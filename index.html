@@ -137,6 +137,16 @@ select.status-pending {
 .file-delete-btn{background:#ef4444;color:#fff;padding:6px 9px;border-radius:8px;font-size:12px}
 .file-view-btn{display:inline-block;background:#eaf4ff;color:#2563eb;padding:6px 9px;border-radius:8px;font-size:12px;text-decoration:none;font-weight:900}
 .row-delete-btn{background:#b91c1c;color:#fff;padding:8px 10px;border-radius:10px;font-size:12px}
+
+/* RAVEBIC_CORRECTION_REQUEST_MODAL_V1 */
+.correction-modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:999998;align-items:center;justify-content:center;padding:18px}
+.correction-card{width:100%;max-width:520px;background:#fff;border-radius:20px;padding:22px;box-shadow:0 18px 55px rgba(0,0,0,.28)}
+.correction-card h3{margin:0 0 10px;color:#991b1b;font-size:22px;font-weight:900}
+.correction-info{background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:12px;margin-bottom:12px;line-height:1.55;font-size:14px}
+.correction-card textarea{width:100%;min-height:135px;border:1px solid #cbd5e1;border-radius:14px;padding:13px;font-size:15px;resize:vertical;outline:none}
+.correction-actions{display:flex;gap:10px;margin-top:12px;justify-content:flex-end;flex-wrap:wrap}
+.correction-send{background:#ef4444;color:#fff}.correction-cancel{background:#e5e7eb;color:#111827}
+.correction-message-preview{font-size:12px;color:#991b1b;margin-top:6px;line-height:1.4}
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -225,6 +235,18 @@ select.status-pending {
 </div>
 </div>
 </div>
+
+<div id="correctionModal" class="correction-modal">
+  <div class="correction-card">
+    <h3>보완요청 메시지</h3>
+    <div id="correctionInfo" class="correction-info"></div>
+    <textarea id="correctionMessage" placeholder="예: 여의도점 담배 재고사진이 누락되었습니다. 보완서류 제출 버튼으로 추가 사진을 올려주세요."></textarea>
+    <div class="correction-actions">
+      <button class="correction-cancel" type="button" onclick="cancelCorrectionRequest()">취소</button>
+      <button class="correction-send" type="button" onclick="sendCorrectionRequest()">보완요청 보내기</button>
+    </div>
+  </div>
+</div>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script><script>
 const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13",measurementId:"G-EEN6GM72JT"};
 firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const storage=firebase.storage();
@@ -297,7 +319,89 @@ function prevPage(){if(currentPage>1){currentPage--;render();}}
 function nextPage(){const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));if(currentPage<totalPages){currentPage++;render();}}
 function changePageSize(v){pageSize=parseInt(v,10)||10;currentPage=1;render();}
 function esc(v){return String(v||'').replace(/[&<>'"]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s]));}function sel(r,v){return (r.status||'미확인')===v?'selected':''}
-async function changeStatus(id,status){await db.collection('submissions').doc(id).update({status:status,statusUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()});const r=allRows.find(x=>x.id===id);if(r)r.status=status;applyFilters();}
+
+let pendingCorrectionId = null;
+let pendingCorrectionPrevStatus = null;
+
+function openCorrectionModal(id){
+  const r = allRows.find(x=>x.id===id);
+  pendingCorrectionId = id;
+  pendingCorrectionPrevStatus = r ? (r.status || '미확인') : '미확인';
+  const info = document.getElementById('correctionInfo');
+  const msg = document.getElementById('correctionMessage');
+  if(info){
+    info.innerHTML = '<b>직원명:</b> '+esc(r && r.name || '')+'<br><b>점포명:</b> '+esc(r && r.store || '')+'<br><b>업무:</b> '+esc(r && r.workType || '')+'<br><span class="small">직원용 앱의 보완요청함에 이 메시지가 표시됩니다.</span>';
+  }
+  if(msg){
+    msg.value = (r && r.correctionMessage) ? r.correctionMessage : '';
+    if(!msg.value){ msg.value = (r && r.store ? r.store+' ' : '') + '보완서류가 필요합니다. 부족한 서류/사진을 보완서류 제출 버튼으로 올려주세요.'; }
+  }
+  const modal = document.getElementById('correctionModal');
+  if(modal) modal.style.display='flex';
+}
+
+function cancelCorrectionRequest(){
+  const modal = document.getElementById('correctionModal');
+  if(modal) modal.style.display='none';
+  if(pendingCorrectionId){
+    const r=allRows.find(x=>x.id===pendingCorrectionId);
+    if(r) r.status = pendingCorrectionPrevStatus || '미확인';
+    pendingCorrectionId = null;
+    pendingCorrectionPrevStatus = null;
+    render();
+  }
+}
+
+async function sendCorrectionRequest(){
+  const id = pendingCorrectionId;
+  const message = (document.getElementById('correctionMessage')?.value || '').trim();
+  if(!id){ alert('보완요청 대상이 없습니다.'); return; }
+  if(!message){ alert('보완요청 메시지를 입력해주세요.'); return; }
+  try{
+    await db.collection('submissions').doc(id).update({
+      status:'보완요청',
+      correctionMessage: message,
+      correctionRequestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      correctionRequestedAtText: new Date().toISOString(),
+      correctionSubmittedAt: null,
+      correctionResolved: false,
+      correctionRead: false,
+      statusUpdatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const r=allRows.find(x=>x.id===id);
+    if(r){
+      r.status='보완요청';
+      r.correctionMessage=message;
+      r.correctionRequestedAtText=new Date().toISOString();
+      r.correctionResolved=false;
+      r.correctionRead=false;
+    }
+    const modal=document.getElementById('correctionModal');
+    if(modal) modal.style.display='none';
+    pendingCorrectionId=null;
+    pendingCorrectionPrevStatus=null;
+    applyFilters();
+    alert('보완요청 메시지를 직원용 앱으로 보냈습니다.');
+  }catch(err){
+    alert('보완요청 저장 실패:\n\n'+(err.message || err));
+  }
+}
+
+async function changeStatus(id,status){
+  if(status==='보완요청'){
+    openCorrectionModal(id);
+    return;
+  }
+  await db.collection('submissions').doc(id).update({
+    status:status,
+    statusUpdatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    correctionResolved: status==='확인완료' ? true : false
+  });
+  const r=allRows.find(x=>x.id===id);
+  if(r){r.status=status; r.correctionResolved = status==='확인완료';}
+  applyFilters();
+}
+
 function resetFilters(){['q','from','to','region','brand','workType'].forEach(id=>document.getElementById(id).value='');applyFilters();}
 function downloadCSV(){const headers=['제출시간','직원명','점포명','지역','브랜드','업무','특이사항','첨부파일수','상태'];const lines=[headers.join(',')];filtered.forEach(r=>{const vals=[dtOf(r).toLocaleString(),r.name,r.store,r.region,r.brand,r.workType,r.note,(r.files||[]).length,r.status||'미확인'].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"');lines.push(vals.join(','));});const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ravebic_submissions.csv';a.click();URL.revokeObjectURL(a.href);}
 loadData();
