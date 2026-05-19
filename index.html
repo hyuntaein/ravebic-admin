@@ -3,37 +3,37 @@
 <style>
 *{box-sizing:border-box}body{margin:0;padding:18px;background:#f4f7fb;font-family:Arial,'Malgun Gothic',sans-serif;color:#10213f}.wrap{max-width:1180px;margin:0 auto;background:white;border:1px solid #cfe0f8;border-radius:24px;padding:22px;box-shadow:0 8px 24px rgba(15,23,42,.06)}h1{margin:0;color:#123f7a}.sub{color:#64748b;margin:6px 0 14px}.badge{display:inline-block;padding:10px 14px;border:1px solid #b8d3fb;background:#eef6ff;border-radius:14px;font-weight:900;color:#123f7a}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}.card{border:1px solid #ead8a8;background:#fffdf5;border-radius:16px;padding:14px}.num{font-size:24px;font-weight:900;color:#0b3b77}.filters{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1fr;gap:10px;padding:14px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px}button{border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.gray{background:#e5e7eb}.red{background:#b03a3a;color:white}.btns{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left;vertical-align:top}th{background:#eaf4ff;color:#0b3b77}.filelink{display:inline-block;margin:2px 0;color:#2563eb}.small{font-size:12px;color:#64748b}.section{margin-top:34px;padding-top:28px;border-top:3px solid #e5eefb}.section h2{margin:0 0 8px;color:#123f7a}.notice{font-size:13px;color:#555;line-height:1.55;margin:8px 0 16px}.tool-grid{display:grid;grid-template-columns:1fr;gap:22px}.tool-card{border:1px solid #d7e6fb;background:#fbfdff;border-radius:20px;padding:18px}.drop{border:3px dashed #7b8794;border-radius:18px;background:#fff;min-height:130px;display:flex;align-items:center;justify-content:center;text-align:center;margin:14px 0;padding:18px;transition:.15s}.drop.drag{background:#eef6ff;border-color:#1464c8}.drop p{font-size:16px;line-height:1.55;margin:0 0 8px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 18px}.box{background:#fffdf5;border:1px solid #ead8a8;border-radius:12px;padding:13px;text-align:center}.box b{display:block;font-size:22px;margin-top:4px}.smallbtn{padding:7px 11px;border-radius:8px;font-size:13px;background:#777;color:white}.err{color:#b00020;font-size:13px}td.store{text-align:left;font-weight:700}.analyzer-table th,.analyzer-table td{text-align:center;border:1px solid #d7d7d7}.analyzer-table th{background:#eef0f2;color:#111}.analyzer-table td.store{text-align:left}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{background:#e5e7eb;color:#111}.tab.active{background:#2563eb;color:#fff}.hidden{display:none}@media(max-width:800px){body{padding:8px}.wrap{padding:16px;border-radius:18px}.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}table{font-size:12px}.summary{grid-template-columns:repeat(2,1fr)}th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){display:none}}
 
-/* RAVEBIC_ADMIN_LOCK_V1 */
-#adminLockScreen {
+/* RAVEBIC_ADMIN_LOCK_V2 */
+#adminLockScreen{
   position:fixed;
   inset:0;
   background:linear-gradient(135deg,#0f172a,#1e3a8a);
-  z-index:99999;
+  z-index:999999;
   display:flex;
   align-items:center;
   justify-content:center;
   padding:20px;
 }
-.admin-lock-card {
+.admin-lock-card{
   width:100%;
   max-width:420px;
-  background:#ffffff;
+  background:#fff;
   border-radius:24px;
   padding:28px;
   box-shadow:0 20px 60px rgba(0,0,0,.35);
   text-align:center;
 }
-.admin-lock-card h2 {
+.admin-lock-card h2{
   margin:0 0 8px;
   color:#0b3b78;
   font-size:28px;
 }
-.admin-lock-card p {
+.admin-lock-card p{
   margin:0 0 18px;
   color:#64748b;
   font-size:14px;
 }
-.admin-lock-card input {
+.admin-lock-card input{
   width:100%;
   padding:15px;
   border:1px solid #cbd5e1;
@@ -42,18 +42,19 @@
   outline:none;
   margin-bottom:12px;
 }
-.admin-lock-card button {
+.admin-lock-card button{
   width:100%;
   padding:15px;
   border:none;
   border-radius:14px;
   background:#2563eb;
-  color:white;
+  color:#fff;
   font-size:18px;
   font-weight:900;
   cursor:pointer;
 }
-.admin-lock-error {
+.admin-lock-card button:active{transform:translateY(1px)}
+.admin-lock-error{
   display:none;
   margin-top:12px;
   padding:10px;
@@ -63,7 +64,7 @@
   font-weight:800;
   font-size:14px;
 }
-.admin-logout-btn {
+.admin-logout-btn{
   margin:8px 0 14px;
   padding:10px 14px;
   border:none;
@@ -81,12 +82,12 @@
     <h2>RAVEBIC 관리자</h2>
     <p>관리자 비밀번호를 입력하세요.</p>
     <input id="adminPasswordInput" type="password" placeholder="관리자 비밀번호" autocomplete="off">
-    <button onclick="adminLogin()">관리자 로그인</button>
+    <button id="adminLoginBtn" type="button">관리자 로그인</button>
     <div id="adminLockError" class="admin-lock-error">비밀번호가 맞지 않습니다.</div>
   </div>
 </div>
 <div class="wrap"><h1>RAVEBIC 관리자 테스트 V3 - 일정표 직접열기</h1>
-<button class="admin-logout-btn" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
+<button id="adminLogoutBtn" class="admin-logout-btn" type="button">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
 <div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
 <div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button></div>
@@ -227,48 +228,65 @@ async function approveGoogleSchedule() {
 }
 
 
-// RAVEBIC_ADMIN_LOCK_V1
-const RAVEBIC_ADMIN_PASSWORD = "482913";
+// RAVEBIC_ADMIN_LOCK_V2
+(function(){
+  const PASSWORD = "482913";
 
-function adminLogin(){
-  const input = document.getElementById("adminPasswordInput");
-  const error = document.getElementById("adminLockError");
-  const screen = document.getElementById("adminLockScreen");
-  const value = input ? input.value.trim() : "";
+  function unlock(){
+    const input = document.getElementById("adminPasswordInput");
+    const error = document.getElementById("adminLockError");
+    const screen = document.getElementById("adminLockScreen");
+    const value = input ? input.value.trim() : "";
 
-  if(value === RAVEBIC_ADMIN_PASSWORD){
-    sessionStorage.setItem("ravebicAdminUnlocked", "Y");
-    if(screen) screen.style.display = "none";
-    if(error) error.style.display = "none";
-  }else{
-    if(error) error.style.display = "block";
-    if(input) input.focus();
-  }
-}
-
-function adminLogout(){
-  sessionStorage.removeItem("ravebicAdminUnlocked");
-  location.reload();
-}
-
-document.addEventListener("DOMContentLoaded", function(){
-  const screen = document.getElementById("adminLockScreen");
-  const input = document.getElementById("adminPasswordInput");
-
-  if(sessionStorage.getItem("ravebicAdminUnlocked") === "Y"){
-    if(screen) screen.style.display = "none";
-  }else{
-    if(screen) screen.style.display = "flex";
-    setTimeout(function(){ if(input) input.focus(); }, 200);
+    if(value === PASSWORD){
+      sessionStorage.setItem("ravebicAdminUnlocked", "Y");
+      if(screen) screen.style.display = "none";
+      if(error) error.style.display = "none";
+    }else{
+      if(error) error.style.display = "block";
+      if(input) input.focus();
+    }
   }
 
-  if(input){
-    input.addEventListener("keydown", function(e){
-      if(e.key === "Enter"){
-        adminLogin();
-      }
-    });
+  function logout(){
+    sessionStorage.removeItem("ravebicAdminUnlocked");
+    location.reload();
   }
-});
+
+  window.addEventListener("load", function(){
+    const screen = document.getElementById("adminLockScreen");
+    const input = document.getElementById("adminPasswordInput");
+    const loginBtn = document.getElementById("adminLoginBtn");
+    const logoutBtn = document.getElementById("adminLogoutBtn");
+
+    if(sessionStorage.getItem("ravebicAdminUnlocked") === "Y"){
+      if(screen) screen.style.display = "none";
+    }else{
+      if(screen) screen.style.display = "flex";
+      setTimeout(function(){ if(input) input.focus(); }, 200);
+    }
+
+    if(loginBtn){
+      loginBtn.disabled = false;
+      loginBtn.style.pointerEvents = "auto";
+      loginBtn.addEventListener("click", unlock);
+    }
+
+    if(input){
+      input.addEventListener("keydown", function(e){
+        if(e.key === "Enter" || e.keyCode === 13){
+          unlock();
+        }
+      });
+    }
+
+    if(logoutBtn){
+      logoutBtn.addEventListener("click", logout);
+    }
+  });
+
+  window.adminLogin = unlock;
+  window.adminLogout = logout;
+})();
 
 </script></body></html>
