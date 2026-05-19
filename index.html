@@ -660,14 +660,12 @@ setTimeout(function(){
   const input = document.getElementById("adminPasswordInput");
   const remember = document.getElementById("adminRememberPassword");
 
-  if(sessionStorage.getItem("ravebicAdminUnlocked") === "Y"){ unlockAdminPage(); return; }
-
+  // 비밀번호 기억하기가 되어 있어도 자동 로그인하지 않습니다.
+  // 저장된 비밀번호는 비밀번호칸에 별표로 채워지고, 로그인 버튼을 눌러야 들어갑니다.
   const savedPw = localStorage.getItem(RAVEBIC_ADMIN_REMEMBER_KEY);
   if(savedPw === RAVEBIC_ADMIN_PASSWORD){
     if(input) input.value = savedPw;
     if(remember) remember.checked = true;
-    unlockAdminPage();
-    return;
   }
 
   if(btn) btn.onclick = adminLogin;
