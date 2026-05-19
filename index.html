@@ -147,6 +147,21 @@ select.status-pending {
 .correction-actions{display:flex;gap:10px;margin-top:12px;justify-content:flex-end;flex-wrap:wrap}
 .correction-send{background:#ef4444;color:#fff}.correction-cancel{background:#e5e7eb;color:#111827}
 .correction-message-preview{font-size:12px;color:#991b1b;margin-top:6px;line-height:1.4}
+
+/* RAVEBIC_ADMIN_TITLE_BOX */
+.admin-main-title{
+  max-width:460px;
+  margin:0 auto 20px auto;
+  background:white;
+  border-radius:28px;
+  padding:18px 30px;
+  text-align:center;
+  font-size:32px;
+  font-weight:900;
+  color:#0b3b78;
+  box-shadow:0 8px 20px rgba(0,0,0,.08);
+}
+@media(max-width:800px){.admin-main-title{font-size:28px;padding:16px 20px}}
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -157,7 +172,7 @@ select.status-pending {
     <div id="adminLockError">비밀번호가 맞지 않습니다.</div>
   </div>
 </div>
-<div class="wrap"><h1>RAVEBIC 관리자 테스트 V3 - 상태색상 - 일정표 직접열기</h1><button class="admin-logout-btn" type="button" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
+<div class="wrap"><div class="admin-main-title">RAVEBIC 관리자</div><button class="admin-logout-btn" type="button" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
 <div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
 <div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button></div>
