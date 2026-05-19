@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -10,71 +9,84 @@
 body{
   margin:0;
   font-family:Arial,sans-serif;
-  background:#f3f4f6;
+  background:#f3f6fb;
+  overflow:hidden;
 }
 
 #adminLockScreen{
   position:fixed;
   inset:0;
-  background:#102a66;
+  background:linear-gradient(135deg,#0f172a,#1e3a8a);
   display:flex;
   align-items:center;
   justify-content:center;
-  z-index:9999;
+  z-index:99999;
 }
 
-.loginBox{
+.admin-lock-card{
+  width:100%;
+  max-width:420px;
   background:white;
-  width:360px;
+  border-radius:24px;
   padding:30px;
-  border-radius:20px;
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
   text-align:center;
-  box-shadow:0 20px 60px rgba(0,0,0,.3);
 }
 
-.loginBox h1{
+.admin-lock-card h2{
   color:#0b3b78;
+  margin-bottom:10px;
+  font-size:36px;
 }
 
-.loginBox input{
+.admin-lock-card p{
+  color:#64748b;
+  margin-bottom:20px;
+}
+
+.admin-lock-card input{
   width:100%;
-  padding:14px;
-  font-size:18px;
-  border-radius:12px;
-  border:1px solid #ccc;
-  margin-top:15px;
   box-sizing:border-box;
+  padding:16px;
+  border-radius:14px;
+  border:1px solid #cbd5e1;
+  font-size:18px;
+  margin-bottom:14px;
 }
 
-.loginBox button{
+.admin-lock-card button{
   width:100%;
-  padding:15px;
-  margin-top:15px;
+  padding:16px;
   border:none;
-  border-radius:12px;
+  border-radius:14px;
   background:#2563eb;
   color:white;
-  font-size:18px;
-  font-weight:bold;
+  font-size:20px;
+  font-weight:900;
   cursor:pointer;
 }
 
-#errorText{
-  color:red;
+.main-wrap{
+  padding:30px;
+}
+
+.title{
+  font-size:42px;
+  font-weight:900;
+  color:#0b3b78;
+}
+
+.desc{
+  color:#64748b;
   margin-top:10px;
-  display:none;
 }
 
-#mainPage{
-  display:none;
-  padding:40px;
-}
-
-.card{
+.sample-box{
+  margin-top:30px;
   background:white;
   border-radius:20px;
   padding:30px;
-  box-shadow:0 10px 30px rgba(0,0,0,.1);
+  font-size:24px;
 }
 </style>
 </head>
@@ -82,77 +94,99 @@ body{
 <body>
 
 <div id="adminLockScreen">
-  <div class="loginBox">
-    <h1>RAVEBIC 관리자</h1>
-    <div>관리자 비밀번호를 입력하세요</div>
+  <div class="admin-lock-card">
+    <h2>RAVEBIC 관리자</h2>
+    <p>관리자 비밀번호를 입력하세요.</p>
 
-    <input type="password" id="pw" placeholder="비밀번호">
+    <input id="adminPasswordInput" type="password" placeholder="관리자 비밀번호">
 
-    <button onclick="login()">관리자 로그인</button>
-
-    <div id="errorText">비밀번호가 틀렸습니다.</div>
+    <button id="adminLoginBtn">관리자 로그인</button>
   </div>
 </div>
 
-<div id="mainPage">
-  <div class="card">
-    <h2>로그인 성공</h2>
-    <p>여기에 기존 관리자 HTML 내용을 붙여넣으면 됩니다.</p>
-    <button onclick="logout()">로그아웃</button>
-  </div>
+<div class="main-wrap">
+
+<div class="title">
+RAVEBIC 관리자 시스템
+</div>
+
+<div class="desc">
+로그인 성공 시 관리자 화면이 표시됩니다.
+</div>
+
+<div class="sample-box">
+✅ 관리자 로그인 성공<br><br>
+이 파일을 기존 관리자 index.html 대신 업로드해서 테스트하세요.
+</div>
+
 </div>
 
 <script>
-
 const ADMIN_PASSWORD = "482913";
 
-function login(){
+function showAdminPage() {
 
-  const pw = document.getElementById("pw").value;
+  const lock = document.getElementById("adminLockScreen");
+
+  if(lock){
+    lock.remove();
+  }
+
+  document.body.style.overflow = "auto";
+
+  sessionStorage.setItem("ravebicAdminUnlocked","Y");
+}
+
+function adminLogin(){
+
+  const pw =
+    document.getElementById("adminPasswordInput")
+    .value
+    .trim();
 
   if(pw === ADMIN_PASSWORD){
 
-      localStorage.setItem("ravebic_admin_login","Y");
-
-      document.getElementById("adminLockScreen").style.display = "none";
-      document.getElementById("mainPage").style.display = "block";
+    showAdminPage();
 
   }else{
 
-      document.getElementById("errorText").style.display = "block";
+    alert("비밀번호가 틀렸습니다.");
 
   }
 }
 
-function logout(){
-
-  localStorage.removeItem("ravebic_admin_login");
-
-  location.reload();
-
-}
-
 window.onload = function(){
 
-   const ok = localStorage.getItem("ravebic_admin_login");
+  if(
+    sessionStorage.getItem("ravebicAdminUnlocked")
+    === "Y"
+  ){
+    showAdminPage();
+  }
 
-   if(ok === "Y"){
+  const btn =
+    document.getElementById("adminLoginBtn");
 
-      document.getElementById("adminLockScreen").style.display = "none";
-      document.getElementById("mainPage").style.display = "block";
+  if(btn){
+    btn.onclick = adminLogin;
+  }
 
-   }
+  const input =
+    document.getElementById("adminPasswordInput");
 
-   document.getElementById("pw").addEventListener("keypress",function(e){
+  if(input){
+
+    input.addEventListener("keydown",function(e){
 
       if(e.key === "Enter"){
-         login();
+        adminLogin();
       }
 
-   });
+    });
 
-}
+  }
 
+};
 </script>
 
 </body>
