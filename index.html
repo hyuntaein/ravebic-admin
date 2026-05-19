@@ -34,90 +34,19 @@ select.status-pending {
 }
 
 
-/* RAVEBIC_ADMIN_LOGIN_INTEGRATED_V1 */
-#adminLockScreen{
-  position:fixed;
-  inset:0;
-  background:linear-gradient(135deg,#0f172a,#1e3a8a);
-  z-index:999999;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding:20px;
-}
-.admin-lock-card{
-  width:100%;
-  max-width:420px;
-  background:#fff;
-  border-radius:24px;
-  padding:30px;
-  box-shadow:0 20px 60px rgba(0,0,0,.35);
-  text-align:center;
-}
-.admin-lock-card h2{
-  margin:0 0 8px;
-  color:#0b3b78;
-  font-size:32px;
-  font-weight:900;
-}
-.admin-lock-card p{
-  margin:0 0 18px;
-  color:#64748b;
-  font-size:14px;
-}
-.admin-lock-card input{
-  width:100%;
-  box-sizing:border-box;
-  padding:15px;
-  border:1px solid #cbd5e1;
-  border-radius:14px;
-  font-size:18px;
-  margin-bottom:12px;
-  outline:none;
-}
-.admin-lock-card button{
-  width:100%;
-  padding:15px;
-  border:none;
-  border-radius:14px;
-  background:#2563eb;
-  color:white;
-  font-size:18px;
-  font-weight:900;
-  cursor:pointer;
-}
-.admin-lock-card button:hover{background:#1d4ed8}
-#adminLockError{
-  display:none;
-  margin-top:12px;
-  padding:10px;
-  background:#fee2e2;
-  color:#991b1b;
-  border-radius:12px;
-  font-weight:800;
-}
-.admin-logout-btn{
-  margin:10px 0 4px;
-  padding:10px 14px;
-  border:none;
-  border-radius:12px;
-  background:#ef4444;
-  color:#fff;
-  font-weight:900;
-  cursor:pointer;
-}
+/* RAVEBIC_STAFF_PIN_ADMIN_V1 */
+.pin-manager{margin-top:34px;padding-top:28px;border-top:3px solid #e5eefb}
+.pin-manager h2{margin:0 0 8px;color:#123f7a}
+.pin-form{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;margin:14px 0;align-items:center}
+.pin-table{width:100%;border-collapse:collapse;margin-top:12px}
+.pin-table th,.pin-table td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left}
+.pin-table th{background:#eaf4ff;color:#0b3b77}
+.pin-del{background:#ef4444;color:#fff;padding:8px 12px;border-radius:10px}
+.pin-save{background:#2563eb;color:#fff;padding:12px 16px}
+.pin-seed{background:#16a34a;color:#fff;padding:12px 16px}
+@media(max-width:800px){.pin-form{grid-template-columns:1fr}}
 
-</style></head><body style="overflow:hidden;">
-<div id="adminLockScreen">
-  <div class="admin-lock-card">
-    <h2>RAVEBIC 관리자</h2>
-    <p>관리자 비밀번호를 입력하세요.</p>
-    <input id="adminPasswordInput" type="password" placeholder="관리자 비밀번호" autocomplete="off">
-    <button id="adminLoginBtn" type="button">관리자 로그인</button>
-    <div id="adminLockError">비밀번호가 맞지 않습니다.</div>
-  </div>
-</div>
-<div class="wrap"><h1>RAVEBIC 관리자 테스트 V3 - 상태색상 - 일정표 직접열기</h1><button class="admin-logout-btn" type="button" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
+</style></head><body><div class="wrap"><h1>RAVEBIC 관리자 테스트 V3 - 상태색상 - 일정표 직접열기</h1><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
 <div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
 <div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button></div>
@@ -154,6 +83,25 @@ select.status-pending {
   
 </div>
 
+
+
+<div class="pin-manager">
+  <h2>직원 PIN 관리</h2>
+  <div class="notice">직원용 일정표는 여기 등록된 직원명/PIN이 맞아야 열립니다. 기본 PIN은 1111로 등록하면 됩니다.</div>
+  <div class="pin-form">
+    <input id="staffNameInput" placeholder="직원명 예: 인현태" value="인현태">
+    <input id="staffPinInput" placeholder="PIN 예: 1111" value="1111">
+    <button class="pin-save" onclick="saveStaffPin()">직원 추가/수정</button>
+    <button class="pin-seed" onclick="seedDefaultStaff()">인현태 1111 등록</button>
+  </div>
+  <div class="small" id="staffPinStatus">직원 PIN 목록을 불러오는 중...</div>
+  <div style="overflow:auto">
+    <table class="pin-table">
+      <thead><tr><th>직원명</th><th>PIN</th><th>등록/수정일</th><th>관리</th></tr></thead>
+      <tbody id="staffPinTbody"><tr><td colspan="4">불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
 
 <div class="section"><h2>업로드 파일 분석 도구</h2><div class="notice">관리자 화면 하단에 추가한 분석 기능입니다. 직원이 올린 파일을 내려받은 뒤, 아래에 다시 끌어다 놓으면 점포별 건수/시간/수량을 별도로 집계할 수 있습니다.</div>
 <div class="tabs"><button class="tab active" id="tabEmart" onclick="showAnalyzer('emart')">이마트24 엑셀 분석</button><button class="tab" id="tabSeven" onclick="showAnalyzer('seven')">세븐일레븐 J파일 분석</button></div>
@@ -245,8 +193,6 @@ async function approveGoogleSchedule() {
       pdfUrl: latestGoogleSchedulePdfUrl,
       scheduleUrl: latestGoogleSchedulePdfUrl,
       approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      updatedAt: new Date().toISOString(),
-      approvedBy: '인현태',
       source: 'apps_script_html_viewer'
     });
 
@@ -344,51 +290,92 @@ setInterval(applyRavebicStatusColors, 1500);
 
 
 
-// RAVEBIC_ADMIN_LOGIN_INTEGRATED_V1
-const RAVEBIC_ADMIN_PASSWORD = "98765";
-
-function unlockAdminPage(){
-  const lock = document.getElementById("adminLockScreen");
-  if(lock){ lock.remove(); }
-  document.body.style.overflow = "auto";
-  sessionStorage.setItem("ravebicAdminUnlocked", "Y");
+// RAVEBIC_STAFF_PIN_ADMIN_V1
+function staffDocId(name){
+  return String(name || '').trim();
 }
 
-function adminLogin(){
-  const input = document.getElementById("adminPasswordInput");
-  const error = document.getElementById("adminLockError");
-  const pw = input ? input.value.trim() : "";
+async function loadStaffPins(){
+  const tbody = document.getElementById('staffPinTbody');
+  const status = document.getElementById('staffPinStatus');
+  if(!tbody) return;
 
-  if(pw === RAVEBIC_ADMIN_PASSWORD){
-    unlockAdminPage();
-  }else{
-    if(error){ error.style.display = "block"; }
-    if(input){ input.focus(); }
-  }
-}
+  try{
+    const snap = await db.collection('staffPins').orderBy('name').get();
 
-function adminLogout(){
-  sessionStorage.removeItem("ravebicAdminUnlocked");
-  location.reload();
-}
+    if(snap.empty){
+      tbody.innerHTML = '<tr><td colspan="4">등록된 직원 PIN이 없습니다.</td></tr>';
+      if(status) status.textContent = '등록된 직원 PIN이 없습니다.';
+      return;
+    }
 
-setTimeout(function(){
-  const btn = document.getElementById("adminLoginBtn");
-  const input = document.getElementById("adminPasswordInput");
+    let rows = [];
+    snap.forEach(doc=>{
+      const d = doc.data();
+      let updated = '-';
+      if(d.updatedAt && d.updatedAt.toDate){
+        updated = d.updatedAt.toDate().toLocaleString();
+      }
 
-  if(sessionStorage.getItem("ravebicAdminUnlocked") === "Y"){
-    unlockAdminPage();
-    return;
-  }
-
-  if(btn){ btn.onclick = adminLogin; }
-
-  if(input){
-    input.focus();
-    input.addEventListener("keydown", function(e){
-      if(e.key === "Enter"){ adminLogin(); }
+      rows.push(
+        '<tr>' +
+        '<td>' + esc(d.name || doc.id) + '</td>' +
+        '<td>' + esc(d.pin || '') + '</td>' +
+        '<td>' + updated + '</td>' +
+        '<td><button class="pin-del" onclick="deleteStaffPin(\\'' + esc(doc.id) + '\\')">삭제</button></td>' +
+        '</tr>'
+      );
     });
+
+    tbody.innerHTML = rows.join('');
+    if(status) status.textContent = '직원 PIN ' + snap.size + '명 등록됨';
+
+  }catch(err){
+    tbody.innerHTML = '<tr><td colspan="4">직원 PIN 목록 불러오기 실패: ' + esc(err.message || err) + '</td></tr>';
+    if(status) status.textContent = '직원 PIN 목록 불러오기 실패';
   }
-}, 100);
+}
+
+async function saveStaffPin(){
+  const name = document.getElementById('staffNameInput').value.trim();
+  const pin = document.getElementById('staffPinInput').value.trim();
+
+  if(!name){ alert('직원명을 입력하세요.'); return; }
+  if(!pin){ alert('PIN을 입력하세요.'); return; }
+
+  try{
+    await db.collection('staffPins').doc(staffDocId(name)).set({
+      name: name,
+      pin: pin,
+      active: true,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge:true });
+
+    alert('직원 PIN 저장 완료');
+    await loadStaffPins();
+
+  }catch(err){
+    alert('직원 PIN 저장 실패:\n\n' + err);
+  }
+}
+
+async function deleteStaffPin(name){
+  if(!confirm(name + ' 직원 PIN을 삭제할까요?')) return;
+
+  try{
+    await db.collection('staffPins').doc(staffDocId(name)).delete();
+    await loadStaffPins();
+  }catch(err){
+    alert('삭제 실패:\n\n' + err);
+  }
+}
+
+async function seedDefaultStaff(){
+  document.getElementById('staffNameInput').value = '인현태';
+  document.getElementById('staffPinInput').value = '1111';
+  await saveStaffPin();
+}
+
+setTimeout(loadStaffPins, 800);
 
 </script></body></html>
