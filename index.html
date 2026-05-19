@@ -156,7 +156,7 @@ select.status-pending {
     <input id="staffNameInput" placeholder="직원명 예: 인현태" value="인현태">
     <input id="staffPinInput" placeholder="PIN 예: 1111" value="1111">
     <button class="pin-save" type="button" id="saveStaffPinBtn">직원 추가/수정</button>
-    <button class="pin-seed" type="button" id="seedStaffPinBtn">인현태 1111 등록</button><button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" onclick="var box=document.getElementById('staffPinListArea'); if(!box){alert('직원 목록 영역을 찾지 못했습니다.');return false;} if(box.style.display==='none'){box.style.display='block';this.innerText='목록 접기';}else{box.style.display='none';this.innerText='목록 펼치기';} return false;">목록 접기</button>
+    <button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" onclick="var box=document.getElementById('staffPinListArea'); if(!box){alert('직원 목록 영역을 찾지 못했습니다.');return false;} if(box.style.display==='none'){box.style.display='block';this.innerText='목록 접기';}else{box.style.display='none';this.innerText='목록 펼치기';} return false;">목록 접기</button>
   </div>
   <div class="small" id="staffPinStatus">직원 PIN 목록을 불러오는 중...</div>
   <div id="staffPinListArea" style="overflow:auto">
@@ -498,9 +498,6 @@ setTimeout(function(){
   document.addEventListener('click', function(e){
     if(e.target && e.target.id === 'saveStaffPinBtn'){
       window.saveStaffPin();
-    }
-    if(e.target && e.target.id === 'seedStaffPinBtn'){
-      window.seedDefaultStaff();
     }
     if(e.target && e.target.id === 'refreshStaffPinBtn'){
       window.loadStaffPins();
