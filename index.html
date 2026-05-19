@@ -100,6 +100,43 @@ select.status-pending {
   border:0 !important;
 }
 
+
+.pagination-bar{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin:16px 0 4px;
+  flex-wrap:wrap;
+}
+.pagination-bar button{
+  background:#2563eb;
+  color:#fff;
+  padding:10px 16px;
+  border-radius:12px;
+  font-weight:900;
+}
+.pagination-bar button:disabled{
+  background:#cbd5e1;
+  color:#64748b;
+  cursor:not-allowed;
+}
+.pagination-info{
+  font-weight:900;
+  color:#123f7a;
+  padding:8px 12px;
+}
+.page-size-select{
+  width:auto;
+  min-width:90px;
+}
+
+
+/* RAVEBIC_FILE_DELETE_V1 */
+.file-actions{display:flex;gap:6px;flex-wrap:wrap;margin:2px 0 8px}
+.file-delete-btn{background:#ef4444;color:#fff;padding:6px 9px;border-radius:8px;font-size:12px}
+.file-view-btn{display:inline-block;background:#eaf4ff;color:#2563eb;padding:6px 9px;border-radius:8px;font-size:12px;text-decoration:none;font-weight:900}
+.row-delete-btn{background:#b91c1c;color:#fff;padding:8px 10px;border-radius:10px;font-size:12px}
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -114,7 +151,8 @@ select.status-pending {
 <div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
 <div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button></div>
-<div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th></tr></thead><tbody id="tbody"><tr><td colspan="9" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
+<div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th><th>관리</th></tr></thead><tbody id="tbody"><tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
+<div class="pagination-bar"><button id="prevPageBtn" type="button" onclick="prevPage()">이전</button><span id="pageInfo" class="pagination-info">1 / 1 페이지</span><button id="nextPageBtn" type="button" onclick="nextPage()">다음</button><select id="pageSizeSelect" class="page-size-select" onchange="changePageSize(this.value)"><option value="10" selected>10개씩</option><option value="20">20개씩</option><option value="50">50개씩</option></select></div>
 
 
 <div class="section">
@@ -189,11 +227,75 @@ select.status-pending {
 </div>
 <script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script><script>
 const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13",measurementId:"G-EEN6GM72JT"};
-firebase.initializeApp(firebaseConfig);const db=firebase.firestore();
-let allRows=[];let filtered=[];function dtOf(r){return r.submittedAt&&r.submittedAt.toDate?r.submittedAt.toDate():new Date(r.submittedAtText||r.date||0)}
-async function loadData(){document.getElementById('tbody').innerHTML='<tr><td colspan="9" style="text-align:center;padding:35px">불러오는 중...</td></tr>';try{const snap=await db.collection('submissions').get();allRows=[];snap.forEach(d=>allRows.push({id:d.id,...d.data()}));allRows.sort((a,b)=>dtOf(b)-dtOf(a));document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';applyFilters();}catch(e){console.error(e);document.getElementById('conn').textContent='연결 실패';document.getElementById('tbody').innerHTML='<tr><td colspan="9">Firebase 연결 실패: '+e.message+'</td></tr>';}}
-function applyFilters(){const q=document.getElementById('q').value.trim().toLowerCase();const from=document.getElementById('from').value;const to=document.getElementById('to').value;const region=document.getElementById('region').value;const brand=document.getElementById('brand').value;const work=document.getElementById('workType').value;filtered=allRows.filter(r=>{const text=((r.name||'')+' '+(r.store||'')+' '+(r.note||'')).toLowerCase();const d=dtOf(r);if(q&&!text.includes(q))return false;if(from&&d<new Date(from+'T00:00:00'))return false;if(to&&d>new Date(to+'T23:59:59'))return false;if(region&&r.region!==region)return false;if(brand&&r.brand!==brand)return false;if(work&&r.workType!==work)return false;return true;});render();}
-function render(){const todayStr=new Date().toDateString();document.getElementById('total').textContent=filtered.length;document.getElementById('today').textContent=filtered.filter(r=>dtOf(r).toDateString()===todayStr).length;document.getElementById('s0').textContent=filtered.filter(r=>(r.status||'미확인')==='미확인').length;document.getElementById('s1').textContent=filtered.filter(r=>r.status==='확인완료').length;document.getElementById('s2').textContent=filtered.filter(r=>r.status==='보완요청').length;const tb=document.getElementById('tbody');if(!filtered.length){tb.innerHTML='<tr><td colspan="9" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';return;}tb.innerHTML=filtered.map(r=>{const files=(r.files||[]).map((f,i)=>'<a class="filelink" target="_blank" href="'+f.url+'">첨부 '+(i+1)+' 보기</a>').join('<br>')||'<span class="small">없음</span>';return '<tr><td>'+dtOf(r).toLocaleString()+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.store)+'</td><td>'+esc(r.region)+'</td><td>'+esc(r.brand)+'</td><td>'+esc(r.workType)+'</td><td>'+esc(r.note||'')+'</td><td>'+files+'</td><td><select onchange="changeStatus(\''+r.id+'\',this.value)"><option '+sel(r,'미확인')+'>미확인</option><option '+sel(r,'확인완료')+'>확인완료</option><option '+sel(r,'보완요청')+'>보완요청</option></select></td></tr>';}).join('');}
+firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const storage=firebase.storage();
+let allRows=[];let filtered=[];let currentPage=1;let pageSize=10;function dtOf(r){return r.submittedAt&&r.submittedAt.toDate?r.submittedAt.toDate():new Date(r.submittedAtText||r.date||0)}
+async function loadData(){document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr>';try{const snap=await db.collection('submissions').get();allRows=[];snap.forEach(d=>allRows.push({id:d.id,...d.data()}));allRows.sort((a,b)=>dtOf(b)-dtOf(a));document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';applyFilters();}catch(e){console.error(e);document.getElementById('conn').textContent='연결 실패';document.getElementById('tbody').innerHTML='<tr><td colspan="10">Firebase 연결 실패: '+e.message+'</td></tr>';}}
+function applyFilters(){currentPage=1;const q=document.getElementById('q').value.trim().toLowerCase();const from=document.getElementById('from').value;const to=document.getElementById('to').value;const region=document.getElementById('region').value;const brand=document.getElementById('brand').value;const work=document.getElementById('workType').value;filtered=allRows.filter(r=>{const text=((r.name||'')+' '+(r.store||'')+' '+(r.note||'')).toLowerCase();const d=dtOf(r);if(q&&!text.includes(q))return false;if(from&&d<new Date(from+'T00:00:00'))return false;if(to&&d>new Date(to+'T23:59:59'))return false;if(region&&r.region!==region)return false;if(brand&&r.brand!==brand)return false;if(work&&r.workType!==work)return false;return true;});render();}
+
+function safeJsonForAttr(obj){return encodeURIComponent(JSON.stringify(obj||{}));}
+function buildFileActions(r){
+  const arr = r.files || [];
+  if(!arr.length) return '<span class="small">없음</span>';
+  return arr.map(function(f,i){
+    const fileData = safeJsonForAttr(f);
+    const name = esc(f.name || ('첨부 '+(i+1)));
+    const viewUrl = esc(f.url || '#');
+    return '<div class="file-actions">' +
+      '<a class="file-view-btn" target="_blank" href="'+viewUrl+'">첨부 '+(i+1)+' 보기</a>' +
+      '<button class="file-delete-btn" type="button" onclick="deleteAttachedFile(\''+r.id+'\','+i+',\''+fileData+'\')">삭제</button>' +
+      '<span class="small">'+name+'</span>' +
+      '</div>';
+  }).join('');
+}
+async function deleteAttachedFile(submissionId, fileIndex, encodedFile){
+  if(!confirm('이 첨부파일을 삭제할까요?\nFirebase Storage와 관리자 목록에서 제거됩니다.')) return;
+  let fileObj = {};
+  try{ fileObj = JSON.parse(decodeURIComponent(encodedFile)); }catch(e){}
+  try{
+    if(fileObj.url){
+      try{ await storage.refFromURL(fileObj.url).delete(); }
+      catch(storageErr){ console.warn('Storage delete skipped/failed', storageErr); }
+    }
+    const docRef = db.collection('submissions').doc(submissionId);
+    const doc = await docRef.get();
+    if(doc.exists){
+      const data = doc.data() || {};
+      const files = (data.files || []).filter(function(_,idx){ return idx !== fileIndex; });
+      await docRef.update({files:files, fileDeletedAt: firebase.firestore.FieldValue.serverTimestamp()});
+    }
+    await loadData();
+    alert('첨부파일을 삭제했습니다.');
+  }catch(err){
+    alert('첨부파일 삭제 실패: ' + (err.message || err));
+  }
+}
+async function deleteSubmissionRow(submissionId){
+  if(!confirm('이 제출 건 전체를 삭제할까요?\n첨부파일도 함께 삭제됩니다.')) return;
+  try{
+    const docRef = db.collection('submissions').doc(submissionId);
+    const doc = await docRef.get();
+    if(doc.exists){
+      const data = doc.data() || {};
+      const files = data.files || [];
+      for(const f of files){
+        if(f && f.url){
+          try{ await storage.refFromURL(f.url).delete(); }catch(e){ console.warn('Storage delete skipped/failed', e); }
+        }
+      }
+    }
+    await docRef.delete();
+    await loadData();
+    alert('제출 건을 삭제했습니다.');
+  }catch(err){
+    alert('제출 건 삭제 실패: ' + (err.message || err));
+  }
+}
+
+function render(){const todayStr=new Date().toDateString();document.getElementById('total').textContent=filtered.length;document.getElementById('today').textContent=filtered.filter(r=>dtOf(r).toDateString()===todayStr).length;document.getElementById('s0').textContent=filtered.filter(r=>(r.status||'미확인')==='미확인').length;document.getElementById('s1').textContent=filtered.filter(r=>r.status==='확인완료').length;document.getElementById('s2').textContent=filtered.filter(r=>r.status==='보완요청').length;const tb=document.getElementById('tbody');const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));if(currentPage>totalPages)currentPage=totalPages;const start=(currentPage-1)*pageSize;const pageRows=filtered.slice(start,start+pageSize);updatePaginationControls(totalPages);if(!filtered.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';return;}tb.innerHTML=pageRows.map(r=>{const files=buildFileActions(r);return '<tr><td>'+dtOf(r).toLocaleString()+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.store)+'</td><td>'+esc(r.region)+'</td><td>'+esc(r.brand)+'</td><td>'+esc(r.workType)+'</td><td>'+esc(r.note||'')+'</td><td>'+files+'</td><td><select onchange="changeStatus(\''+r.id+'\',this.value)"><option '+sel(r,'미확인')+'>미확인</option><option '+sel(r,'확인완료')+'>확인완료</option><option '+sel(r,'보완요청')+'>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(\''+r.id+'\')">제출삭제</button></td></tr>';}).join('');setTimeout(function(){if(typeof applyRavebicStatusColors==='function')applyRavebicStatusColors();},30);}
+function updatePaginationControls(totalPages){const info=document.getElementById('pageInfo');const prev=document.getElementById('prevPageBtn');const next=document.getElementById('nextPageBtn');if(info)info.textContent=currentPage+' / '+totalPages+' 페이지 · 총 '+filtered.length+'건';if(prev)prev.disabled=currentPage<=1;if(next)next.disabled=currentPage>=totalPages;}
+function prevPage(){if(currentPage>1){currentPage--;render();}}
+function nextPage(){const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));if(currentPage<totalPages){currentPage++;render();}}
+function changePageSize(v){pageSize=parseInt(v,10)||10;currentPage=1;render();}
 function esc(v){return String(v||'').replace(/[&<>'"]/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s]));}function sel(r,v){return (r.status||'미확인')===v?'selected':''}
 async function changeStatus(id,status){await db.collection('submissions').doc(id).update({status:status,statusUpdatedAt:firebase.firestore.FieldValue.serverTimestamp()});const r=allRows.find(x=>x.id===id);if(r)r.status=status;applyFilters();}
 function resetFilters(){['q','from','to','region','brand','workType'].forEach(id=>document.getElementById(id).value='');applyFilters();}
