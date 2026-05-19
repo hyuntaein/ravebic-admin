@@ -61,20 +61,15 @@ select.status-pending {
 @media(max-width:800px){.pin-form{grid-template-columns:1fr}}
 
 
-/* RAVEBIC_STAFF_PIN_COLLAPSE_V1 */
-.pin-table thead tr{
-  cursor:pointer;
+/* RAVEBIC_STAFF_PIN_TOGGLE_BUTTON_V1 */
+.pin-list-hidden{
+  display:none !important;
 }
-.pin-table thead tr:hover{
-  filter:brightness(0.97);
-}
-.pin-table-collapsed tbody{
-  display:none;
-}
-.pin-collapse-hint{
-  margin-left:10px;
-  font-size:12px;
-  color:#2563eb;
+.pin-toggle-btn{
+  background:#64748b;
+  color:white;
+  padding:12px 16px;
+  border-radius:12px;
   font-weight:900;
 }
 
@@ -134,10 +129,10 @@ select.status-pending {
     <input id="staffNameInput" placeholder="직원명 예: 인현태" value="인현태">
     <input id="staffPinInput" placeholder="PIN 예: 1111" value="1111">
     <button class="pin-save" type="button" id="saveStaffPinBtn">직원 추가/수정</button>
-    <button class="pin-seed" type="button" id="seedStaffPinBtn">인현태 1111 등록</button><button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button>
+    <button class="pin-seed" type="button" id="seedStaffPinBtn">인현태 1111 등록</button><button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" id="toggleStaffPinListBtn">목록 접기</button>
   </div>
   <div class="small" id="staffPinStatus">직원 PIN 목록을 불러오는 중...</div>
-  <div style="overflow:auto">
+  <div id="staffPinListBox" style="overflow:auto">
     <table class="pin-table">
       <thead><tr><th>직원명</th><th>PIN</th><th>등록/수정일</th><th>관리</th></tr></thead>
       <tbody id="staffPinTbody"><tr><td colspan="4">불러오는 중...</td></tr></tbody>
