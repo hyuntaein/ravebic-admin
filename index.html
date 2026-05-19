@@ -403,7 +403,50 @@ async function changeStatus(id,status){
 }
 
 function resetFilters(){['q','from','to','region','brand','workType'].forEach(id=>document.getElementById(id).value='');applyFilters();}
-function downloadCSV(){const headers=['제출시간','직원명','점포명','지역','브랜드','업무','특이사항','첨부파일수','상태'];const lines=[headers.join(',')];filtered.forEach(r=>{const vals=[dtOf(r).toLocaleString(),r.name,r.store,r.region,r.brand,r.workType,r.note,(r.files||[]).length,r.status||'미확인'].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"');lines.push(vals.join(','));});const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ravebic_submissions.csv';a.click();URL.revokeObjectURL(a.href);}
+function extractNotePart(note, label){
+  const text = String(note || '');
+  const re = new RegExp(label + '\\s*:\\s*([\\s\\S]*?)(?=\\n[^\\n:]+\\s*:|$)');
+  const m = text.match(re);
+  return m ? m[1].trim() : '';
+}
+function cleanDash(v){
+  v = String(v == null ? '' : v).trim();
+  return v === '-' ? '' : v;
+}
+function downloadCSV(){
+  const headers=['제출시간','브랜드','점포명','팀장','팀원','업무','특이사항','건수','시간'];
+  const lines=[headers.join(',')];
+
+  filtered.forEach(r=>{
+    const rawNote = String(r.note || '');
+    const teamLeader = r.name || '';
+    const teamMembers = cleanDash(r.workerNames || extractNotePart(rawNote, '인원이름'));
+    const workCount = cleanDash(r.workCount || extractNotePart(rawNote, '건수')).replace(/건$/,'');
+    const workDuration = cleanDash(r.workDuration || extractNotePart(rawNote, '걸린시간'));
+    const noteDetail = cleanDash(r.noteDetail || extractNotePart(rawNote, '특이사항기재') || rawNote);
+
+    const vals=[
+      dtOf(r).toLocaleString(),
+      r.brand || '',
+      r.store || '',
+      teamLeader,
+      teamMembers,
+      r.workType || '',
+      noteDetail,
+      workCount,
+      workDuration
+    ].map(v=>'"'+String(v||'').replace(/"/g,'""')+'"');
+
+    lines.push(vals.join(','));
+  });
+
+  const blob=new Blob(['\uFEFF'+lines.join('\n')],{type:'text/csv;charset=utf-8;'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='ravebic_submissions_정리형.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 loadData();
 
 function showAnalyzer(which){document.getElementById('emartTool').classList.toggle('hidden',which!=='emart');document.getElementById('sevenTool').classList.toggle('hidden',which!=='seven');document.getElementById('tabEmart').classList.toggle('active',which==='emart');document.getElementById('tabSeven').classList.toggle('active',which==='seven');}
