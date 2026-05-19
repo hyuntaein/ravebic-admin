@@ -73,6 +73,21 @@ select.status-pending {
   font-weight:900;
 }
 
+
+/* RAVEBIC_STAFF_PIN_INLINE_TOGGLE_V2 */
+.pin-list-hidden{
+  display:none !important;
+}
+.pin-toggle-btn{
+  background:#64748b !important;
+  color:white !important;
+  padding:12px 16px !important;
+  border-radius:12px !important;
+  font-weight:900 !important;
+  cursor:pointer !important;
+  border:0 !important;
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -129,7 +144,7 @@ select.status-pending {
     <input id="staffNameInput" placeholder="직원명 예: 인현태" value="인현태">
     <input id="staffPinInput" placeholder="PIN 예: 1111" value="1111">
     <button class="pin-save" type="button" id="saveStaffPinBtn">직원 추가/수정</button>
-    <button class="pin-seed" type="button" id="seedStaffPinBtn">인현태 1111 등록</button><button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" id="toggleStaffPinListBtn">목록 접기</button>
+    <button class="pin-seed" type="button" id="seedStaffPinBtn">인현태 1111 등록</button><button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" id="toggleStaffPinListBtn" onclick="toggleStaffPinList()">목록 접기</button>
   </div>
   <div class="small" id="staffPinStatus">직원 PIN 목록을 불러오는 중...</div>
   <div id="staffPinListBox" style="overflow:auto">
