@@ -222,27 +222,23 @@ select.status-pending {
 }
 
 
-/* RAVEBIC_STAFF_DASHBOARD_V1 */
-.staff-dashboard{margin:18px 0;padding:16px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}
-.staff-dashboard-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
-.staff-dashboard h2{margin:0;color:#123f7a;font-size:20px}
-.staff-dashboard-summary{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
-.staff-chip{display:inline-block;padding:8px 11px;border-radius:999px;font-size:13px;font-weight:900}
-.staff-chip.total{background:#e0f2fe;color:#075985}
-.staff-chip.ok{background:#dcfce7;color:#166534}
-.staff-chip.miss{background:#fee2e2;color:#991b1b}
-.staff-chip.fix{background:#ffedd5;color:#9a3412}
-.staff-dashboard-table{width:100%;border-collapse:collapse;font-size:13px}
-.staff-dashboard-table th,.staff-dashboard-table td{border-bottom:1px solid #dbeafe;padding:9px;text-align:left}
-.staff-dashboard-table th{background:#eaf4ff;color:#0b3b77}
-.staff-status-ok{background:#ecfdf5}
-.staff-status-miss{background:#fef2f2}
-.staff-status-fix{background:#fff7ed}
-.staff-status-badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:900}
-.staff-status-badge.ok{background:#dcfce7;color:#166534}
-.staff-status-badge.miss{background:#fee2e2;color:#991b1b}
-.staff-status-badge.fix{background:#ffedd5;color:#9a3412}
-.staff-dashboard-toggle{background:#64748b;color:#fff}
+/* RAVEBIC_TEAM_SCHEDULE_ANALYSIS_V1 */
+.team-analysis{margin:18px 0;padding:16px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}
+.team-analysis-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.team-analysis h2{margin:0;color:#123f7a;font-size:20px}
+.team-analysis-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.team-analysis-tab{background:#e5e7eb;color:#111827}
+.team-analysis-tab.active{background:#2563eb;color:#fff}
+.team-analysis-summary{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 12px}
+.team-chip{display:inline-block;padding:8px 11px;border-radius:999px;font-size:13px;font-weight:900}
+.team-chip.total{background:#e0f2fe;color:#075985}.team-chip.ok{background:#dcfce7;color:#166534}.team-chip.miss{background:#fee2e2;color:#991b1b}.team-chip.warn{background:#ffedd5;color:#9a3412}
+.team-analysis-table{width:100%;border-collapse:collapse;font-size:13px}
+.team-analysis-table th,.team-analysis-table td{border-bottom:1px solid #dbeafe;padding:9px;text-align:left;vertical-align:top}
+.team-analysis-table th{background:#eaf4ff;color:#0b3b77}
+.team-row-ok{background:#ecfdf5}.team-row-warn{background:#fff7ed}.team-row-danger{background:#fef2f2}
+.team-status-badge{display:inline-block;padding:5px 8px;border-radius:999px;font-size:12px;font-weight:900}
+.team-status-badge.ok{background:#dcfce7;color:#166534}.team-status-badge.warn{background:#ffedd5;color:#9a3412}.team-status-badge.danger{background:#fee2e2;color:#991b1b}
+.team-store-list{font-size:12px;color:#334155;line-height:1.5}
 
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
@@ -258,35 +254,28 @@ select.status-pending {
 <div class="wrap"><div class="admin-main-title">RAVEBIC 관리자</div><button class="admin-logout-btn" type="button" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
 <div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
 
-<div class="staff-dashboard" id="staffDashboardBox">
-  <div class="staff-dashboard-head">
-    <h2>직원별 제출현황판</h2>
+<div class="team-analysis" id="teamAnalysisBox">
+  <div class="team-analysis-head">
+    <h2>팀장 제출분석표</h2>
     <div>
-      <button class="gray" type="button" onclick="loadStaffDashboard()">현황 새로고침</button>
-      <button class="staff-dashboard-toggle" type="button" onclick="toggleStaffDashboard()">현황 접기</button>
+      <button class="gray" type="button" onclick="loadTeamScheduleAnalysis()">분석 새로고침</button>
+      <button class="gray" type="button" onclick="toggleTeamScheduleAnalysis()">분석 접기</button>
     </div>
   </div>
-  <div id="staffDashboardSummary" class="staff-dashboard-summary">
-    <span class="staff-chip total">직원 0명</span>
-    <span class="staff-chip ok">오늘 제출 0명</span>
-    <span class="staff-chip miss">미제출 0명</span>
-    <span class="staff-chip fix">보완요청 0명</span>
+  <div class="notice">구글 일정표에서 분석된 팀장별 예정 점포와 실제 제출자료를 비교합니다. 오후 7시 이후 미제출이 있으면 빨간색으로 표시됩니다.</div>
+  <div class="team-analysis-tabs">
+    <button id="teamTodayTab" class="team-analysis-tab active" type="button" onclick="showTeamAnalysisMode('today')">오늘 분석표</button>
+    <button id="teamWeekTab" class="team-analysis-tab" type="button" onclick="showTeamAnalysisMode('week')">이번 주 분석표</button>
   </div>
-  <div id="staffDashboardBody" style="overflow:auto;">
-    <table class="staff-dashboard-table">
-      <thead>
-        <tr>
-          <th>직원명</th>
-          <th>오늘 제출</th>
-          <th>마지막 제출</th>
-          <th>보완요청</th>
-          <th>확인완료</th>
-          <th>상태</th>
-        </tr>
-      </thead>
-      <tbody id="staffDashboardTbody">
-        <tr><td colspan="6">직원 현황을 불러오는 중...</td></tr>
-      </tbody>
+  <div id="teamAnalysisSummary" class="team-analysis-summary">
+    <span class="team-chip total">예정 0건</span>
+    <span class="team-chip ok">제출 0건</span>
+    <span class="team-chip miss">미제출 0건</span>
+  </div>
+  <div id="teamAnalysisBody" style="overflow:auto;">
+    <table class="team-analysis-table">
+      <thead id="teamAnalysisThead"></thead>
+      <tbody id="teamAnalysisTbody"><tr><td>팀장 제출분석을 불러오는 중...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -599,7 +588,7 @@ function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!seven
 function removeSevenItem(id){sevenResults=sevenResults.filter(r=>r.id!=id);renderSeven();}
 function handleSevenFile(file){const reader=new FileReader();reader.onload=function(e){let res=analyzeSeven(file,e.target.result);sevenResults.push(res);renderSeven();};reader.readAsText(file);}
 document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
-const GOOGLE_SCHEDULE_API_URL = "https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec";
+const GOOGLE_SCHEDULE_API_URL = "const GOOGLE_SCHEDULE_API_URL = "https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec";";
 
 let latestGoogleScheduleSheetName = '주황색 탭';
 let latestGoogleScheduleRange = 'E1:K79';
@@ -983,165 +972,182 @@ async function sendAdminDirectMessageForce(){
 }
 
 
-// RAVEBIC_STAFF_DASHBOARD_V1
-let ravebicStaffDashboardCollapsed = false;
+// RAVEBIC_TEAM_SCHEDULE_ANALYSIS_V1
+let teamScheduleRows = [];
+let teamAnalysisMode = 'today';
+let teamAnalysisCollapsed = false;
 
-function sameDayForDashboard(d1, d2){
-  return d1 && d2 &&
-    d1.getFullYear() === d2.getFullYear() &&
-    d1.getMonth() === d2.getMonth() &&
-    d1.getDate() === d2.getDate();
+function toYmdForTeam(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return y + '-' + m + '-' + day;
 }
-
-function formatDashboardDate(d){
-  if(!d || isNaN(d.getTime())) return '-';
-  return d.toLocaleString();
+function startOfWeekForTeam(d){
+  const x = new Date(d);
+  const day = x.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  x.setDate(x.getDate() + diff);
+  x.setHours(0,0,0,0);
+  return x;
 }
-
-async function getRegisteredStaffNamesForDashboard(){
-  const names = new Set();
-
+function addDaysForTeam(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
+function isAfterSevenPmForTeam(){ return new Date().getHours() >= 19; }
+async function loadTeamScheduleRows(){
   try{
-    const snap = await db.collection('staffPins').get();
-    snap.forEach(function(doc){
-      const d = doc.data() || {};
-      if(d.name) names.add(String(d.name).trim());
-      else if(doc.id) names.add(String(doc.id).trim());
-    });
+    const snap = await db.collection('teamSchedules').get();
+    const rows = [];
+    snap.forEach(function(doc){ const d = doc.data() || {}; rows.push({id:doc.id, ...d}); });
+    teamScheduleRows = rows.filter(function(r){ return r.active !== false; });
   }catch(e){
-    console.warn('staffPins load failed', e);
+    console.error('teamSchedules load failed', e);
+    teamScheduleRows = [];
   }
-
-  (allRows || []).forEach(function(r){
-    if(r.name) names.add(String(r.name).trim());
+}
+function brandShortForTeam(brand){
+  if(brand === '세븐일레븐') return '세븐';
+  if(brand === '이마트24') return '이마트24';
+  return brand || '기타';
+}
+function countActualSubmissionsForTeam(leader, dateStr, brand){
+  return (allRows || []).filter(function(r){
+    const d = dtOf(r);
+    const sameDate = toYmdForTeam(d) === dateStr;
+    const sameLeader = String(r.name || '').trim() === leader;
+    const sameBrand = !brand || String(r.brand || '').trim() === brand;
+    return sameDate && sameLeader && sameBrand;
+  }).length;
+}
+function buildTeamDayData(dateStr){
+  const schedules = teamScheduleRows.filter(function(r){ return String(r.scheduleDate || '') === dateStr; });
+  const map = {};
+  schedules.forEach(function(r){
+    const leader = String(r.leader || '').trim();
+    if(!leader) return;
+    if(!map[leader]){
+      map[leader] = {leader:leader, planned:0, submitted:0, missing:0, seven:0, emart:0, etc:0, stores:[]};
+    }
+    map[leader].planned++;
+    if(r.brand === '세븐일레븐') map[leader].seven++;
+    else if(r.brand === '이마트24') map[leader].emart++;
+    else map[leader].etc++;
+    map[leader].stores.push({brand:r.brand || '', store:r.store || ''});
   });
-
-  return Array.from(names).filter(Boolean).sort(function(a,b){
-    return a.localeCompare(b, 'ko');
+  Object.keys(map).forEach(function(leader){
+    const row = map[leader];
+    row.submitted = countActualSubmissionsForTeam(leader, dateStr, '');
+    row.missing = Math.max(0, row.planned - row.submitted);
+  });
+  return Object.values(map).sort(function(a,b){
+    if(a.missing !== b.missing) return b.missing - a.missing;
+    return a.leader.localeCompare(b.leader, 'ko');
   });
 }
-
-async function loadStaffDashboard(){
-  const tbody = document.getElementById('staffDashboardTbody');
-  const summary = document.getElementById('staffDashboardSummary');
-  if(!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="6">직원 현황을 불러오는 중...</td></tr>';
-
-  const today = new Date();
-  const staffNames = await getRegisteredStaffNamesForDashboard();
-
-  const rows = staffNames.map(function(name){
-    const submissions = (allRows || []).filter(function(r){
-      return String(r.name || '').trim() === name;
-    });
-
-    const todayRows = submissions.filter(function(r){
-      return sameDayForDashboard(dtOf(r), today);
-    });
-
-    const correctionRows = submissions.filter(function(r){
-      return (r.status || '미확인') === '보완요청';
-    });
-
-    const doneRows = submissions.filter(function(r){
-      return r.status === '확인완료';
-    });
-
-    const lastDate = submissions.length
-      ? submissions.map(dtOf).sort(function(a,b){ return b-a; })[0]
-      : null;
-
-    let status = '미제출';
-    let statusClass = 'miss';
-
-    if(todayRows.length > 0 && correctionRows.length > 0){
-      status = '보완요청';
-      statusClass = 'fix';
-    }else if(todayRows.length > 0){
-      status = '정상';
-      statusClass = 'ok';
-    }else if(correctionRows.length > 0){
-      status = '보완요청';
-      statusClass = 'fix';
-    }
-
-    return {
-      name:name,
-      todayCount:todayRows.length,
-      lastDate:lastDate,
-      correctionCount:correctionRows.length,
-      doneCount:doneRows.length,
-      status:status,
-      statusClass:statusClass
-    };
-  });
-
-  rows.sort(function(a,b){
-    const order = {miss:0, fix:1, ok:2};
-    if(order[a.statusClass] !== order[b.statusClass]){
-      return order[a.statusClass] - order[b.statusClass];
-    }
-    return a.name.localeCompare(b.name, 'ko');
-  });
-
-  if(rows.length === 0){
-    tbody.innerHTML = '<tr><td colspan="6">등록된 직원이 없습니다. 직원 PIN 관리에서 직원을 등록하세요.</td></tr>';
-    if(summary){
-      summary.innerHTML =
-        '<span class="staff-chip total">직원 0명</span>' +
-        '<span class="staff-chip ok">오늘 제출 0명</span>' +
-        '<span class="staff-chip miss">미제출 0명</span>' +
-        '<span class="staff-chip fix">보완요청 0명</span>';
-    }
-    return;
-  }
-
-  const okCount = rows.filter(function(r){return r.todayCount>0;}).length;
-  const missCount = rows.filter(function(r){return r.todayCount===0;}).length;
-  const fixCount = rows.filter(function(r){return r.correctionCount>0;}).length;
-
+async function loadTeamScheduleAnalysis(){
+  const tbody = document.getElementById('teamAnalysisTbody');
+  if(tbody) tbody.innerHTML = '<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
+  await loadTeamScheduleRows();
+  if(teamAnalysisMode === 'week') renderTeamWeekAnalysis();
+  else renderTeamTodayAnalysis();
+}
+function renderTeamTodayAnalysis(){
+  const thead = document.getElementById('teamAnalysisThead');
+  const tbody = document.getElementById('teamAnalysisTbody');
+  const summary = document.getElementById('teamAnalysisSummary');
+  const todayStr = toYmdForTeam(new Date());
+  if(!thead || !tbody) return;
+  thead.innerHTML = '<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
+  const rows = buildTeamDayData(todayStr);
+  const totalPlanned = rows.reduce((s,r)=>s+r.planned,0);
+  const totalSubmitted = rows.reduce((s,r)=>s+r.submitted,0);
+  const totalMissing = rows.reduce((s,r)=>s+r.missing,0);
   if(summary){
     summary.innerHTML =
-      '<span class="staff-chip total">직원 '+rows.length+'명</span>' +
-      '<span class="staff-chip ok">오늘 제출 '+okCount+'명</span>' +
-      '<span class="staff-chip miss">미제출 '+missCount+'명</span>' +
-      '<span class="staff-chip fix">보완요청 '+fixCount+'명</span>';
+      '<span class="team-chip total">예정 '+totalPlanned+'건</span>' +
+      '<span class="team-chip ok">제출 '+totalSubmitted+'건</span>' +
+      '<span class="team-chip miss">미제출 '+totalMissing+'건</span>' +
+      '<span class="team-chip warn">기준일 '+todayStr+'</span>';
   }
-
+  if(rows.length === 0){
+    tbody.innerHTML = '<tr><td colspan="7">오늘 분석된 팀장 일정이 없습니다. 먼저 Apps Script 일정표를 한 번 열어 분석 저장하세요.</td></tr>';
+    return;
+  }
+  const after7 = isAfterSevenPmForTeam();
   tbody.innerHTML = rows.map(function(r){
-    return '<tr class="staff-status-'+r.statusClass+'">' +
-      '<td><b>'+esc(r.name)+'</b></td>' +
-      '<td>'+r.todayCount+'건</td>' +
-      '<td>'+formatDashboardDate(r.lastDate)+'</td>' +
-      '<td>'+r.correctionCount+'건</td>' +
-      '<td>'+r.doneCount+'건</td>' +
-      '<td><span class="staff-status-badge '+r.statusClass+'">'+r.status+'</span></td>' +
-      '</tr>';
+    let status = '정상', cls = 'ok', trCls = 'team-row-ok';
+    if(r.missing > 0 && after7){ status = '미제출'; cls = 'danger'; trCls = 'team-row-danger'; }
+    else if(r.missing > 0){ status = '진행중'; cls = 'warn'; trCls = 'team-row-warn'; }
+    const storeHtml = r.stores.map(function(s){ return '· ' + esc(brandShortForTeam(s.brand)) + ' / ' + esc(s.store); }).join('<br>');
+    return '<tr class="'+trCls+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+storeHtml+'</div></td><td><span class="team-status-badge '+cls+'">'+status+'</span></td></tr>';
   }).join('');
 }
-
-function toggleStaffDashboard(){
-  const body = document.getElementById('staffDashboardBody');
-  const btns = Array.from(document.querySelectorAll('.staff-dashboard-toggle'));
-  if(!body) return;
-
-  ravebicStaffDashboardCollapsed = !ravebicStaffDashboardCollapsed;
-  body.style.display = ravebicStaffDashboardCollapsed ? 'none' : 'block';
-  btns.forEach(function(btn){
-    btn.textContent = ravebicStaffDashboardCollapsed ? '현황 펼치기' : '현황 접기';
+function renderTeamWeekAnalysis(){
+  const thead = document.getElementById('teamAnalysisThead');
+  const tbody = document.getElementById('teamAnalysisTbody');
+  const summary = document.getElementById('teamAnalysisSummary');
+  if(!thead || !tbody) return;
+  const start = startOfWeekForTeam(new Date());
+  const days = [];
+  for(let i=0;i<7;i++){ const d = addDaysForTeam(start, i); days.push({date:d, ymd:toYmdForTeam(d)}); }
+  thead.innerHTML = '<tr><th>팀장</th>' + days.map(function(d){ return '<th>'+d.ymd.slice(5)+'</th>'; }).join('') + '<th>총 예정</th><th>총 제출</th><th>총 미제출</th><th>상태</th></tr>';
+  const leaders = new Set();
+  days.forEach(function(day){
+    teamScheduleRows.filter(r=>String(r.scheduleDate||'')===day.ymd).forEach(function(r){ if(r.leader) leaders.add(String(r.leader).trim()); });
   });
+  const rows = Array.from(leaders).map(function(leader){
+    let totalPlan = 0, totalSubmit = 0;
+    const dayCells = days.map(function(day){
+      const planned = teamScheduleRows.filter(function(r){ return String(r.scheduleDate||'')===day.ymd && String(r.leader||'').trim()===leader; }).length;
+      const submitted = countActualSubmissionsForTeam(leader, day.ymd, '');
+      totalPlan += planned; totalSubmit += submitted;
+      return {planned, submitted, missing:Math.max(0, planned-submitted)};
+    });
+    return {leader, dayCells, totalPlan, totalSubmit, totalMissing:Math.max(0,totalPlan-totalSubmit)};
+  }).sort(function(a,b){
+    if(a.totalMissing !== b.totalMissing) return b.totalMissing - a.totalMissing;
+    return a.leader.localeCompare(b.leader, 'ko');
+  });
+  const totalPlanned = rows.reduce((s,r)=>s+r.totalPlan,0);
+  const totalSubmitted = rows.reduce((s,r)=>s+r.totalSubmit,0);
+  const totalMissing = rows.reduce((s,r)=>s+r.totalMissing,0);
+  if(summary){
+    summary.innerHTML =
+      '<span class="team-chip total">주간 예정 '+totalPlanned+'건</span>' +
+      '<span class="team-chip ok">주간 제출 '+totalSubmitted+'건</span>' +
+      '<span class="team-chip miss">주간 미제출 '+totalMissing+'건</span>' +
+      '<span class="team-chip warn">기간 '+days[0].ymd+' ~ '+days[6].ymd+'</span>';
+  }
+  if(rows.length === 0){ tbody.innerHTML = '<tr><td colspan="11">이번 주 분석된 팀장 일정이 없습니다.</td></tr>'; return; }
+  tbody.innerHTML = rows.map(function(r){
+    const cls = r.totalMissing > 0 ? 'danger' : 'ok';
+    const trCls = r.totalMissing > 0 ? 'team-row-danger' : 'team-row-ok';
+    return '<tr class="'+trCls+'"><td><b>'+esc(r.leader)+'</b></td>' +
+      r.dayCells.map(function(c){ return '<td>'+c.submitted+' / '+c.planned+'</td>'; }).join('') +
+      '<td>'+r.totalPlan+'</td><td>'+r.totalSubmit+'</td><td>'+r.totalMissing+'</td><td><span class="team-status-badge '+cls+'">'+(r.totalMissing>0?'미제출 있음':'완료')+'</span></td></tr>';
+  }).join('');
 }
-
-if(typeof render === 'function' && !window.ravebicOriginalRenderForStaffDashboard){
-  window.ravebicOriginalRenderForStaffDashboard = render;
+function showTeamAnalysisMode(mode){
+  teamAnalysisMode = mode;
+  const todayBtn = document.getElementById('teamTodayTab');
+  const weekBtn = document.getElementById('teamWeekTab');
+  if(todayBtn) todayBtn.classList.toggle('active', mode === 'today');
+  if(weekBtn) weekBtn.classList.toggle('active', mode === 'week');
+  loadTeamScheduleAnalysis();
+}
+function toggleTeamScheduleAnalysis(){
+  const body = document.getElementById('teamAnalysisBody');
+  if(!body) return;
+  teamAnalysisCollapsed = !teamAnalysisCollapsed;
+  body.style.display = teamAnalysisCollapsed ? 'none' : 'block';
+}
+if(typeof render === 'function' && !window.ravebicOriginalRenderForTeamAnalysis){
+  window.ravebicOriginalRenderForTeamAnalysis = render;
   render = function(){
-    window.ravebicOriginalRenderForStaffDashboard();
-    setTimeout(loadStaffDashboard, 200);
+    window.ravebicOriginalRenderForTeamAnalysis();
+    setTimeout(loadTeamScheduleAnalysis, 300);
   };
 }
-
-setTimeout(loadStaffDashboard, 1200);
+setTimeout(loadTeamScheduleAnalysis, 1500);
 
 </script>
 
