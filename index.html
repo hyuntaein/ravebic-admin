@@ -100,20 +100,72 @@ select.status-pending {
   border:0 !important;
 }
 
+
+/* RAVEBIC_DIRECT_MESSAGE_V1 */
+#directMessageModal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  z-index:999998;
+  align-items:center;
+  justify-content:center;
+  padding:20px;
+}
+.message-card{
+  width:100%;
+  max-width:520px;
+  background:#fff;
+  border-radius:22px;
+  padding:24px;
+  box-shadow:0 18px 50px rgba(0,0,0,.3);
+}
+.message-card h2{
+  margin:0 0 12px;
+  color:#123f7a;
+}
+.message-card label{
+  display:block;
+  margin-top:12px;
+  font-weight:900;
+  color:#10213f;
+}
+.message-card input,
+.message-card textarea{
+  width:100%;
+  padding:12px;
+  border:1px solid #cbd5e1;
+  border-radius:12px;
+  font-size:15px;
+  margin-top:6px;
+}
+.message-card textarea{
+  min-height:130px;
+  resize:vertical;
+}
+.message-actions{
+  display:flex;
+  gap:10px;
+  margin-top:16px;
+}
+.message-actions button{
+  flex:1;
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
     <h2>RAVEBIC 관리자</h2>
     <p>관리자 비밀번호를 입력하세요.</p>
     <input id="adminPasswordInput" type="password" placeholder="관리자 비밀번호" autocomplete="off">
-    <button id="adminLoginBtn" type="button">관리자 로그인</button>
+    <label style="display:flex;align-items:center;gap:8px;margin:4px 0 14px;color:#111;font-size:16px;text-align:left;"><input id="rememberAdminPassword" type="checkbox" style="width:auto;margin:0;">비밀번호 기억하기</label><button id="adminLoginBtn" type="button">관리자 로그인</button>
     <div id="adminLockError">비밀번호가 맞지 않습니다.</div>
   </div>
 </div>
 <div class="wrap"><h1>RAVEBIC 관리자 테스트 V3 - 상태색상 - 일정표 직접열기</h1><button class="admin-logout-btn" type="button" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
 <div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
-<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button id="massMessageBtn" type="button" style="background:#ef4444;color:#fff;border:none;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer;margin-left:8px;">메세지보내기</button></div>
+<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button id="directMessageBtn" type="button" class="red" style="background:#ef4444;color:#fff;margin-left:8px;">메세지보내기</button></div>
 <div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th></tr></thead><tbody id="tbody"><tr><td colspan="9" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
 
 
@@ -519,61 +571,22 @@ setTimeout(function(){
 </script>
 
 
-<script>
-// RAVEBIC_MASS_MESSAGE_BUTTON_V2
-(function(){
-  function setupMassMessageButton(){
-    var btn = document.getElementById('massMessageBtn');
-    if(!btn) return;
-    if(btn.dataset.ready === 'Y') return;
+<div id="directMessageModal">
+  <div class="message-card">
+    <h2>직원 메세지 보내기</h2>
+    <div class="small">직원명을 직접 입력하고 메세지를 작성하세요.</div>
 
-    btn.dataset.ready = 'Y';
+    <label>직원명</label>
+    <input id="messageTargetName" placeholder="예: 인현태">
 
-    btn.onclick = function(){
-      var rows = Array.prototype.slice.call(document.querySelectorAll('#tbody tr'));
-      var targets = [];
+    <label>메세지 내용</label>
+    <textarea id="messageText">서류 제출 또는 보완이 필요합니다. 확인 후 처리 부탁드립니다.</textarea>
 
-      rows.forEach(function(row){
-        var select = row.querySelector('select');
-        if(!select) return;
-
-        var status = (select.value || '').trim();
-
-        // 보완요청 또는 미확인 대상자만 수집
-        if(status === '보완요청' || status === '보안요청' || status === '미확인'){
-          var tds = row.querySelectorAll('td');
-
-          if(tds.length >= 3){
-            var name = (tds[1].innerText || '').trim();
-            var store = (tds[2].innerText || '').trim();
-
-            if(name || store){
-              targets.push(name + ' / ' + store + ' / ' + status);
-            }
-          }
-        }
-      });
-
-      if(targets.length === 0){
-        alert('현재 서류 독촉 대상자가 없습니다.');
-        return;
-      }
-
-      var msg =
-        '[RAVEBIC 서류 제출 요청]\n\n' +
-        '아직 서류 확인이 완료되지 않았습니다.\n' +
-        '확인 후 서류 업로드 또는 수정 제출 부탁드립니다.\n\n' +
-        '대상자:\n- ' +
-        targets.join('\n- ');
-
-      alert(msg);
-    };
-  }
-
-  document.addEventListener('DOMContentLoaded', setupMassMessageButton);
-  setTimeout(setupMassMessageButton, 500);
-  setTimeout(setupMassMessageButton, 1500);
-})();
-</script>
+    <div class="message-actions">
+      <button class="gray" type="button" onclick="closeDirectMessageModal()">닫기</button>
+      <button class="red" type="button" onclick="sendDirectMessage()">메세지 저장/보내기</button>
+    </div>
+  </div>
+</div>
 
 </body></html>
