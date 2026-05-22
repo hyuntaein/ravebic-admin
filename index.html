@@ -995,10 +995,41 @@ function addDaysForTeam(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); 
 function isAfterSevenPmForTeam(){ return new Date().getHours() >= 19; }
 async function loadTeamScheduleRows(){
   try{
+    let latestRunId = '';
+    let latestInfo = null;
+
+    try{
+      const latestDoc = await db.collection('settings').doc('teamScheduleLatestRun').get();
+      if(latestDoc.exists){
+        latestInfo = latestDoc.data() || {};
+        latestRunId = latestInfo.runId || '';
+      }
+    }catch(e){
+      console.warn('teamScheduleLatestRun load failed', e);
+    }
+
     const snap = await db.collection('teamSchedules').get();
     const rows = [];
-    snap.forEach(function(doc){ const d = doc.data() || {}; rows.push({id:doc.id, ...d}); });
-    teamScheduleRows = rows.filter(function(r){ return r.active !== false; });
+
+    snap.forEach(function(doc){
+      const d = doc.data() || {};
+      rows.push({id:doc.id, ...d});
+    });
+
+    let activeRows = rows.filter(function(r){ return r.active !== false; });
+
+    if(latestRunId){
+      activeRows = activeRows.filter(function(r){ return String(r.runId || '') === String(latestRunId); });
+    }
+
+    teamScheduleRows = activeRows;
+
+    const summary = document.getElementById('teamAnalysisSummary');
+    if(summary && latestInfo && latestInfo.savedAtText){
+      // 기존 summary는 render에서 다시 덮이므로 상태 확인용으로만 보조 사용
+      console.log('최근 팀장 일정 분석:', latestRunId, latestInfo.savedAtText, activeRows.length);
+    }
+
   }catch(e){
     console.error('teamSchedules load failed', e);
     teamScheduleRows = [];
