@@ -1153,208 +1153,19 @@ setTimeout(loadTeamScheduleAnalysis, 1500);
 
 
 <script>
-// RAVEBIC_TEAM_SCHEDULE_ANALYSIS_V4_PATCH
+// RAVEBIC_TEAM_SCHEDULE_ANALYSIS_V6_PATCH
 (function(){
-  function cleanStoreDisplayNameV4(store){
-    let s = String(store || '').trim();
-    // 앞 숫자와 '노' 제거: "2248 먼산빌리지점", "2200 노 마포역남점" -> 점포명만
-    s = s.replace(/^\s*\d{2,5}\s*(?:노\s*)?/i, '');
-    s = s.replace(/^\s*노\s+/i, '');
-    return s.trim();
-  }
-
-  function isBadStoreV4(store){
-    const s = String(store || '').replace(/\s+/g,'');
-    if(!s) return true;
-    if(/경영주.*요청|요청.*취소|취소/.test(s)) return true;
-    if(/\d{1,2}\/\d{1,2}/.test(s) && /요청|취소|변경|타입/.test(s)) return true;
-    if(/팀장휴무|타입변경|휴무|교육|차량|수정/.test(s)) return true;
-    return false;
-  }
-
-  const oldBuildTeamDayDataV4 = window.buildTeamDayData;
-  window.buildTeamDayData = function(dateStr){
-    const schedules = (teamScheduleRows || []).filter(function(r){
-      return String(r.scheduleDate || '') === dateStr &&
-             !isBadStoreV4(r.store);
-    });
-
-    const map = {};
-
-    schedules.forEach(function(r){
-      const leader = String(r.leader || '').trim();
-      if(!leader) return;
-
-      if(!map[leader]){
-        map[leader] = {
-          leader: leader,
-          planned: 0,
-          submitted: 0,
-          missing: 0,
-          seven: 0,
-          emart: 0,
-          etc: 0,
-          stores: [],
-          orderIndex: Number(r.orderIndex || 999999)
-        };
-      }
-
-      map[leader].planned++;
-      map[leader].orderIndex = Math.min(map[leader].orderIndex, Number(r.orderIndex || 999999));
-
-      if(r.brand === '세븐일레븐') map[leader].seven++;
-      else if(r.brand === '이마트24') map[leader].emart++;
-      else map[leader].etc++;
-
-      map[leader].stores.push({
-        brand:r.brand || '',
-        store:cleanStoreDisplayNameV4(r.store || ''),
-        orderIndex:Number(r.orderIndex || 999999)
-      });
-    });
-
-    Object.keys(map).forEach(function(leader){
-      const row = map[leader];
-      row.submitted = countActualSubmissionsForTeam(leader, dateStr, '');
-      row.missing = Math.max(0, row.planned - row.submitted);
-      row.stores.sort(function(a,b){ return a.orderIndex - b.orderIndex; });
-    });
-
-    // 구글 일정표에 나온 순서대로 정렬
-    return Object.values(map).sort(function(a,b){
-      if(a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
-      return a.leader.localeCompare(b.leader, 'ko');
-    });
-  };
-
-  // 주간/월간도 구글 순서대로 표시되도록 renderTeamRangeAnalysis 덮어쓰기
-  window.renderTeamRangeAnalysis = function(mode){
-    const thead = document.getElementById('teamAnalysisThead');
-    const tbody = document.getElementById('teamAnalysisTbody');
-    const summary = document.getElementById('teamAnalysisSummary');
-    if(!thead || !tbody) return;
-
-    const base = new Date();
-    let start, end, label;
-
-    if(mode === 'month'){
-      start = startOfMonthForTeam(base);
-      end = endOfMonthForTeam(base);
-      label = '월간';
-    }else{
-      start = startOfWeekForTeam(base);
-      end = addDaysForTeam(start, 6);
-      label = '주간';
-    }
-
-    const days = [];
-    let cur = new Date(start);
-    while(cur <= end){
-      days.push({date:new Date(cur), ymd:toYmdForTeam(cur)});
-      cur.setDate(cur.getDate()+1);
-    }
-
-    thead.innerHTML =
-      '<tr><th>팀장</th>' +
-      days.map(function(d){ return '<th>'+d.ymd.slice(5)+'</th>'; }).join('') +
-      '<th>총 예정</th><th>총 제출</th><th>총 미제출</th><th>상태</th></tr>';
-
-    const leaderMap = {};
-    days.forEach(function(day){
-      (teamScheduleRows || []).filter(function(r){
-        return String(r.scheduleDate || '') === day.ymd && !isBadStoreV4(r.store);
-      }).forEach(function(r){
-        const leader = String(r.leader || '').trim();
-        if(!leader) return;
-        if(!leaderMap[leader]){
-          leaderMap[leader] = {leader:leader, orderIndex:Number(r.orderIndex || 999999)};
-        }else{
-          leaderMap[leader].orderIndex = Math.min(leaderMap[leader].orderIndex, Number(r.orderIndex || 999999));
-        }
-      });
-    });
-
-    const rows = Object.values(leaderMap).map(function(item){
-      const leader = item.leader;
-      let totalPlan = 0;
-      let totalSubmit = 0;
-      const dayCells = days.map(function(day){
-        const planned = (teamScheduleRows || []).filter(function(r){
-          return String(r.scheduleDate || '') === day.ymd &&
-                 String(r.leader || '').trim() === leader &&
-                 !isBadStoreV4(r.store);
-        }).length;
-        const submitted = countActualSubmissionsForTeam(leader, day.ymd, '');
-        totalPlan += planned;
-        totalSubmit += submitted;
-        return {planned:planned, submitted:submitted, missing:Math.max(0, planned-submitted)};
-      });
-      return {
-        leader:leader,
-        orderIndex:item.orderIndex,
-        dayCells:dayCells,
-        totalPlan:totalPlan,
-        totalSubmit:totalSubmit,
-        totalMissing:Math.max(0,totalPlan-totalSubmit)
-      };
-    }).sort(function(a,b){
-      if(a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
-      return a.leader.localeCompare(b.leader, 'ko');
-    });
-
-    const totalPlanned = rows.reduce(function(s,r){return s+r.totalPlan;},0);
-    const totalSubmitted = rows.reduce(function(s,r){return s+r.totalSubmit;},0);
-    const totalMissing = rows.reduce(function(s,r){return s+r.totalMissing;},0);
-
-    if(summary){
-      summary.innerHTML =
-        '<span class="team-chip total">'+label+' 예정 '+totalPlanned+'건</span>' +
-        '<span class="team-chip ok">'+label+' 제출 '+totalSubmitted+'건</span>' +
-        '<span class="team-chip miss">'+label+' 미제출 '+totalMissing+'건</span>' +
-        '<span class="team-chip warn">기간 '+days[0].ymd+' ~ '+days[days.length-1].ymd+'</span>';
-    }
-
-    if(rows.length === 0){
-      tbody.innerHTML = '<tr><td colspan="'+(days.length+5)+'">'+label+' 분석된 팀장 일정이 없습니다.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = rows.map(function(r){
-      const cls = r.totalMissing > 0 ? 'danger' : 'ok';
-      const trCls = r.totalMissing > 0 ? 'team-row-danger' : 'team-row-ok';
-      return '<tr class="'+trCls+'">' +
-        '<td><b>'+esc(r.leader)+'</b></td>' +
-        r.dayCells.map(function(c){ return '<td>'+c.submitted+' / '+c.planned+'</td>'; }).join('') +
-        '<td>'+r.totalPlan+'</td>' +
-        '<td>'+r.totalSubmit+'</td>' +
-        '<td>'+r.totalMissing+'</td>' +
-        '<td><span class="team-status-badge '+cls+'">'+(r.totalMissing>0?'미제출 있음':'완료')+'</span></td>' +
-        '</tr>';
-    }).join('');
-  };
-})();
-</script>
-
-
-<script>
-// RAVEBIC_TEAM_SCHEDULE_ANALYSIS_V5_PATCH
-(function(){
-  function cleanStoreDisplayNameV5(store){
+  function cleanStoreV6(store){
     let s = String(store || '').trim();
     s = s.replace(/^\s*\d{2,5}\s*(?:노\s*)?/i, '');
     s = s.replace(/^\s*노\s+/i, '');
     s = s.replace(/\s+/g, ' ').trim();
     return s;
   }
-
-  function normalizedStoreKeyV5(store){
-    return cleanStoreDisplayNameV5(store)
-      .replace(/\s+/g,'')
-      .replace(/[·ㆍ\.\-_/]/g,'')
-      .trim();
+  function storeKeyV6(store){
+    return cleanStoreV6(store).replace(/\s+/g,'').replace(/[·ㆍ\.\-_/]/g,'').trim();
   }
-
-  function isBadStoreV5(store){
+  function isBadStoreV6(store){
     const s = String(store || '').replace(/\s+/g,'');
     if(!s) return true;
     if(/경영주.*요청|요청.*취소|취소/.test(s)) return true;
@@ -1362,62 +1173,47 @@ setTimeout(loadTeamScheduleAnalysis, 1500);
     if(/팀장휴무|타입변경|휴무|교육|차량|수정|마감|담당휴무/.test(s)) return true;
     return false;
   }
+  function leaderOrderV6(r){
+    const n = Number(r.leaderOrderIndex);
+    if(!isNaN(n) && n > 0) return n;
+    return Number(r.orderIndex || 999999);
+  }
 
   window.loadTeamScheduleRows = async function(){
     try{
       let latestRunId = '';
       try{
         const latestDoc = await db.collection('settings').doc('teamScheduleLatestRun').get();
-        if(latestDoc.exists){
-          const latestInfo = latestDoc.data() || {};
-          latestRunId = latestInfo.runId || '';
-        }
-      }catch(e){
-        console.warn('teamScheduleLatestRun load failed', e);
-      }
+        if(latestDoc.exists) latestRunId = (latestDoc.data() || {}).runId || '';
+      }catch(e){ console.warn('teamScheduleLatestRun load failed', e); }
 
       const snap = await db.collection('teamSchedules').get();
-      const rows = [];
-      snap.forEach(function(doc){
-        const d = doc.data() || {};
-        rows.push({id:doc.id, ...d});
-      });
+      let rows = [];
+      snap.forEach(function(doc){ rows.push({id:doc.id, ...(doc.data() || {})}); });
 
-      let activeRows = rows.filter(function(r){
-        return r.active !== false && r.leader && r.scheduleDate && !isBadStoreV5(r.store);
+      rows = rows.filter(function(r){
+        return r.active !== false && r.leader && r.scheduleDate && !isBadStoreV6(r.store);
       });
-
       if(latestRunId){
-        activeRows = activeRows.filter(function(r){
-          return String(r.runId || '') === String(latestRunId);
-        });
+        rows = rows.filter(function(r){ return String(r.runId || '') === String(latestRunId); });
       }
 
-      // 관리자 화면에서도 최종 중복 제거
       const seen = {};
-      activeRows = activeRows.filter(function(r){
-        const key = [
-          r.runId || '',
-          r.scheduleDate || '',
-          r.leader || '',
-          r.brand || '',
-          normalizedStoreKeyV5(r.store || '')
-        ].join('|');
-
+      rows = rows.filter(function(r){
+        const key = [r.runId||'', r.scheduleDate||'', r.leader||'', r.brand||'', storeKeyV6(r.store||'')].join('|');
         if(seen[key]) return false;
         seen[key] = true;
-
-        r.store = cleanStoreDisplayNameV5(r.store || '');
+        r.store = cleanStoreV6(r.store || '');
         return true;
       });
 
-      activeRows.sort(function(a,b){
-        const oa = Number(a.orderIndex || 999999);
-        const ob = Number(b.orderIndex || 999999);
-        return oa - ob;
+      rows.sort(function(a,b){
+        const la = leaderOrderV6(a), lb = leaderOrderV6(b);
+        if(la !== lb) return la - lb;
+        return Number(a.orderIndex || 999999) - Number(b.orderIndex || 999999);
       });
 
-      teamScheduleRows = activeRows;
+      teamScheduleRows = rows;
     }catch(e){
       console.error('teamSchedules load failed', e);
       teamScheduleRows = [];
@@ -1426,48 +1222,32 @@ setTimeout(loadTeamScheduleAnalysis, 1500);
 
   window.buildTeamDayData = function(dateStr){
     const schedules = (teamScheduleRows || []).filter(function(r){
-      return String(r.scheduleDate || '') === dateStr && !isBadStoreV5(r.store);
+      return String(r.scheduleDate || '') === dateStr && !isBadStoreV6(r.store);
     });
-
     const map = {};
-
     schedules.forEach(function(r){
       const leader = String(r.leader || '').trim();
       if(!leader) return;
-
-      const storeKey = normalizedStoreKeyV5(r.store || '');
-      const uniqueKey = leader + '|' + r.brand + '|' + storeKey;
+      const uniqueKey = leader + '|' + (r.brand||'') + '|' + storeKeyV6(r.store||'');
 
       if(!map[leader]){
         map[leader] = {
-          leader: leader,
-          planned: 0,
-          submitted: 0,
-          missing: 0,
-          seven: 0,
-          emart: 0,
-          etc: 0,
-          stores: [],
-          storeSeen: {},
-          orderIndex: Number(r.orderIndex || 999999)
+          leader, planned:0, submitted:0, missing:0,
+          seven:0, emart:0, etc:0, stores:[], storeSeen:{},
+          orderIndex:Number(r.orderIndex || 999999),
+          leaderOrderIndex:leaderOrderV6(r)
         };
       }
-
       if(map[leader].storeSeen[uniqueKey]) return;
       map[leader].storeSeen[uniqueKey] = true;
 
       map[leader].planned++;
       map[leader].orderIndex = Math.min(map[leader].orderIndex, Number(r.orderIndex || 999999));
-
+      map[leader].leaderOrderIndex = Math.min(map[leader].leaderOrderIndex, leaderOrderV6(r));
       if(r.brand === '세븐일레븐') map[leader].seven++;
       else if(r.brand === '이마트24') map[leader].emart++;
       else map[leader].etc++;
-
-      map[leader].stores.push({
-        brand:r.brand || '',
-        store:cleanStoreDisplayNameV5(r.store || ''),
-        orderIndex:Number(r.orderIndex || 999999)
-      });
+      map[leader].stores.push({brand:r.brand || '', store:cleanStoreV6(r.store || ''), orderIndex:Number(r.orderIndex || 999999)});
     });
 
     Object.keys(map).forEach(function(leader){
@@ -1479,6 +1259,7 @@ setTimeout(loadTeamScheduleAnalysis, 1500);
     });
 
     return Object.values(map).sort(function(a,b){
+      if(a.leaderOrderIndex !== b.leaderOrderIndex) return a.leaderOrderIndex - b.leaderOrderIndex;
       if(a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
       return a.leader.localeCompare(b.leader, 'ko');
     });
