@@ -1335,4 +1335,155 @@ setTimeout(loadTeamScheduleAnalysis, 1500);
 })();
 </script>
 
+
+<script>
+// RAVEBIC_TEAM_SCHEDULE_ANALYSIS_V5_PATCH
+(function(){
+  function cleanStoreDisplayNameV5(store){
+    let s = String(store || '').trim();
+    s = s.replace(/^\s*\d{2,5}\s*(?:노\s*)?/i, '');
+    s = s.replace(/^\s*노\s+/i, '');
+    s = s.replace(/\s+/g, ' ').trim();
+    return s;
+  }
+
+  function normalizedStoreKeyV5(store){
+    return cleanStoreDisplayNameV5(store)
+      .replace(/\s+/g,'')
+      .replace(/[·ㆍ\.\-_/]/g,'')
+      .trim();
+  }
+
+  function isBadStoreV5(store){
+    const s = String(store || '').replace(/\s+/g,'');
+    if(!s) return true;
+    if(/경영주.*요청|요청.*취소|취소/.test(s)) return true;
+    if(/\d{1,2}\/\d{1,2}/.test(s) && /요청|취소|변경|타입/.test(s)) return true;
+    if(/팀장휴무|타입변경|휴무|교육|차량|수정|마감|담당휴무/.test(s)) return true;
+    return false;
+  }
+
+  window.loadTeamScheduleRows = async function(){
+    try{
+      let latestRunId = '';
+      try{
+        const latestDoc = await db.collection('settings').doc('teamScheduleLatestRun').get();
+        if(latestDoc.exists){
+          const latestInfo = latestDoc.data() || {};
+          latestRunId = latestInfo.runId || '';
+        }
+      }catch(e){
+        console.warn('teamScheduleLatestRun load failed', e);
+      }
+
+      const snap = await db.collection('teamSchedules').get();
+      const rows = [];
+      snap.forEach(function(doc){
+        const d = doc.data() || {};
+        rows.push({id:doc.id, ...d});
+      });
+
+      let activeRows = rows.filter(function(r){
+        return r.active !== false && r.leader && r.scheduleDate && !isBadStoreV5(r.store);
+      });
+
+      if(latestRunId){
+        activeRows = activeRows.filter(function(r){
+          return String(r.runId || '') === String(latestRunId);
+        });
+      }
+
+      // 관리자 화면에서도 최종 중복 제거
+      const seen = {};
+      activeRows = activeRows.filter(function(r){
+        const key = [
+          r.runId || '',
+          r.scheduleDate || '',
+          r.leader || '',
+          r.brand || '',
+          normalizedStoreKeyV5(r.store || '')
+        ].join('|');
+
+        if(seen[key]) return false;
+        seen[key] = true;
+
+        r.store = cleanStoreDisplayNameV5(r.store || '');
+        return true;
+      });
+
+      activeRows.sort(function(a,b){
+        const oa = Number(a.orderIndex || 999999);
+        const ob = Number(b.orderIndex || 999999);
+        return oa - ob;
+      });
+
+      teamScheduleRows = activeRows;
+    }catch(e){
+      console.error('teamSchedules load failed', e);
+      teamScheduleRows = [];
+    }
+  };
+
+  window.buildTeamDayData = function(dateStr){
+    const schedules = (teamScheduleRows || []).filter(function(r){
+      return String(r.scheduleDate || '') === dateStr && !isBadStoreV5(r.store);
+    });
+
+    const map = {};
+
+    schedules.forEach(function(r){
+      const leader = String(r.leader || '').trim();
+      if(!leader) return;
+
+      const storeKey = normalizedStoreKeyV5(r.store || '');
+      const uniqueKey = leader + '|' + r.brand + '|' + storeKey;
+
+      if(!map[leader]){
+        map[leader] = {
+          leader: leader,
+          planned: 0,
+          submitted: 0,
+          missing: 0,
+          seven: 0,
+          emart: 0,
+          etc: 0,
+          stores: [],
+          storeSeen: {},
+          orderIndex: Number(r.orderIndex || 999999)
+        };
+      }
+
+      if(map[leader].storeSeen[uniqueKey]) return;
+      map[leader].storeSeen[uniqueKey] = true;
+
+      map[leader].planned++;
+      map[leader].orderIndex = Math.min(map[leader].orderIndex, Number(r.orderIndex || 999999));
+
+      if(r.brand === '세븐일레븐') map[leader].seven++;
+      else if(r.brand === '이마트24') map[leader].emart++;
+      else map[leader].etc++;
+
+      map[leader].stores.push({
+        brand:r.brand || '',
+        store:cleanStoreDisplayNameV5(r.store || ''),
+        orderIndex:Number(r.orderIndex || 999999)
+      });
+    });
+
+    Object.keys(map).forEach(function(leader){
+      const row = map[leader];
+      row.submitted = countActualSubmissionsForTeam(leader, dateStr, '');
+      row.missing = Math.max(0, row.planned - row.submitted);
+      row.stores.sort(function(a,b){ return a.orderIndex - b.orderIndex; });
+      delete row.storeSeen;
+    });
+
+    return Object.values(map).sort(function(a,b){
+      if(a.orderIndex !== b.orderIndex) return a.orderIndex - b.orderIndex;
+      return a.leader.localeCompare(b.leader, 'ko');
+    });
+  };
+})();
+</script>
+
 </body></html>
