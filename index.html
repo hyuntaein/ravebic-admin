@@ -241,39 +241,31 @@ select.status-pending {
 .team-store-list{font-size:12px;color:#334155;line-height:1.5}
 
 
-/* RAVEBIC_PROGRESS_BAR_V1 */
-.progress-dashboard{
+
+/* RAVEBIC_ADMIN_STABLE_PROGRESS_COLLAPSE_V3 */
+.ravebic-progress-box{
   margin:18px 0;
   padding:16px;
   border:1px solid #d7e6fb;
   background:#f8fbff;
   border-radius:18px;
 }
-.progress-head{
+.ravebic-progress-head{
   display:flex;
-  align-items:center;
   justify-content:space-between;
+  align-items:center;
   gap:10px;
   flex-wrap:wrap;
-  margin-bottom:10px;
 }
-.progress-head h2{
-  margin:0;
-  color:#123f7a;
-  font-size:20px;
-}
-.progress-list{
-  display:grid;
-  gap:10px;
-  margin-top:10px;
-}
-.progress-row{
+.ravebic-progress-head h2{margin:0;color:#123f7a;font-size:20px}
+.ravebic-progress-list{display:grid;gap:10px;margin-top:12px}
+.ravebic-progress-row{
   background:#fff;
   border:1px solid #e2e8f0;
   border-radius:14px;
   padding:12px;
 }
-.progress-top{
+.ravebic-progress-top{
   display:flex;
   justify-content:space-between;
   gap:10px;
@@ -281,67 +273,30 @@ select.status-pending {
   font-weight:900;
   margin-bottom:8px;
 }
-.progress-track{
+.ravebic-progress-track{
   width:100%;
   height:18px;
   background:#e5e7eb;
   border-radius:999px;
   overflow:hidden;
 }
-.progress-fill{
-  height:100%;
-  width:0%;
-  border-radius:999px;
-  transition:width .2s ease;
+.ravebic-progress-fill{height:100%;width:0%;border-radius:999px}
+.ravebic-progress-fill.danger{background:#ef4444}
+.ravebic-progress-fill.warn{background:#f97316}
+.ravebic-progress-fill.info{background:#2563eb}
+.ravebic-progress-fill.ok{background:#16a34a}
+.ravebic-progress-small{font-size:12px;color:#64748b;margin-top:6px;line-height:1.45}
+.ravebic-admin-extra-btn{
+  background:#64748b!important;
+  color:#fff!important;
+  border:none!important;
+  border-radius:13px!important;
+  padding:13px 16px!important;
+  font-weight:900!important;
+  cursor:pointer!important;
 }
-.progress-fill.danger{background:#ef4444}
-.progress-fill.warn{background:#f97316}
-.progress-fill.info{background:#2563eb}
-.progress-fill.ok{background:#16a34a}
-.progress-small{
-  font-size:12px;
-  color:#64748b;
-  margin-top:6px;
-  line-height:1.45;
-}
-
-
-/* RAVEBIC_SUBMISSION_TABLE_COLLAPSE_V1 */
-.submission-toggle-btn{
-  background:#64748b !important;
-  color:#fff !important;
-  border:none !important;
-  border-radius:13px !important;
-  padding:13px 16px !important;
-  font-weight:900 !important;
-  cursor:pointer !important;
-}
-.submission-table-folded{
-  display:none !important;
-}
-.submission-fold-notice{
-  margin:10px 0;
-  padding:13px 15px;
-  border:1px solid #cfe0f8;
-  background:#f8fbff;
-  border-radius:14px;
-  color:#0b3b77;
-  font-weight:800;
-}
-
-
-/* RAVEBIC_SUBMISSION_TABLE_COLLAPSE_FORCE_V2 */
-.submission-toggle-btn-force{
-  background:#64748b !important;
-  color:#fff !important;
-  border:none !important;
-  border-radius:13px !important;
-  padding:13px 16px !important;
-  font-weight:900 !important;
-  cursor:pointer !important;
-}
-.submission-table-folded-force{display:none !important;}
-.submission-fold-notice-force{
+.ravebic-hidden-table{display:none!important}
+.ravebic-fold-notice{
   margin:10px 0;
   padding:13px 15px;
   border:1px solid #cfe0f8;
@@ -409,9 +364,26 @@ select.status-pending {
   </div>
 </div>
 
+
+<div class="ravebic-progress-box" id="ravebicProgressBox">
+  <div class="ravebic-progress-head">
+    <h2>팀장 실시간 진행률</h2>
+    <div>
+      <button id="ravebicProgressRefreshBtn" class="ravebic-admin-extra-btn" type="button">진행률 새로고침</button>
+      <button id="ravebicProgressFoldBtn" class="ravebic-admin-extra-btn" type="button">진행률 접기</button>
+    </div>
+  </div>
+  <div style="margin-top:8px;color:#64748b;font-size:14px">오늘 기준 팀장별 예정 대비 제출 진행률입니다.</div>
+  <div id="ravebicProgressSummary" style="margin-top:10px">진행률 준비 중...</div>
+  <div id="ravebicProgressBody" class="ravebic-progress-list">
+    <div class="ravebic-progress-row">진행률을 불러오는 중...</div>
+  </div>
+</div>
+
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
 <div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button class="red" type="button" style="background:#ef4444;color:#fff;" onclick="document.getElementById('adminDirectMessageModal').style.display='flex';setTimeout(function(){document.getElementById('adminDirectMessageTarget').focus();},100);">메세지보내기</button>
-<button id="submissionTableToggleBtn" class="submission-toggle-btn-force" type="button" onclick="toggleSubmissionTableForce()">제출목록 접기</button></div>
+<button id="ravebicSubmissionFoldBtn" class="ravebic-admin-extra-btn" type="button">제출목록 접기</button>
+</div>
 <div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th><th>관리</th></tr></thead><tbody id="tbody"><tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
 <div class="pagination-bar"><button id="prevPageBtn" type="button" onclick="prevPage()">이전</button><span id="pageInfo" class="pagination-info">1 / 1 페이지</span><button id="nextPageBtn" type="button" onclick="nextPage()">다음</button><select id="pageSizeSelect" class="page-size-select" onchange="changePageSize(this.value)"><option value="10" selected>10개씩</option><option value="20">20개씩</option><option value="50">50개씩</option></select></div>
 
