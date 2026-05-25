@@ -241,22 +241,79 @@ select.status-pending {
 .team-store-list{font-size:12px;color:#334155;line-height:1.5}
 
 
-/* RBC_PROGRESS_COLLAPSE_V4 */
-.rbc-progress-box{margin:18px 0;padding:16px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}
-.rbc-progress-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-.rbc-progress-head h2{margin:0;color:#123f7a;font-size:20px}
-.rbc-btn{background:#64748b!important;color:#fff!important;border:none!important;border-radius:13px!important;padding:13px 16px!important;font-weight:900!important;cursor:pointer!important}
-.rbc-progress-list{display:grid;gap:10px;margin-top:12px}
-.rbc-progress-row{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px}
-.rbc-progress-top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-weight:900;margin-bottom:8px}
-.rbc-track{width:100%;height:18px;background:#e5e7eb;border-radius:999px;overflow:hidden}
-.rbc-fill{height:100%;width:0%;border-radius:999px}
-.rbc-fill.danger{background:#ef4444}.rbc-fill.warn{background:#f97316}.rbc-fill.info{background:#2563eb}.rbc-fill.ok{background:#16a34a}
-.rbc-small{font-size:12px;color:#64748b;margin-top:6px;line-height:1.45}
-.rbc-chip{display:inline-block;margin:4px;padding:8px 11px;border-radius:999px;font-weight:900;font-size:13px}
-.rbc-chip.total{background:#e0f2fe;color:#075985}.rbc-chip.ok{background:#dcfce7;color:#166534}.rbc-chip.miss{background:#fee2e2;color:#991b1b}
-.rbc-hidden-table{display:none!important}
-.rbc-fold-notice{margin:10px 0;padding:13px 15px;border:1px solid #cfe0f8;background:#f8fbff;border-radius:14px;color:#0b3b77;font-weight:800}
+/* RAVEBIC_MONTHLY_PERFORMANCE_V1 */
+.rbc-monthly-box{
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #d7e6fb;
+  background:#f8fbff;
+  border-radius:18px;
+}
+.rbc-monthly-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.rbc-monthly-head h2{
+  margin:0;
+  color:#123f7a;
+  font-size:21px;
+}
+.rbc-monthly-btn{
+  background:#64748b!important;
+  color:#fff!important;
+  border:none!important;
+  border-radius:13px!important;
+  padding:12px 15px!important;
+  font-weight:900!important;
+  cursor:pointer!important;
+}
+.rbc-monthly-chip{
+  display:inline-block;
+  margin:4px;
+  padding:8px 11px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:13px;
+}
+.rbc-monthly-chip.total{background:#e0f2fe;color:#075985}
+.rbc-monthly-chip.ok{background:#dcfce7;color:#166534}
+.rbc-monthly-chip.late{background:#ffedd5;color:#9a3412}
+.rbc-monthly-chip.miss{background:#fee2e2;color:#991b1b}
+.rbc-monthly-chip.fix{background:#fef3c7;color:#92400e}
+.rbc-monthly-table-wrap{overflow:auto;margin-top:12px}
+.rbc-monthly-table{width:100%;border-collapse:collapse;font-size:13px;background:#fff}
+.rbc-monthly-table th,.rbc-monthly-table td{border-bottom:1px solid #e2e8f0;padding:9px;text-align:left;vertical-align:middle}
+.rbc-monthly-table th{background:#eaf4ff;color:#0b3b77;white-space:nowrap}
+.rbc-monthly-danger{background:#fef2f2}
+.rbc-monthly-warn{background:#fff7ed}
+.rbc-monthly-ok{background:#ecfdf5}
+.rbc-monthly-rate{
+  display:inline-block;
+  min-width:54px;
+  text-align:center;
+  padding:5px 7px;
+  border-radius:999px;
+  font-weight:900;
+}
+.rbc-rate-good{background:#dcfce7;color:#166534}
+.rbc-rate-mid{background:#ffedd5;color:#9a3412}
+.rbc-rate-bad{background:#fee2e2;color:#991b1b}
+.rbc-monthly-rank{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(210px,1fr));
+  gap:10px;
+}
+.rbc-rank-card{
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:14px;
+  padding:12px;
+}
+.rbc-rank-card b{color:#0b3b77}
 
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
@@ -299,22 +356,25 @@ select.status-pending {
 </div>
 
 
-<div class="rbc-progress-box" id="rbcProgressBox">
-  <div class="rbc-progress-head">
-    <h2>팀장 실시간 진행률</h2>
+<div class="rbc-monthly-box" id="rbcMonthlyBox">
+  <div class="rbc-monthly-head">
+    <h2>팀장 월간 성과분석표</h2>
     <div>
-      <button id="rbcProgressRefreshBtn" class="rbc-btn" type="button">진행률 새로고침</button>
-      <button id="rbcProgressFoldBtn" class="rbc-btn" type="button">진행률 접기</button>
+      <button id="rbcMonthlyRefreshBtn" class="rbc-monthly-btn" type="button">월간분석 새로고침</button>
+      <button id="rbcMonthlyFoldBtn" class="rbc-monthly-btn" type="button">월간분석 접기</button>
     </div>
   </div>
-  <div style="margin-top:8px;color:#64748b;font-size:14px">오늘 기준 팀장별 예정 대비 제출 진행률입니다.</div>
-  <div id="rbcProgressSummary" style="margin-top:10px">진행률 준비 중...</div>
-  <div id="rbcProgressBody" class="rbc-progress-list"><div class="rbc-progress-row">진행률을 불러오는 중...</div></div>
+  <div style="margin-top:8px;color:#64748b;font-size:14px">
+    이번 달 1일부터 말일까지 총 예정, 정상 제출, 지연 제출, 미제출, 정시 제출률, 보완요청 건수를 계산합니다.
+  </div>
+  <div id="rbcMonthlySummary" style="margin-top:10px">월간 성과 계산 중...</div>
+  <div id="rbcMonthlyBody">
+    <div class="rbc-rank-card" style="margin-top:12px">월간 데이터를 불러오는 중...</div>
+  </div>
 </div>
 
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
-<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button class="red" type="button" style="background:#ef4444;color:#fff;" onclick="document.getElementById('adminDirectMessageModal').style.display='flex';setTimeout(function(){document.getElementById('adminDirectMessageTarget').focus();},100);">메세지보내기</button>
-<button id="rbcSubmissionFoldBtn" class="rbc-btn" type="button">제출목록 접기</button></div>
+<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button class="red" type="button" style="background:#ef4444;color:#fff;" onclick="document.getElementById('adminDirectMessageModal').style.display='flex';setTimeout(function(){document.getElementById('adminDirectMessageTarget').focus();},100);">메세지보내기</button></div>
 <div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th><th>관리</th></tr></thead><tbody id="tbody"><tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
 <div class="pagination-bar"><button id="prevPageBtn" type="button" onclick="prevPage()">이전</button><span id="pageInfo" class="pagination-info">1 / 1 페이지</span><button id="nextPageBtn" type="button" onclick="nextPage()">다음</button><select id="pageSizeSelect" class="page-size-select" onchange="changePageSize(this.value)"><option value="10" selected>10개씩</option><option value="20">20개씩</option><option value="50">50개씩</option></select></div>
 
@@ -1182,95 +1242,6 @@ if(typeof render === 'function' && !window.ravebicOriginalRenderForTeamAnalysis)
 }
 setTimeout(loadTeamScheduleAnalysis, 1500);
 
-</script>
-
-
-<script>
-// RBC_PROGRESS_COLLAPSE_V4_SCRIPT
-(function(){
-  var progressFolded=false, submissionFolded=false;
-  function E(id){return document.getElementById(id);}
-  function Y(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-  function D(r){if(r&&r.submittedAt&&r.submittedAt.toDate)return r.submittedAt.toDate();return new Date((r&&(r.submittedAtText||r.date))||0);}
-  function SK(v){return String(v||'').replace(/^\s*\d{2,5}\s*(?:노\s*)?/i,'').replace(/^\s*노\s+/i,'').replace(/\s+/g,'').replace(/[·ㆍ\.\-_/]/g,'').trim();}
-  function CS(v){return String(v||'').replace(/^\s*\d{2,5}\s*(?:노\s*)?/i,'').replace(/^\s*노\s+/i,'').replace(/\s+/g,' ').trim();}
-  function BAD(v){var s=String(v||'').replace(/\s+/g,'');return !s||/경영주.*요청|요청.*취소|취소|팀장휴무|타입변경|휴무|교육|차량|수정|마감|담당휴무/.test(s);}
-  function PC(p){return p>=100?'ok':p>=80?'info':p>=50?'warn':'danger';}
-  function H(v){return String(v||'').replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});}
-  function DB(){if(window.db)return window.db;if(window.firebase&&firebase.firestore)return firebase.firestore();return null;}
-
-  async function loadProgress(){
-    var body=E('rbcProgressBody'), summary=E('rbcProgressSummary');
-    if(!body)return;
-    var dbx=DB();
-    if(!dbx){body.innerHTML='<div class="rbc-progress-row">Firebase 연결을 찾지 못했습니다.</div>';return;}
-    body.innerHTML='<div class="rbc-progress-row">진행률을 불러오는 중...</div>';
-    try{
-      var today=Y(new Date());
-      var snaps=await Promise.all([dbx.collection('teamSchedules').get(),dbx.collection('submissions').get()]);
-      var schedMap={}, submissions=[];
-      snaps[0].forEach(function(doc){
-        var r=doc.data()||{};
-        if(r.active===false||String(r.scheduleDate||'')!==today||!r.leader||BAD(r.store))return;
-        r.id=doc.id;r.store=CS(r.store||'');
-        var key=[r.leader||'',r.brand||'',SK(r.store||'')].join('|');
-        var old=schedMap[key], cur=String(r.updatedAtText||r.createdAtText||r.runId||''), oldT=old?String(old.updatedAtText||old.createdAtText||old.runId||''):'';
-        if(!old||cur>=oldT)schedMap[key]=r;
-      });
-      snaps[1].forEach(function(doc){var r=doc.data()||{};r.id=doc.id;if(Y(D(r))===today)submissions.push(r);});
-      var byLeader={};
-      Object.values(schedMap).forEach(function(r){
-        var leader=String(r.leader||'').trim();if(!leader)return;
-        if(!byLeader[leader])byLeader[leader]={leader:leader,schedules:[],order:Number(r.leaderOrderIndex||r.orderIndex||999999)};
-        byLeader[leader].schedules.push(r);byLeader[leader].order=Math.min(byLeader[leader].order,Number(r.leaderOrderIndex||r.orderIndex||999999));
-      });
-      var rows=Object.values(byLeader).sort(function(a,b){return a.order!==b.order?a.order-b.order:a.leader.localeCompare(b.leader,'ko');}).map(function(item){
-        var submitted=0, used={};
-        item.schedules.forEach(function(sc){
-          var sk=SK(sc.store||''), brand=sc.brand||'';
-          var found=submissions.find(function(sub){
-            if(String(sub.name||'').trim()!==item.leader)return false;
-            if(brand&&String(sub.brand||'')!==brand)return false;
-            var subKey=SK(sub.store||''); if(!subKey||!sk)return false;
-            var match=(subKey===sk||subKey.includes(sk)||sk.includes(subKey));
-            var u=(sub.id||sub.submittedAtText||sub.store||'')+'|'+sk;
-            if(match&&!used[u]){used[u]=true;return true;} return false;
-          });
-          if(found)submitted++;
-        });
-        var planned=item.schedules.length, pct=planned?Math.round(submitted/planned*100):0;
-        item.planned=planned;item.submitted=submitted;item.missing=Math.max(0,planned-submitted);item.pct=pct;return item;
-      });
-      var totalPlan=rows.reduce(function(s,r){return s+r.planned;},0), totalSubmit=rows.reduce(function(s,r){return s+r.submitted;},0), totalPct=totalPlan?Math.round(totalSubmit/totalPlan*100):0;
-      if(summary)summary.innerHTML='<span class="rbc-chip total">오늘 예정 '+totalPlan+'건</span><span class="rbc-chip ok">제출 '+totalSubmit+'건</span><span class="rbc-chip miss">미제출 '+Math.max(0,totalPlan-totalSubmit)+'건</span><span class="rbc-chip total">전체 '+totalPct+'%</span>';
-      if(!rows.length){body.innerHTML='<div class="rbc-progress-row">오늘 기준 팀장 일정 데이터가 없습니다. 구글 일정표를 열어 분석 저장했는지 확인하세요.</div>';return;}
-      body.innerHTML=rows.map(function(r){
-        var stores=r.schedules.map(function(s){return (s.brand==='세븐일레븐'?'세븐':(s.brand||''))+' / '+(s.store||'');}).join(' · ');
-        return '<div class="rbc-progress-row"><div class="rbc-progress-top"><span>'+H(r.leader)+'</span><span>'+r.submitted+' / '+r.planned+'건 · '+r.pct+'%</span></div><div class="rbc-track"><div class="rbc-fill '+PC(r.pct)+'" style="width:'+Math.min(100,r.pct)+'%"></div></div><div class="rbc-small">'+H(stores)+'</div></div>';
-      }).join('');
-    }catch(e){console.error(e);body.innerHTML='<div class="rbc-progress-row">진행률 불러오기 실패: '+H(e.message||e)+'</div>';}
-  }
-
-  function table(){
-    var tb=E('tbody'); if(tb&&tb.closest)return tb.closest('table');
-    return Array.from(document.querySelectorAll('table')).find(function(t){var tx=t.innerText||'';return tx.includes('제출시간')&&tx.includes('점포명')&&tx.includes('첨부파일');})||null;
-  }
-  function toggleTable(){
-    var t=table(); if(!t){alert('제출목록 표를 찾지 못했습니다.');return;}
-    submissionFolded=!submissionFolded;t.classList.toggle('rbc-hidden-table',submissionFolded);
-    var b=E('rbcSubmissionFoldBtn');if(b)b.textContent=submissionFolded?'제출목록 펼치기':'제출목록 접기';
-    var n=E('rbcFoldNotice');
-    if(submissionFolded){if(!n){n=document.createElement('div');n.id='rbcFoldNotice';n.className='rbc-fold-notice';n.textContent='제출목록이 접혀 있습니다. “제출목록 펼치기”를 누르면 다시 표시됩니다.';t.parentNode.insertBefore(n,t);}n.style.display='block';}else{if(n)n.style.display='none';}
-  }
-  function bind(){
-    var r=E('rbcProgressRefreshBtn'), f=E('rbcProgressFoldBtn'), s=E('rbcSubmissionFoldBtn');
-    if(r&&!r.dataset.bound){r.dataset.bound='1';r.addEventListener('click',loadProgress);}
-    if(f&&!f.dataset.bound){f.dataset.bound='1';f.addEventListener('click',function(){var body=E('rbcProgressBody');if(!body)return;progressFolded=!progressFolded;body.style.display=progressFolded?'none':'grid';f.textContent=progressFolded?'진행률 펼치기':'진행률 접기';});}
-    if(s&&!s.dataset.bound){s.dataset.bound='1';s.addEventListener('click',toggleTable);}
-  }
-  document.addEventListener('DOMContentLoaded',function(){bind();setTimeout(bind,500);setTimeout(loadProgress,1200);});
-  setTimeout(bind,800);setTimeout(loadProgress,1800);
-})();
 </script>
 
 </body></html>
