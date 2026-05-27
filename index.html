@@ -1372,5 +1372,123 @@ if(typeof render === 'function' && !window.ravebicOriginalRenderForTeamAnalysis)
 setTimeout(loadTeamScheduleAnalysis, 1500);
 
 </script>
+<style>
+/* RAVEBIC 신뢰도 점수 */
+.rbc-score-box{margin:18px 0;padding:16px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}
+.rbc-score-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rbc-score-btn{background:#475569!important;color:#fff!important;border:0!important;border-radius:13px!important;padding:12px 15px!important;font-weight:900}
+.rbc-score-chip{display:inline-block;margin:4px;padding:8px 11px;border-radius:999px;font-weight:900}
+.rbc-score-table{width:100%;border-collapse:collapse;background:#fff;font-size:13px}
+.rbc-score-table th,.rbc-score-table td{border-bottom:1px solid #e2e8f0;padding:9px;text-align:left}
+.rbc-score-table th{background:#eaf4ff;color:#0b3b77}
+.rbc-grade{padding:6px 9px;border-radius:999px;font-weight:900}
+.rbc-a{background:#dcfce7;color:#166534}.rbc-b{background:#dbeafe;color:#1d4ed8}.rbc-c{background:#ffedd5;color:#9a3412}.rbc-d{background:#fee2e2;color:#991b1b}
+</style>
 
+<div class="rbc-score-box" id="rbcScoreBox">
+  <div class="rbc-score-head">
+    <h2>직원/팀장 신뢰도 점수</h2>
+    <div>
+      <button class="rbc-score-btn" onclick="rbcLoadScore()">신뢰도 새로고침</button>
+      <button class="rbc-score-btn" onclick="document.getElementById('rbcScoreBody').style.display=document.getElementById('rbcScoreBody').style.display==='none'?'block':'none'">신뢰도 접기/펼치기</button>
+    </div>
+  </div>
+  <div style="color:#64748b">이번 달 기준 / 오후 9시 마감 / 제출률·정시율·미제출·지연·보완요청 반영</div>
+  <div id="rbcScoreSummary">계산 중...</div>
+  <div id="rbcScoreBody">불러오는 중...</div>
+</div>
+
+<script>
+async function rbcLoadScore(){
+  const box=document.getElementById('rbcScoreBody');
+  const sum=document.getElementById('rbcScoreSummary');
+  box.innerHTML='신뢰도 계산 중...';
+
+  function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')}
+  function dt(r){return r.submittedAt&&r.submittedAt.toDate?r.submittedAt.toDate():new Date(r.submittedAtText||r.date||0)}
+  function sk(v){return String(v||'').replace(/^\s*\d{2,5}\s*(노\s*)?/,'').replace(/\s+/g,'').replace(/[·ㆍ.\-_/]/g,'')}
+  function grade(s){return s>=90?'a':s>=80?'b':s>=65?'c':'d'}
+  function gt(g){return g==='a'?'A':g==='b'?'B':g==='c'?'C':'D'}
+
+  const now=new Date();
+  const start=new Date(now.getFullYear(),now.getMonth(),1);
+  const end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59);
+  const sy=ymd(start), ey=ymd(end);
+
+  const [schSnap, subSnap, msgSnap]=await Promise.all([
+    db.collection('teamSchedules').get(),
+    db.collection('submissions').get(),
+    db.collection('adminMessages').get()
+  ]);
+
+  const schedules={};
+  schSnap.forEach(doc=>{
+    const r=doc.data();
+    const d=String(r.scheduleDate||'');
+    if(r.active===false||d<sy||d>ey||!r.leader)return;
+    const key=[d,r.leader,r.brand,sk(r.store)].join('|');
+    schedules[key]=r;
+  });
+
+  const subs=[];
+  subSnap.forEach(doc=>{
+    const r=doc.data();
+    const t=dt(r);
+    if(t>=start&&t<=end)subs.push(r);
+  });
+
+  const result={};
+
+  Object.values(schedules).forEach(sc=>{
+    const name=String(sc.leader||'').trim();
+    if(!result[name])result[name]={name,planned:0,submitted:0,onTime:0,late:0,missing:0,fix:0};
+    result[name].planned++;
+
+    const found=subs.find(s=>{
+      return String(s.name||'').trim()===name &&
+             ymd(dt(s))===String(sc.scheduleDate||'') &&
+             (!sc.brand||String(s.brand||'')===String(sc.brand||'')) &&
+             sk(s.store).includes(sk(sc.store));
+    });
+
+    if(found){
+      result[name].submitted++;
+      const t=dt(found);
+      const mins=t.getHours()*60+t.getMinutes();
+      if(mins<=21*60)result[name].onTime++;
+      else result[name].late++;
+    }else{
+      result[name].missing++;
+    }
+  });
+
+  msgSnap.forEach(doc=>{
+    const r=doc.data();
+    const name=String(r.targetName||r.name||'').trim();
+    if(!name)return;
+    if(!result[name])result[name]={name,planned:0,submitted:0,onTime:0,late:0,missing:0,fix:0};
+    result[name].fix++;
+  });
+
+  const rows=Object.values(result).map(r=>{
+    const submitRate=r.planned?Math.round(r.submitted/r.planned*100):0;
+    const onTimeRate=r.planned?Math.round(r.onTime/r.planned*100):0;
+    let score=Math.round(submitRate*.45+onTimeRate*.45+10)-r.missing*8-r.late*3-r.fix*2;
+    score=Math.max(0,Math.min(100,score));
+    r.submitRate=submitRate;r.onTimeRate=onTimeRate;r.score=score;r.grade=grade(score);
+    return r;
+  }).sort((a,b)=>b.score-a.score);
+
+  sum.innerHTML=
+    '<span class="rbc-score-chip rbc-a">A '+rows.filter(r=>r.grade==='a').length+'명</span>'+
+    '<span class="rbc-score-chip rbc-b">B '+rows.filter(r=>r.grade==='b').length+'명</span>'+
+    '<span class="rbc-score-chip rbc-c">C '+rows.filter(r=>r.grade==='c').length+'명</span>'+
+    '<span class="rbc-score-chip rbc-d">D '+rows.filter(r=>r.grade==='d').length+'명</span>';
+
+  box.innerHTML='<table class="rbc-score-table"><thead><tr><th>순위</th><th>이름</th><th>등급</th><th>점수</th><th>예정</th><th>제출률</th><th>정시율</th><th>미제출</th><th>지연</th><th>보완</th></tr></thead><tbody>'+
+    rows.map((r,i)=>'<tr><td>'+(i+1)+'</td><td><b>'+r.name+'</b></td><td><span class="rbc-grade rbc-'+r.grade+'">'+gt(r.grade)+'</span></td><td>'+r.score+'점</td><td>'+r.planned+'</td><td>'+r.submitRate+'%</td><td>'+r.onTimeRate+'%</td><td>'+r.missing+'</td><td>'+r.late+'</td><td>'+r.fix+'</td></tr>').join('')+
+    '</tbody></table>';
+}
+setTimeout(rbcLoadScore,2000);
+</script>
 </body></html>
