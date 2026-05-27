@@ -1260,9 +1260,7 @@ function buildTeamDayData(dateStr){
     row.submitted = countActualSubmissionsForTeam(leader, dateStr, '');
     row.missing = Math.max(0, row.planned - row.submitted);
   });
-  return Object.values(map).sort(function(a,b){
-    if(a.missing !== b.missing) return b.missing - a.missing;
-    return a.leader.localeCompare(b.leader, 'ko');
+return Object.values(map);  
   });
 }
 async function loadTeamScheduleAnalysis(){
@@ -1325,9 +1323,7 @@ function renderTeamWeekAnalysis(){
       return {planned, submitted, missing:Math.max(0, planned-submitted)};
     });
     return {leader, dayCells, totalPlan, totalSubmit, totalMissing:Math.max(0,totalPlan-totalSubmit)};
-  }).sort(function(a,b){
-    if(a.totalMissing !== b.totalMissing) return b.totalMissing - a.totalMissing;
-    return a.leader.localeCompare(b.leader, 'ko');
+
   });
   const totalPlanned = rows.reduce((s,r)=>s+r.totalPlan,0);
   const totalSubmitted = rows.reduce((s,r)=>s+r.totalSubmit,0);
