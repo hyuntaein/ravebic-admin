@@ -1552,4 +1552,193 @@ setTimeout(rbcLoadScore,2000);
   setTimeout(bindSubmitFold,1500);
 })();
 </script>
+<style>
+.store-history-modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  z-index:999999;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+.store-history-card{
+  width:100%;
+  max-width:720px;
+  max-height:85vh;
+  overflow:auto;
+  background:white;
+  border-radius:22px;
+  padding:22px;
+  box-shadow:0 18px 55px rgba(0,0,0,.28);
+}
+.store-history-card h3{
+  margin:0 0 10px;
+  color:#123f7a;
+  font-size:24px;
+}
+.store-history-chip{
+  display:inline-block;
+  margin:4px;
+  padding:8px 11px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:13px;
+}
+.store-history-chip.total{background:#e0f2fe;color:#075985}
+.store-history-chip.fix{background:#fee2e2;color:#991b1b}
+.store-history-chip.late{background:#ffedd5;color:#9a3412}
+.store-history-chip.ok{background:#dcfce7;color:#166534}
+.store-history-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+  font-size:13px;
+}
+.store-history-table th,
+.store-history-table td{
+  border-bottom:1px solid #e2e8f0;
+  padding:9px;
+  text-align:left;
+}
+.store-history-table th{
+  background:#eaf4ff;
+  color:#0b3b77;
+}
+</style>
+
+<div id="storeHistoryModal" class="store-history-modal">
+  <div class="store-history-card">
+    <h3 id="storeHistoryTitle">점포 히스토리</h3>
+    <div id="storeHistorySummary">불러오는 중...</div>
+    <div id="storeHistoryBody"></div>
+    <div style="text-align:right;margin-top:14px">
+      <button class="gray" onclick="closeStoreHistory()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function storeHistoryKey(v){
+  return String(v||'')
+    .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
+    .replace(/\s+/g,'')
+    .replace(/[·ㆍ.\-_/]/g,'')
+    .trim();
+}
+
+function storeHistoryDate(r){
+  return r.submittedAt && r.submittedAt.toDate
+    ? r.submittedAt.toDate()
+    : new Date(r.submittedAtText || r.date || 0);
+}
+
+function openStoreHistory(storeName){
+  const key=storeHistoryKey(storeName);
+  const modal=document.getElementById('storeHistoryModal');
+  const title=document.getElementById('storeHistoryTitle');
+  const summary=document.getElementById('storeHistorySummary');
+  const body=document.getElementById('storeHistoryBody');
+
+  if(!key){
+    alert('점포명을 찾지 못했습니다.');
+    return;
+  }
+
+  const rows=(allRows||[])
+    .filter(r=>storeHistoryKey(r.store)===key || storeHistoryKey(r.store).includes(key) || key.includes(storeHistoryKey(r.store)))
+    .sort((a,b)=>storeHistoryDate(b)-storeHistoryDate(a));
+
+  title.innerText=storeName+' 히스토리';
+
+  if(rows.length===0){
+    summary.innerHTML='<span class="store-history-chip total">기록 없음</span>';
+    body.innerHTML='<div style="margin-top:12px">해당 점포의 제출 기록이 없습니다.</div>';
+    modal.style.display='flex';
+    return;
+  }
+
+  const fixCount=rows.filter(r=>(r.status||'')==='보완요청' || r.correctionMessage).length;
+  const lateCount=rows.filter(r=>{
+    const d=storeHistoryDate(r);
+    return d.getHours()*60+d.getMinutes()>21*60;
+  }).length;
+
+  const avgMin=Math.round(
+    rows.reduce((s,r)=>{
+      const d=storeHistoryDate(r);
+      return s+d.getHours()*60+d.getMinutes();
+    },0)/rows.length
+  );
+
+  const h=Math.floor(avgMin/60);
+  const m=avgMin%60;
+  const avgText=(h>=12?'오후 ':'오전 ')+((h%12)||12)+':'+String(m).padStart(2,'0');
+
+  const people=[...new Set(rows.map(r=>r.name).filter(Boolean))].slice(0,8).join(', ');
+
+  summary.innerHTML=
+    '<span class="store-history-chip total">총 제출 '+rows.length+'건</span>'+
+    '<span class="store-history-chip fix">보완요청 '+fixCount+'건</span>'+
+    '<span class="store-history-chip late">지연제출 '+lateCount+'건</span>'+
+    '<span class="store-history-chip ok">평균 제출 '+avgText+'</span>'+
+    '<br><span class="small">최근 담당: '+people+'</span>';
+
+  body.innerHTML=
+    '<table class="store-history-table">'+
+    '<thead><tr><th>제출일시</th><th>직원명</th><th>브랜드</th><th>업무</th><th>상태</th><th>특이사항</th></tr></thead>'+
+    '<tbody>'+
+    rows.slice(0,30).map(r=>{
+      return '<tr>'+
+        '<td>'+storeHistoryDate(r).toLocaleString()+'</td>'+
+        '<td>'+esc(r.name||'')+'</td>'+
+        '<td>'+esc(r.brand||'')+'</td>'+
+        '<td>'+esc(r.workType||'')+'</td>'+
+        '<td>'+esc(r.status||'미확인')+'</td>'+
+        '<td>'+esc(r.note||'')+'</td>'+
+      '</tr>';
+    }).join('')+
+    '</tbody></table>';
+
+  modal.style.display='flex';
+}
+
+function closeStoreHistory(){
+  document.getElementById('storeHistoryModal').style.display='none';
+}
+
+function bindStoreHistoryClick(){
+  const rows=document.querySelectorAll('#tbody tr');
+
+  rows.forEach(tr=>{
+    const tds=tr.querySelectorAll('td');
+    if(tds.length<3)return;
+
+    const storeTd=tds[2];
+    if(storeTd.dataset.historyBound==='1')return;
+
+    storeTd.dataset.historyBound='1';
+    storeTd.style.cursor='pointer';
+    storeTd.style.color='#2563eb';
+    storeTd.style.fontWeight='900';
+    storeTd.title='클릭하면 점포 히스토리를 봅니다';
+
+    storeTd.addEventListener('click',function(){
+      openStoreHistory(storeTd.innerText.trim());
+    });
+  });
+}
+
+const oldRenderStoreHistory=window.render;
+if(typeof oldRenderStoreHistory==='function'&&!window.storeHistoryRenderWrapped){
+  window.storeHistoryRenderWrapped=true;
+  window.render=function(){
+    oldRenderStoreHistory();
+    setTimeout(bindStoreHistoryClick,100);
+  };
+}
+
+setInterval(bindStoreHistoryClick,1500);
+</script>
 </body></html>
