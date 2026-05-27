@@ -1491,4 +1491,65 @@ async function rbcLoadScore(){
 }
 setTimeout(rbcLoadScore,2000);
 </script>
+<script>
+(function(){
+  let folded=false;
+
+  function findSubmitTable(){
+    const tbody=document.getElementById('tbody');
+    if(tbody && tbody.closest) return tbody.closest('table');
+    return null;
+  }
+
+  function toggleSubmitList(){
+    const table=findSubmitTable();
+    const btn=document.getElementById('rbcSubmitFoldBtn');
+
+    if(!table){
+      alert('제출목록 표를 찾지 못했습니다.');
+      return;
+    }
+
+    folded=!folded;
+    table.style.display=folded?'none':'table';
+
+    if(btn){
+      btn.innerText=folded?'제출목록 펼치기':'제출목록 접기';
+    }
+
+    let notice=document.getElementById('submitFoldNotice');
+
+    if(folded){
+      if(!notice){
+        notice=document.createElement('div');
+        notice.id='submitFoldNotice';
+        notice.style.margin='10px 0';
+        notice.style.padding='13px 15px';
+        notice.style.border='1px solid #cfe0f8';
+        notice.style.background='#f8fbff';
+        notice.style.borderRadius='14px';
+        notice.style.color='#0b3b77';
+        notice.style.fontWeight='800';
+        notice.innerText='제출목록이 접혀 있습니다. 제출목록 펼치기를 누르면 다시 표시됩니다.';
+        table.parentNode.insertBefore(notice,table);
+      }
+      notice.style.display='block';
+    }else{
+      if(notice) notice.style.display='none';
+    }
+  }
+
+  function bindSubmitFold(){
+    const btn=document.getElementById('rbcSubmitFoldBtn');
+    if(btn && !btn.dataset.bound){
+      btn.dataset.bound='1';
+      btn.onclick=toggleSubmitList;
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded',bindSubmitFold);
+  setTimeout(bindSubmitFold,500);
+  setTimeout(bindSubmitFold,1500);
+})();
+</script>
 </body></html>
