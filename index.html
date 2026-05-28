@@ -1737,4 +1737,98 @@ if(typeof oldRenderStoreHistory==='function'&&!window.storeHistoryRenderWrapped)
 
 setInterval(bindStoreHistoryClick,1500);
 </script>
+<style>
+.rbc-page-tabs{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:18px 0;
+  padding:12px;
+  background:#f8fbff;
+  border:1px solid #d7e6fb;
+  border-radius:18px;
+}
+.rbc-page-tab{
+  background:#e5e7eb;
+  color:#111827;
+  border:none;
+  border-radius:13px;
+  padding:13px 18px;
+  font-weight:900;
+  cursor:pointer;
+}
+.rbc-page-tab.active{
+  background:#2563eb;
+  color:white;
+}
+</style>
+
+<script>
+(function(){
+  function makePageTabs(){
+    if(document.getElementById('rbcPageTabs')) return;
+
+    const cards=document.querySelector('.cards');
+    if(!cards) return;
+
+    const tabs=document.createElement('div');
+    tabs.id='rbcPageTabs';
+    tabs.className='rbc-page-tabs';
+    tabs.innerHTML=
+      '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>'+
+      '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+
+    cards.parentNode.insertBefore(tabs,cards.nextSibling);
+
+    document.getElementById('rbcPage1Btn').onclick=function(){showRbcPage(1);};
+    document.getElementById('rbcPage2Btn').onclick=function(){showRbcPage(2);};
+  }
+
+  function page2Items(){
+    return [
+      document.getElementById('rbcRiskBox'),
+      document.getElementById('rbcMonthlyBox'),
+      document.querySelector('.pin-manager')
+    ].filter(Boolean);
+  }
+
+  window.showRbcPage=function(page){
+    const btn1=document.getElementById('rbcPage1Btn');
+    const btn2=document.getElementById('rbcPage2Btn');
+
+    if(btn1) btn1.classList.toggle('active',page===1);
+    if(btn2) btn2.classList.toggle('active',page===2);
+
+    page2Items().forEach(function(el){
+      el.style.display=page===2?'block':'none';
+    });
+
+    const teamAnalysis=document.getElementById('teamAnalysisBox');
+    const filters=document.querySelector('.filters');
+    const btns=document.querySelector('.btns');
+    const submitTable=document.getElementById('tbody')?.closest('table')?.parentElement;
+    const pagination=document.querySelector('.pagination-bar');
+    const scheduleSection=Array.from(document.querySelectorAll('.section')).find(function(s){
+      return (s.innerText||'').includes('구글 일정 승인 시스템');
+    });
+    const uploadSection=Array.from(document.querySelectorAll('.section')).find(function(s){
+      return (s.innerText||'').includes('업로드 파일 분석 도구');
+    });
+
+    [teamAnalysis,filters,btns,submitTable,pagination,scheduleSection,uploadSection].forEach(function(el){
+      if(el) el.style.display=page===1?'':'none';
+    });
+  };
+
+  document.addEventListener('DOMContentLoaded',function(){
+    makePageTabs();
+    showRbcPage(1);
+  });
+
+  setTimeout(function(){
+    makePageTabs();
+    showRbcPage(1);
+  },800);
+})();
+</script>
 </body></html>
