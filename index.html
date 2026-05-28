@@ -1261,7 +1261,6 @@ function buildTeamDayData(dateStr){
     row.missing = Math.max(0, row.planned - row.submitted);
   });
 return Object.values(map);  
-  });
 }
 async function loadTeamScheduleAnalysis(){
   const tbody = document.getElementById('teamAnalysisTbody');
