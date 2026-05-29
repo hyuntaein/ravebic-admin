@@ -1926,4 +1926,294 @@ setInterval(bindStoreHistoryClick,1500);
   setInterval(hideBadScheduleRows,2000);
 })();
 </script>
+<style>
+.rbc-leader-modal{
+  display:none;
+  position:fixed;
+  inset:0;
+  background:rgba(15,23,42,.55);
+  z-index:999999;
+  align-items:center;
+  justify-content:center;
+  padding:18px;
+}
+.rbc-leader-card{
+  width:100%;
+  max-width:780px;
+  max-height:86vh;
+  overflow:auto;
+  background:#fff;
+  border-radius:22px;
+  padding:22px;
+  box-shadow:0 18px 55px rgba(0,0,0,.28);
+}
+.rbc-leader-card h3{
+  margin:0 0 10px;
+  color:#123f7a;
+  font-size:24px;
+}
+.rbc-leader-chip{
+  display:inline-block;
+  margin:4px;
+  padding:8px 11px;
+  border-radius:999px;
+  font-weight:900;
+  font-size:13px;
+}
+.rbc-leader-chip.total{background:#e0f2fe;color:#075985}
+.rbc-leader-chip.ok{background:#dcfce7;color:#166534}
+.rbc-leader-chip.late{background:#ffedd5;color:#9a3412}
+.rbc-leader-chip.miss{background:#fee2e2;color:#991b1b}
+.rbc-leader-chip.fix{background:#fef3c7;color:#92400e}
+.rbc-leader-table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:12px;
+  font-size:13px;
+}
+.rbc-leader-table th,
+.rbc-leader-table td{
+  border-bottom:1px solid #e2e8f0;
+  padding:9px;
+  text-align:left;
+}
+.rbc-leader-table th{
+  background:#eaf4ff;
+  color:#0b3b77;
+}
+.rbc-leader-click{
+  cursor:pointer;
+  color:#2563eb;
+  font-weight:900;
+  text-decoration:underline;
+}
+</style>
+
+<div id="rbcLeaderModal" class="rbc-leader-modal">
+  <div class="rbc-leader-card">
+    <h3 id="rbcLeaderTitle">팀장 상세 성적</h3>
+    <div id="rbcLeaderSummary">불러오는 중...</div>
+    <div id="rbcLeaderBody"></div>
+    <div style="text-align:right;margin-top:14px">
+      <button class="gray" type="button" onclick="closeRbcLeaderDetail()">닫기</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  function ymd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function dt(r){
+    return r.submittedAt && r.submittedAt.toDate
+      ? r.submittedAt.toDate()
+      : new Date(r.submittedAtText || r.date || 0);
+  }
+
+  function sk(v){
+    return String(v||'')
+      .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
+      .replace(/\s+/g,'')
+      .replace(/[·ㆍ.\-_/]/g,'')
+      .trim();
+  }
+
+  function isBadText(v){
+    return /타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/.test(String(v||'').replace(/\s+/g,''));
+  }
+
+  function esc2(v){
+    return String(v||'').replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+
+  function monthStart(){
+    const n=new Date();
+    return new Date(n.getFullYear(),n.getMonth(),1,0,0,0);
+  }
+
+  function monthEnd(){
+    const n=new Date();
+    return new Date(n.getFullYear(),n.getMonth()+1,0,23,59,59);
+  }
+
+  window.openRbcLeaderDetail=async function(name){
+    name=String(name||'').trim();
+    if(!name)return;
+
+    const modal=document.getElementById('rbcLeaderModal');
+    const title=document.getElementById('rbcLeaderTitle');
+    const summary=document.getElementById('rbcLeaderSummary');
+    const body=document.getElementById('rbcLeaderBody');
+
+    title.innerText=name+' 팀장 상세 성적';
+    summary.innerHTML='계산 중...';
+    body.innerHTML='';
+    modal.style.display='flex';
+
+    try{
+      const start=monthStart();
+      const end=monthEnd();
+      const sy=ymd(start);
+      const ey=ymd(end);
+
+      const [schSnap,subSnap,msgSnap]=await Promise.all([
+        db.collection('teamSchedules').get(),
+        db.collection('submissions').get(),
+        db.collection('adminMessages').get()
+      ]);
+
+      const schedules=[];
+      schSnap.forEach(function(doc){
+        const r=doc.data()||{};
+        const d=String(r.scheduleDate||'');
+
+        if(r.active===false)return;
+        if(d<sy||d>ey)return;
+        if(String(r.leader||'').trim()!==name)return;
+        if(isBadText(r.leader)||isBadText(r.store)||isBadText(r.workType))return;
+
+        schedules.push({id:doc.id,...r});
+      });
+
+      const subs=[];
+      subSnap.forEach(function(doc){
+        const r={id:doc.id,...(doc.data()||{})};
+        const t=dt(r);
+        if(String(r.name||'').trim()===name && t>=start && t<=end){
+          subs.push(r);
+        }
+      });
+
+      const msgs=[];
+      msgSnap.forEach(function(doc){
+        const r={id:doc.id,...(doc.data()||{})};
+        const t=new Date(r.createdAtText||0);
+        if(String(r.targetName||r.name||'').trim()===name && t>=start && t<=end){
+          msgs.push(r);
+        }
+      });
+
+      let planned=0, submitted=0, onTime=0, late=0, missing=0;
+      const detailRows=[];
+
+      schedules.forEach(function(sc){
+        planned++;
+
+        const scDate=String(sc.scheduleDate||'');
+        const scStore=sk(sc.store||'');
+        const brand=String(sc.brand||'');
+
+        const found=subs.find(function(s){
+          if(ymd(dt(s))!==scDate)return false;
+          if(brand && String(s.brand||'')!==brand)return false;
+
+          const subStore=sk(s.store||'');
+          if(!subStore||!scStore)return false;
+
+          return subStore===scStore || subStore.includes(scStore) || scStore.includes(subStore);
+        });
+
+        if(found){
+          submitted++;
+          const t=dt(found);
+          const mins=t.getHours()*60+t.getMinutes();
+          const ok=mins<=21*60;
+
+          if(ok)onTime++;
+          else late++;
+
+          detailRows.push({
+            date:scDate,
+            brand:sc.brand||'',
+            store:sc.store||'',
+            status:ok?'정시 제출':'지연 제출',
+            submittedAt:t.toLocaleString(),
+            note:found.note||''
+          });
+        }else{
+          missing++;
+          detailRows.push({
+            date:scDate,
+            brand:sc.brand||'',
+            store:sc.store||'',
+            status:'미제출',
+            submittedAt:'-',
+            note:''
+          });
+        }
+      });
+
+      const submitRate=planned?Math.round(submitted/planned*100):0;
+      const onTimeRate=planned?Math.round(onTime/planned*100):0;
+      const fixCount=msgs.length;
+
+      summary.innerHTML=
+        '<span class="rbc-leader-chip total">총 예정 '+planned+'건</span>'+
+        '<span class="rbc-leader-chip ok">제출 '+submitted+'건</span>'+
+        '<span class="rbc-leader-chip ok">정시 '+onTime+'건</span>'+
+        '<span class="rbc-leader-chip late">지연 '+late+'건</span>'+
+        '<span class="rbc-leader-chip miss">미제출 '+missing+'건</span>'+
+        '<span class="rbc-leader-chip fix">보완요청 '+fixCount+'건</span>'+
+        '<br><span class="rbc-leader-chip total">제출률 '+submitRate+'%</span>'+
+        '<span class="rbc-leader-chip ok">정시율 '+onTimeRate+'%</span>';
+
+      if(!detailRows.length){
+        body.innerHTML='<div style="margin-top:12px">이번 달 팀장 일정 데이터가 없습니다.</div>';
+        return;
+      }
+
+      detailRows.sort(function(a,b){
+        return String(a.date).localeCompare(String(b.date));
+      });
+
+      body.innerHTML=
+        '<table class="rbc-leader-table">'+
+        '<thead><tr><th>날짜</th><th>브랜드</th><th>점포명</th><th>상태</th><th>제출시간</th><th>특이사항</th></tr></thead>'+
+        '<tbody>'+
+        detailRows.map(function(r){
+          return '<tr>'+
+            '<td>'+esc2(r.date)+'</td>'+
+            '<td>'+esc2(r.brand)+'</td>'+
+            '<td>'+esc2(r.store)+'</td>'+
+            '<td>'+esc2(r.status)+'</td>'+
+            '<td>'+esc2(r.submittedAt)+'</td>'+
+            '<td>'+esc2(r.note)+'</td>'+
+          '</tr>';
+        }).join('')+
+        '</tbody></table>';
+
+    }catch(e){
+      summary.innerHTML='<span class="rbc-leader-chip miss">상세 성적 계산 실패</span>';
+      body.innerHTML='<div style="margin-top:12px;color:#991b1b">'+esc2(e.message||e)+'</div>';
+    }
+  };
+
+  window.closeRbcLeaderDetail=function(){
+    document.getElementById('rbcLeaderModal').style.display='none';
+  };
+
+  function bindLeaderClick(){
+    document.querySelectorAll('#teamAnalysisTbody tr td:first-child, #rbcScoreBody tr td:nth-child(2), #rbcMonthlyBody tr td:first-child').forEach(function(td){
+      const name=(td.innerText||'').trim();
+      if(!name || name==='팀장' || td.dataset.leaderClick==='1')return;
+
+      if(isBadText(name))return;
+
+      td.dataset.leaderClick='1';
+      td.classList.add('rbc-leader-click');
+      td.title='클릭하면 팀장 상세 성적을 봅니다';
+      td.onclick=function(){
+        openRbcLeaderDetail(name.replace(/\s+/g,' ').trim());
+      };
+    });
+  }
+
+  setInterval(bindLeaderClick,1500);
+  setTimeout(bindLeaderClick,2000);
+})();
+</script>
 </body></html>
