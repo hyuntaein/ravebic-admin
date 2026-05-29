@@ -1784,12 +1784,14 @@ setInterval(bindStoreHistoryClick,1500);
   }
 
   function page2Items(){
-    return [
-      document.getElementById('rbcRiskBox'),
-      document.getElementById('rbcMonthlyBox'),
-      document.querySelector('.pin-manager')
-    ].filter(Boolean);
-  }
+  return [
+    document.getElementById('rbcAlertCenterBox'),
+    document.getElementById('rbcRiskBox'),
+    document.getElementById('rbcMonthlyBox'),
+    document.querySelector('.pin-manager'),
+    document.getElementById('rbcScoreBox')
+  ].filter(Boolean);
+}
 
   window.showRbcPage=function(page){
     const btn1=document.getElementById('rbcPage1Btn');
@@ -2215,5 +2217,255 @@ setInterval(bindStoreHistoryClick,1500);
   setInterval(bindLeaderClick,1500);
   setTimeout(bindLeaderClick,2000);
 })();
+</script>
+<style>
+.rbc-alert-center{
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #fecaca;
+  background:#fff7f7;
+  border-radius:18px;
+}
+.rbc-alert-head{
+  display:flex;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+.rbc-alert-head h2{
+  margin:0;
+  color:#991b1b;
+  font-size:22px;
+}
+.rbc-alert-btn{
+  background:#ef4444!important;
+  color:#fff!important;
+  border:0!important;
+  border-radius:13px!important;
+  padding:12px 15px!important;
+  font-weight:900!important;
+}
+.rbc-alert-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(230px,1fr));
+  gap:12px;
+  margin-top:12px;
+}
+.rbc-alert-card{
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:15px;
+  padding:13px;
+  line-height:1.55;
+}
+.rbc-alert-card.danger{border-color:#fca5a5;background:#fef2f2}
+.rbc-alert-card.warn{border-color:#fdba74;background:#fff7ed}
+.rbc-alert-card.ok{border-color:#86efac;background:#ecfdf5}
+.rbc-alert-card.info{border-color:#93c5fd;background:#eff6ff}
+.rbc-alert-title{
+  font-weight:900;
+  margin-bottom:6px;
+}
+.rbc-alert-small{
+  font-size:13px;
+  color:#475569;
+}
+</style>
+
+<div class="rbc-alert-center" id="rbcAlertCenterBox">
+  <div class="rbc-alert-head">
+    <h2>관리자 알림센터</h2>
+    <div>
+      <button class="rbc-alert-btn" type="button" onclick="rbcLoadAlertCenter()">알림 새로고침</button>
+      <button class="rbc-alert-btn" type="button" onclick="document.getElementById('rbcAlertCenterBody').style.display=document.getElementById('rbcAlertCenterBody').style.display==='none'?'grid':'none'">접기/펼치기</button>
+    </div>
+  </div>
+  <div style="margin-top:8px;color:#7f1d1d;font-size:14px">
+    오늘 기준 미제출 예상, 지연 위험, 보완요청, 제출 완료 현황을 자동 요약합니다.
+  </div>
+  <div id="rbcAlertCenterBody" class="rbc-alert-grid">
+    <div class="rbc-alert-card">알림 계산 중...</div>
+  </div>
+</div>
+
+<script>
+async function rbcLoadAlertCenter(){
+  const body=document.getElementById('rbcAlertCenterBody');
+  if(!body)return;
+
+  body.innerHTML='<div class="rbc-alert-card">알림 계산 중...</div>';
+
+  function ymd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function dt(r){
+    return r.submittedAt&&r.submittedAt.toDate
+      ? r.submittedAt.toDate()
+      : new Date(r.submittedAtText||r.date||r.createdAtText||0);
+  }
+
+  function sk(v){
+    return String(v||'')
+      .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
+      .replace(/\s+/g,'')
+      .replace(/[·ㆍ.\-_/]/g,'')
+      .trim();
+  }
+
+  function escA(v){
+    return String(v||'').replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+
+  function badText(v){
+    return /타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/.test(String(v||'').replace(/\s+/g,''));
+  }
+
+  try{
+    const now=new Date();
+    const today=ymd(now);
+    const hour=now.getHours();
+
+    const [schSnap,subSnap,msgSnap]=await Promise.all([
+      db.collection('teamSchedules').get(),
+      db.collection('submissions').get(),
+      db.collection('adminMessages').get()
+    ]);
+
+    const schedules=[];
+    schSnap.forEach(doc=>{
+      const r={id:doc.id,...(doc.data()||{})};
+      if(r.active===false)return;
+      if(String(r.scheduleDate||'')!==today)return;
+      if(!r.leader)return;
+      if(badText(r.leader)||badText(r.store)||badText(r.workType))return;
+      schedules.push(r);
+    });
+
+    const submissions=[];
+    subSnap.forEach(doc=>{
+      const r={id:doc.id,...(doc.data()||{})};
+      if(ymd(dt(r))===today)submissions.push(r);
+    });
+
+    const messages=[];
+    msgSnap.forEach(doc=>{
+      const r={id:doc.id,...(doc.data()||{})};
+      const t=new Date(r.createdAtText||0);
+      if(ymd(t)===today)messages.push(r);
+    });
+
+    const leaderMap={};
+
+    schedules.forEach(sc=>{
+      const leader=String(sc.leader||'').trim();
+      if(!leaderMap[leader]){
+        leaderMap[leader]={leader,planned:0,submitted:0,missing:0,stores:[]};
+      }
+
+      leaderMap[leader].planned++;
+      leaderMap[leader].stores.push((sc.brand||'')+' '+(sc.store||''));
+
+      const found=submissions.find(s=>{
+        if(String(s.name||'').trim()!==leader)return false;
+        if(sc.brand && String(s.brand||'')!==String(sc.brand||''))return false;
+
+        const a=sk(s.store);
+        const b=sk(sc.store);
+
+        if(!a||!b)return false;
+
+        return a===b || a.includes(b) || b.includes(a);
+      });
+
+      if(found) leaderMap[leader].submitted++;
+      else leaderMap[leader].missing++;
+    });
+
+    const rows=Object.values(leaderMap);
+    const totalPlan=rows.reduce((s,r)=>s+r.planned,0);
+    const totalSubmit=rows.reduce((s,r)=>s+r.submitted,0);
+    const totalMissing=rows.reduce((s,r)=>s+r.missing,0);
+
+    const missingLeaders=rows.filter(r=>r.missing>0).sort((a,b)=>b.missing-a.missing);
+    const doneLeaders=rows.filter(r=>r.planned>0 && r.missing===0);
+
+    const fixByTarget={};
+    messages.forEach(m=>{
+      const name=String(m.targetName||m.name||'미지정').trim();
+      fixByTarget[name]=(fixByTarget[name]||0)+1;
+    });
+
+    const fixRows=Object.entries(fixByTarget).sort((a,b)=>b[1]-a[1]);
+
+    let riskTitle='오늘 미제출 예상';
+    let riskClass='info';
+
+    if(hour>=21 && totalMissing>0){
+      riskTitle='🔴 미제출 확정';
+      riskClass='danger';
+    }else if(hour>=20 && totalMissing>0){
+      riskTitle='🟠 위험: 8시 이후 미제출';
+      riskClass='warn';
+    }else if(hour>=19 && totalMissing>0){
+      riskTitle='🟡 주의: 7시 이후 미제출';
+      riskClass='warn';
+    }else if(totalMissing>0){
+      riskTitle='🔵 진행중: 미제출 예정';
+      riskClass='info';
+    }else{
+      riskTitle='🟢 오늘 제출 완료';
+      riskClass='ok';
+    }
+
+    const missingHtml=missingLeaders.length
+      ? missingLeaders.slice(0,8).map(r=>'- '+escA(r.leader)+' '+r.missing+'건 미제출').join('<br>')
+      : '현재 미제출 예정 없음';
+
+    const fixHtml=fixRows.length
+      ? fixRows.slice(0,8).map(r=>'- '+escA(r[0])+' '+r[1]+'건').join('<br>')
+      : '오늘 보완요청 메시지 없음';
+
+    const doneHtml=doneLeaders.length
+      ? doneLeaders.slice(0,8).map(r=>'- '+escA(r.leader)+' 완료').join('<br>')
+      : '완료 팀장 없음';
+
+    body.innerHTML=
+      '<div class="rbc-alert-card '+riskClass+'">'+
+        '<div class="rbc-alert-title">'+riskTitle+'</div>'+
+        '<div class="rbc-alert-small">'+
+          '예정 '+totalPlan+'건 / 제출 '+totalSubmit+'건 / 미제출 '+totalMissing+'건<br><br>'+
+          missingHtml+
+        '</div>'+
+      '</div>'+
+
+      '<div class="rbc-alert-card warn">'+
+        '<div class="rbc-alert-title">🟠 오늘 보완요청</div>'+
+        '<div class="rbc-alert-small">'+fixHtml+'</div>'+
+      '</div>'+
+
+      '<div class="rbc-alert-card ok">'+
+        '<div class="rbc-alert-title">🟢 제출 완료 팀장</div>'+
+        '<div class="rbc-alert-small">'+doneHtml+'</div>'+
+      '</div>'+
+
+      '<div class="rbc-alert-card info">'+
+        '<div class="rbc-alert-title">📌 오늘 운영 요약</div>'+
+        '<div class="rbc-alert-small">'+
+          '현재 시간 기준: '+now.toLocaleTimeString()+'<br>'+
+          '제출률: '+(totalPlan?Math.round(totalSubmit/totalPlan*100):0)+'%<br>'+
+          '마감 기준: 오후 9시'+
+        '</div>'+
+      '</div>';
+
+  }catch(e){
+    body.innerHTML='<div class="rbc-alert-card danger">알림센터 계산 실패: '+escA(e.message||e)+'</div>';
+  }
+}
+
+setTimeout(rbcLoadAlertCenter,2400);
 </script>
 </body></html>
