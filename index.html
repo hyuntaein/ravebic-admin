@@ -1842,7 +1842,7 @@ setInterval(bindStoreHistoryClick,1500);
     if(wrap && score && pin && score.parentElement!==wrap){
       wrap.insertBefore(score,pin.nextSibling);
     }
-
+function arrangePage2Boxes(){ ... }
     const title=score?.querySelector('h2');
     if(title) title.innerText='팀장 신뢰도 점수';
   }
@@ -1867,17 +1867,33 @@ setInterval(bindStoreHistoryClick,1500);
     document.getElementById('rbcPage2Btn').onclick=function(){showRbcPage(2);};
   }
 
-  function isPage2Item(el){
-    if(!el) return false;
-    return el.id==='rbcRiskBox' ||
-           el.id==='rbcMonthlyBox' ||
-           el.id==='rbcScoreBox' ||
-           el.classList.contains('pin-manager');
-  }
+ function isPage2Item(el){
+  if(!el) return false;
+  return el.id==='rbcAlertCenterBox' ||
+         el.id==='rbcRiskBox' ||
+         el.id==='rbcMonthlyBox' ||
+         el.id==='rbcScoreBox' ||
+         el.classList.contains('pin-manager');
+}
 
   window.showRbcPage=function(page){
     moveScoreBoxIntoWrap();
+function arrangePage2Boxes(){
+  const wrap=document.querySelector('.wrap');
+  if(!wrap) return;
 
+  const alert=document.getElementById('rbcAlertCenterBox');
+  const risk=document.getElementById('rbcRiskBox');
+  const monthly=document.getElementById('rbcMonthlyBox');
+  const score=document.getElementById('rbcScoreBox');
+  const pin=document.querySelector('.pin-manager');
+
+  if(alert) wrap.appendChild(alert);
+  if(risk) wrap.appendChild(risk);
+  if(monthly) wrap.appendChild(monthly);
+  if(score) wrap.appendChild(score);
+  if(pin) wrap.appendChild(pin);
+}
     const p1=document.getElementById('rbcPage1Btn');
     const p2=document.getElementById('rbcPage2Btn');
 
@@ -1914,12 +1930,15 @@ setInterval(bindStoreHistoryClick,1500);
     });
   }
 
-  function initForce(){
+ function initForce(){
     moveScoreBoxIntoWrap();
+
+    arrangePage2Boxes();
+
     makeTabsForce();
     showRbcPage(1);
     hideBadScheduleRows();
-  }
+}
 
   document.addEventListener('DOMContentLoaded',initForce);
   setTimeout(initForce,300);
