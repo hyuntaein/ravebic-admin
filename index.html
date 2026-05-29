@@ -1821,10 +1821,23 @@ setInterval(bindStoreHistoryClick,1500);
     });
   };
 
-  document.addEventListener('DOMContentLoaded',function(){
+ document.addEventListener('DOMContentLoaded',function(){
+
+    const alert=document.getElementById('rbcAlertCenterBox');
+    const risk=document.getElementById('rbcRiskBox');
+
+    if(alert && risk){
+        risk.parentNode.insertBefore(alert,risk);
+    }
+
     makePageTabs();
+    fixScoreTitleAndFilter();
     showRbcPage(1);
-  });
+
+    if(typeof rbcLoadAlertCenter==='function'){
+        rbcLoadAlertCenter();
+    }
+});
 
   setTimeout(function(){
     makePageTabs();
