@@ -1830,4 +1830,100 @@ setInterval(bindStoreHistoryClick,1500);
   },800);
 })();
 </script>
+<script>
+(function(){
+  function moveScoreBoxIntoWrap(){
+    const wrap=document.querySelector('.wrap');
+    const score=document.getElementById('rbcScoreBox');
+    const pin=document.querySelector('.pin-manager');
+
+    if(wrap && score && pin && score.parentElement!==wrap){
+      wrap.insertBefore(score,pin.nextSibling);
+    }
+
+    const title=score?.querySelector('h2');
+    if(title) title.innerText='팀장 신뢰도 점수';
+  }
+
+  function makeTabsForce(){
+    let tabs=document.getElementById('rbcPageTabs');
+    const cards=document.querySelector('.cards');
+
+    if(!cards) return;
+
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      tabs.innerHTML=
+        '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>'+
+        '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+      cards.parentNode.insertBefore(tabs,cards.nextSibling);
+    }
+
+    document.getElementById('rbcPage1Btn').onclick=function(){showRbcPage(1);};
+    document.getElementById('rbcPage2Btn').onclick=function(){showRbcPage(2);};
+  }
+
+  function isPage2Item(el){
+    if(!el) return false;
+    return el.id==='rbcRiskBox' ||
+           el.id==='rbcMonthlyBox' ||
+           el.id==='rbcScoreBox' ||
+           el.classList.contains('pin-manager');
+  }
+
+  window.showRbcPage=function(page){
+    moveScoreBoxIntoWrap();
+
+    const p1=document.getElementById('rbcPage1Btn');
+    const p2=document.getElementById('rbcPage2Btn');
+
+    if(p1) p1.classList.toggle('active',page===1);
+    if(p2) p2.classList.toggle('active',page===2);
+
+    const wrap=document.querySelector('.wrap');
+    if(!wrap) return;
+
+    Array.from(wrap.children).forEach(function(el){
+      if(el.id==='rbcPageTabs') return;
+      if(el.classList.contains('admin-main-title')) return;
+      if(el.classList.contains('admin-logout-btn')) return;
+      if(el.classList.contains('sub')) return;
+      if(el.id==='conn') return;
+      if(el.classList.contains('cards')) return;
+
+      if(isPage2Item(el)){
+        el.style.display=page===2?'':'none';
+      }else{
+        el.style.display=page===1?'':'none';
+      }
+    });
+  };
+
+  function hideBadScheduleRows(){
+    const bad=/타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/;
+
+    document.querySelectorAll('#rbcScoreBody tr, #teamAnalysisTbody tr').forEach(function(tr){
+      const text=(tr.innerText||'').replace(/\s+/g,'');
+      if(bad.test(text)){
+        tr.style.display='none';
+      }
+    });
+  }
+
+  function initForce(){
+    moveScoreBoxIntoWrap();
+    makeTabsForce();
+    showRbcPage(1);
+    hideBadScheduleRows();
+  }
+
+  document.addEventListener('DOMContentLoaded',initForce);
+  setTimeout(initForce,300);
+  setTimeout(initForce,1000);
+  setTimeout(initForce,2500);
+  setInterval(hideBadScheduleRows,2000);
+})();
+</script>
 </body></html>
