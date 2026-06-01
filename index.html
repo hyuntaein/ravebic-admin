@@ -1276,7 +1276,21 @@ function renderTeamTodayAnalysis(){
   const todayStr = toYmdForTeam(new Date());
   if(!thead || !tbody) return;
   thead.innerHTML = '<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
-  const rows = buildTeamDayData(todayStr);
+  let targetDate = todayStr;
+let rows = buildTeamDayData(targetDate);
+
+if(rows.length === 0 && teamScheduleRows.length){
+  const dates = [...new Set(
+    teamScheduleRows
+      .map(r => String(r.scheduleDate || ''))
+      .filter(Boolean)
+  )].sort();
+
+  if(dates.length){
+    targetDate = dates[dates.length - 1];
+    rows = buildTeamDayData(targetDate);
+  }
+}
   const totalPlanned = rows.reduce((s,r)=>s+r.planned,0);
   const totalSubmitted = rows.reduce((s,r)=>s+r.submitted,0);
   const totalMissing = rows.reduce((s,r)=>s+r.missing,0);
@@ -1285,12 +1299,12 @@ function renderTeamTodayAnalysis(){
       '<span class="team-chip total">예정 '+totalPlanned+'건</span>' +
       '<span class="team-chip ok">제출 '+totalSubmitted+'건</span>' +
       '<span class="team-chip miss">미제출 '+totalMissing+'건</span>' +
-      '<span class="team-chip warn">기준일 '+todayStr+'</span>';
+      '<span class="team-chip warn">기준일 '+targetDate+'</span>';
   }
   if(rows.length === 0){
-    tbody.innerHTML = '<tr><td colspan="7">오늘 분석된 팀장 일정이 없습니다. 먼저 Apps Script 일정표를 한 번 열어 분석 저장하세요.</td></tr>';
-    return;
-  }
+  tbody.innerHTML = '<tr><td colspan="7">Firebase teamSchedules에 저장된 일정이 없습니다. 구글 일정표를 Apps Script에서 분석 저장해야 합니다.</td></tr>';
+  return;
+}
   const after7 = isAfterSevenPmForTeam();
   tbody.innerHTML = rows.map(function(r){
     let status = '정상', cls = 'ok', trCls = 'team-row-ok';
