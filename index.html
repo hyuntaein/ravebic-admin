@@ -1264,7 +1264,17 @@ function buildTeamDayData(dateStr){
     const leader = String(r.leader || '').trim();
     if(!leader) return;
     if(!map[leader]){
-      map[leader] = {leader:leader, planned:0, submitted:0, missing:0, seven:0, emart:0, etc:0, stores:[]};
+      map[leader] = {
+  leader:leader,
+  leaderOrderIndex: r.leaderOrderIndex || 999999,
+  planned:0,
+  submitted:0,
+  missing:0,
+  seven:0,
+  emart:0,
+  etc:0,
+  stores:[]
+};
     }
     map[leader].planned++;
     if(r.brand === '세븐일레븐') map[leader].seven++;
@@ -1277,7 +1287,9 @@ function buildTeamDayData(dateStr){
     row.submitted = countActualSubmissionsForTeam(leader, dateStr, '');
     row.missing = Math.max(0, row.planned - row.submitted);
   });
-return Object.values(map);  
+return Object.values(map).sort(function(a,b){
+  return (a.leaderOrderIndex || 999999) - (b.leaderOrderIndex || 999999);
+});  
 }
 async function loadTeamScheduleAnalysis(){
   const tbody = document.getElementById('teamAnalysisTbody');
