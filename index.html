@@ -1242,7 +1242,7 @@ async function loadTeamScheduleRows(){
     teamScheduleRows = [];
   }
 }
-}
+
 function brandShortForTeam(brand){
   if(brand === '세븐일레븐') return '세븐';
   if(brand === '이마트24') return '이마트24';
@@ -1883,10 +1883,13 @@ setInterval(bindStoreHistoryClick,1500);
     const score=document.getElementById('rbcScoreBox');
     const pin=document.querySelector('.pin-manager');
 
-    if(wrap && score && pin && score.parentElement!==wrap){
+     if(wrap && score && pin && score.parentElement!==wrap){
       wrap.insertBefore(score,pin.nextSibling);
     }
 
+    const title = score?.querySelector('h2');
+    if(title) title.innerText = '팀장 신뢰도 점수';
+  }
 
   function makeTabsForce(){
     let tabs=document.getElementById('rbcPageTabs');
