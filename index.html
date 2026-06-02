@@ -1220,7 +1220,8 @@ async function loadTeamScheduleRows(){
     const snap = await db.collection('teamSchedules').get();
     const rows = [];
     snap.forEach(function(doc){ const d = doc.data() || {}; rows.push({id:doc.id, ...d}); });
-    teamScheduleRows = rows.filter(function(r){ return r.active !== false; });
+   teamScheduleRows = rows.filter(function(r){
+  const bad = /양수도|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴
   }catch(e){
     console.error('teamSchedules load failed', e);
     teamScheduleRows = [];
