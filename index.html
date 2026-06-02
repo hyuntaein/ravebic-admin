@@ -1219,13 +1219,29 @@ async function loadTeamScheduleRows(){
   try{
     const snap = await db.collection('teamSchedules').get();
     const rows = [];
-    snap.forEach(function(doc){ const d = doc.data() || {}; rows.push({id:doc.id, ...d}); });
-   teamScheduleRows = rows.filter(function(r){
-  const bad = /양수도|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴
+
+    snap.forEach(function(doc){
+      const d = doc.data() || {};
+      rows.push({ id: doc.id, ...d });
+    });
+
+    teamScheduleRows = rows.filter(function(r){
+      const bad = /양수도|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/;
+      const leader = String(r.leader || '').replace(/\s+/g,'');
+      const store = String(r.store || '').replace(/\s+/g,'');
+
+      if(r.active === false) return false;
+      if(bad.test(leader)) return false;
+      if(bad.test(store)) return false;
+
+      return true;
+    });
+
   }catch(e){
     console.error('teamSchedules load failed', e);
     teamScheduleRows = [];
   }
+}
 }
 function brandShortForTeam(brand){
   if(brand === '세븐일레븐') return '세븐';
@@ -1870,10 +1886,7 @@ setInterval(bindStoreHistoryClick,1500);
     if(wrap && score && pin && score.parentElement!==wrap){
       wrap.insertBefore(score,pin.nextSibling);
     }
-function arrangePage2Boxes(){ ... }
-    const title=score?.querySelector('h2');
-    if(title) title.innerText='팀장 신뢰도 점수';
-  }
+
 
   function makeTabsForce(){
     let tabs=document.getElementById('rbcPageTabs');
