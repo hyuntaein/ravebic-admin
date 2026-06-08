@@ -712,29 +712,34 @@ stores.forEach((store,idx)=>{
    });
  });
 
- const filesHtml = mergedFiles.length
- ? mergedFiles.map((x,i)=>{
+const filesHtml = `
+<button
+  class="file-view-btn"
+  onclick="showMergedFiles(${idx})">
+📎 첨부파일 ${mergedFiles.length}개
+</button>
+`;
 
-    const f=x.file;
-
-    return `
-      <div class="file-actions">
-        <a class="file-view-btn"
-           target="_blank"
-           href="${esc(f.url||'#')}">
-           첨부 ${i+1} 보기
-        </a>
-      </div>
-    `;
-
- }).join('')
- : '<span class="small">없음</span>';
+window.__mergedFiles = window.__mergedFiles || {};
+window.__mergedFiles[idx] = mergedFiles;
 
  html += `
  <tr>
    <td>${latestTime}</td>
    <td>${esc(latestRow.name)}</td>
-   <td>${esc(store)}</td>
+   <td>
+  <button
+    onclick="toggleStoreDetail('${idx}')"
+    style="
+      border:none;
+      background:none;
+      color:#2563eb;
+      font-weight:bold;
+      cursor:pointer;
+    ">
+    ▶ ${esc(store)}
+  </button>
+</td>
    <td>${esc(latestRow.region)}</td>
    <td>${esc(latestRow.brand)}</td>
    <td>${esc(latestRow.workType)}</td>
@@ -1116,7 +1121,7 @@ setTimeout(function(){
   }
 },100);
 
-</script>
+
 <script>
 // RAVEBIC_STAFF_PIN_SAFE_V2
 (function(){
@@ -2798,6 +2803,43 @@ async function rbcLoadAlertCenter(){
 }
 
 setTimeout(rbcLoadAlertCenter,2400);
+function showMergedFiles(idx){
+
+ const files = window.__mergedFiles[idx] || [];
+
+ let html = `
+ <div style="
+   max-height:500px;
+   overflow:auto;
+   text-align:left;
+ ">
+ `;
+
+ files.forEach((x,i)=>{
+
+   html += `
+   <div style="
+      margin:8px 0;
+      padding:8px;
+      border-bottom:1px solid #ddd;
+   ">
+      <a
+        href="${x.file.url}"
+        target="_blank"
+        style="font-weight:bold;color:#2563eb">
+        첨부 ${i+1} 보기
+      </a>
+   </div>
+   `;
+ });
+
+ html += `</div>`;
+
+ showModal(
+   '첨부파일 목록',
+   html
+ );
+}
 </script>
 
 </body></html>
