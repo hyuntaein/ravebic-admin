@@ -656,7 +656,90 @@ async function deleteSubmissionRow(submissionId){
   }
 }
 
-function render(){const todayStr=new Date().toDateString();document.getElementById('total').textContent=filtered.length;document.getElementById('today').textContent=filtered.filter(r=>dtOf(r).toDateString()===todayStr).length;document.getElementById('s0').textContent=filtered.filter(r=>(r.status||'미확인')==='미확인').length;document.getElementById('s1').textContent=filtered.filter(r=>r.status==='확인완료').length;document.getElementById('s2').textContent=filtered.filter(r=>r.status==='보완요청').length;const tb=document.getElementById('tbody');const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));if(currentPage>totalPages)currentPage=totalPages;const start=(currentPage-1)*pageSize;const pageRows=filtered.slice(start,start+pageSize);updatePaginationControls(totalPages);if(!filtered.length){tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';return;}tb.innerHTML=pageRows.map(r=>{const files=buildFileActions(r);return '<tr><td>'+dtOf(r).toLocaleString()+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.store)+'</td><td>'+esc(r.region)+'</td><td>'+esc(r.brand)+'</td><td>'+esc(r.workType)+'</td><td>'+esc(r.note||'')+'</td><td>'+files+'</td><td><select onchange="changeStatus(\''+r.id+'\',this.value)"><option '+sel(r,'미확인')+'>미확인</option><option '+sel(r,'확인완료')+'>확인완료</option><option '+sel(r,'보완요청')+'>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(\''+r.id+'\')">제출삭제</button></td></tr>';}).join('');setTimeout(function(){if(typeof applyRavebicStatusColors==='function')applyRavebicStatusColors();},30);}
+
+function toggleStoreGroup(id){
+  const el=document.getElementById(id);
+  if(!el) return;
+  el.style.display=el.style.display==='none'?'table-row-group':'none';
+}
+
+
+function render(){
+const todayStr=new Date().toDateString();
+document.getElementById('total').textContent=filtered.length;
+document.getElementById('today').textContent=filtered.filter(r=>dtOf(r).toDateString()===todayStr).length;
+document.getElementById('s0').textContent=filtered.filter(r=>(r.status||'미확인')==='미확인').length;
+document.getElementById('s1').textContent=filtered.filter(r=>r.status==='확인완료').length;
+document.getElementById('s2').textContent=filtered.filter(r=>r.status==='보완요청').length;
+
+const tb=document.getElementById('tbody');
+
+if(!filtered.length){
+tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';
+return;
+}
+
+const groups={};
+filtered.forEach(r=>{
+ const key=(r.store||'미지정점포').trim();
+ if(!groups[key]) groups[key]=[];
+ groups[key].push(r);
+});
+
+const stores=Object.keys(groups).sort((a,b)=>{
+ const aa=Math.max(...groups[a].map(x=>dtOf(x).getTime()));
+ const bb=Math.max(...groups[b].map(x=>dtOf(x).getTime()));
+ return bb-aa;
+});
+
+let html='';
+
+stores.forEach((store,idx)=>{
+ const rows=groups[store].sort((a,b)=>dtOf(b)-dtOf(a));
+ const latest=dtOf(rows[0]).toLocaleString();
+
+ html+=`
+ <tr style="background:#dbeafe;font-weight:900;cursor:pointer"
+     onclick="toggleStoreGroup('grp_${idx}')">
+   <td colspan="10">
+      ▶ ${store}
+      <span class="rbc-merged-note">${rows.length}건</span>
+      <span style="margin-left:10px;color:#1e40af">최종 제출 : ${latest}</span>
+   </td>
+ </tr>`;
+
+ html+=`<tbody id="grp_${idx}" style="display:none">`;
+
+ rows.forEach(r=>{
+   const files=buildFileActions(r);
+   html+=`
+   <tr>
+   <td>${dtOf(r).toLocaleString()}</td>
+   <td>${esc(r.name)}</td>
+   <td>${esc(r.store)}</td>
+   <td>${esc(r.region)}</td>
+   <td>${esc(r.brand)}</td>
+   <td>${esc(r.workType)}</td>
+   <td>${esc(r.note||'')}</td>
+   <td>${files}</td>
+   <td>
+   <select onchange="changeStatus('${r.id}',this.value)">
+   <option ${(r.status||'미확인')==='미확인'?'selected':''}>미확인</option>
+   <option ${r.status==='확인완료'?'selected':''}>확인완료</option>
+   <option ${r.status==='보완요청'?'selected':''}>보완요청</option>
+   </select>
+   </td>
+   <td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow('${r.id}')">제출삭제</button></td>
+   </tr>`;
+ });
+
+ html+='</tbody>';
+});
+
+tb.innerHTML=html;
+setTimeout(function(){if(typeof applyRavebicStatusColors==='function')applyRavebicStatusColors();},30);
+}
+
 function updatePaginationControls(totalPages){const info=document.getElementById('pageInfo');const prev=document.getElementById('prevPageBtn');const next=document.getElementById('nextPageBtn');if(info)info.textContent=currentPage+' / '+totalPages+' 페이지 · 총 '+filtered.length+'건';if(prev)prev.disabled=currentPage<=1;if(next)next.disabled=currentPage>=totalPages;}
 function prevPage(){if(currentPage>1){currentPage--;render();}}
 function nextPage(){const totalPages=Math.max(1,Math.ceil(filtered.length/pageSize));if(currentPage<totalPages){currentPage++;render();}}
