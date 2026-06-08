@@ -1197,8 +1197,8 @@ async function sendAdminDirectMessageForce(){
   }
 }
 
-
-// RAVEBIC_TEAM_SCHEDULE_ANALYSIS_V1
+<script>
+// RAVEBIC_TEAM_SCHEDULE_ANALYSIS_FINAL_DIRECT_QUERY
 let teamScheduleRows = [];
 let teamAnalysisMode = 'today';
 let teamAnalysisCollapsed = false;
@@ -1209,6 +1209,7 @@ function toYmdForTeam(d){
   const day = String(d.getDate()).padStart(2,'0');
   return y + '-' + m + '-' + day;
 }
+
 function startOfWeekForTeam(d){
   const x = new Date(d);
   const day = x.getDay();
@@ -1217,34 +1218,58 @@ function startOfWeekForTeam(d){
   x.setHours(0,0,0,0);
   return x;
 }
-function addDaysForTeam(d, n){ const x = new Date(d); x.setDate(x.getDate()+n); return x; }
-function isAfterSevenPmForTeam(){ return new Date().getHours() >= 19; }
-async function loadTeamScheduleRows(){
+
+function addDaysForTeam(d, n){
+  const x = new Date(d);
+  x.setDate(x.getDate()+n);
+  return x;
+}
+
+function isAfterSevenPmForTeam(){
+  return new Date().getHours() >= 19;
+}
+
+async function loadTeamScheduleRows(dateStr){
   try{
-    const snap = await db.collection('teamSchedules').get();
+    let ref = db.collection('teamSchedules');
+
+    if(dateStr){
+      ref = ref.where('scheduleDate', '==', dateStr);
+    }
+
+    const snap = await ref.get();
     const rows = [];
 
     snap.forEach(function(doc){
       const d = doc.data() || {};
-      rows.push({ id: doc.id, ...d });
-    });
-
-    teamScheduleRows = rows.filter(function(r){
       const bad = /양수도|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/;
-      const leader = String(r.leader || '').replace(/\s+/g,'');
-      const store = String(r.store || '').replace(/\s+/g,'');
+      const leader = String(d.leader || '').replace(/\s+/g,'');
+      const store = String(d.store || '').replace(/\s+/g,'');
 
-      if(r.active === false) return false;
-      if(bad.test(leader)) return false;
-      if(bad.test(store)) return false;
+      if(d.active === false) return;
+      if(bad.test(leader)) return;
+      if(bad.test(store)) return;
 
-      return true;
+      rows.push({
+        id: doc.id,
+        ...d,
+        scheduleDate: String(d.scheduleDate || '').trim(),
+        leader: String(d.leader || '').trim(),
+        brand: String(d.brand || '').trim(),
+        store: String(d.store || '').trim(),
+        leaderOrderIndex: Number(d.leaderOrderIndex || 999999)
+      });
     });
-    window.teamScheduleRows = teamScheduleRows;
+
+    teamScheduleRows = rows;
+    window.teamScheduleRows = rows;
+    return rows;
 
   }catch(e){
     console.error('teamSchedules load failed', e);
     teamScheduleRows = [];
+    window.teamScheduleRows = [];
+    return [];
   }
 }
 
@@ -1253,57 +1278,72 @@ function brandShortForTeam(brand){
   if(brand === '이마트24') return '이마트24';
   return brand || '기타';
 }
+
 function countActualSubmissionsForTeam(leader, dateStr, brand){
   return (allRows || []).filter(function(r){
     const d = dtOf(r);
     const sameDate = toYmdForTeam(d) === dateStr;
-    const sameLeader = String(r.name || '').trim() === leader;
-    const sameBrand = !brand || String(r.brand || '').trim() === brand;
+    const sameLeader = String(r.name || '').trim() === String(leader || '').trim();
+    const sameBrand = !brand || String(r.brand || '').trim() === String(brand || '').trim();
     return sameDate && sameLeader && sameBrand;
   }).length;
 }
-function buildTeamDayData(dateStr){
-  const schedules = teamScheduleRows.filter(function(r){ return String(r.scheduleDate || '') === dateStr; });
+
+function buildTeamDayDataFromRows(rows, dateStr){
   const map = {};
-  schedules.forEach(function(r){
+
+  rows.forEach(function(r){
+    if(String(r.scheduleDate || '').trim() !== dateStr) return;
+
     const leader = String(r.leader || '').trim();
     if(!leader) return;
+
     if(!map[leader]){
       map[leader] = {
-  leader:leader,
-  leaderOrderIndex: r.leaderOrderIndex || 999999,
-  planned:0,
-  submitted:0,
-  missing:0,
-  seven:0,
-  emart:0,
-  etc:0,
-  stores:[]
-};
+        leader: leader,
+        leaderOrderIndex: r.leaderOrderIndex || 999999,
+        planned: 0,
+        submitted: 0,
+        missing: 0,
+        seven: 0,
+        emart: 0,
+        etc: 0,
+        stores: []
+      };
     }
+
     map[leader].planned++;
+
     if(r.brand === '세븐일레븐') map[leader].seven++;
     else if(r.brand === '이마트24') map[leader].emart++;
     else map[leader].etc++;
-    map[leader].stores.push({brand:r.brand || '', store:r.store || ''});
+
+    map[leader].stores.push({
+      brand: r.brand || '',
+      store: r.store || ''
+    });
   });
+
   Object.keys(map).forEach(function(leader){
     const row = map[leader];
     row.submitted = countActualSubmissionsForTeam(leader, dateStr, '');
     row.missing = Math.max(0, row.planned - row.submitted);
   });
-return Object.values(map).sort(function(a,b){
-  return (a.leaderOrderIndex || 999999) - (b.leaderOrderIndex || 999999);
-});  
+
+  return Object.values(map).sort(function(a,b){
+    return (a.leaderOrderIndex || 999999) - (b.leaderOrderIndex || 999999);
+  });
 }
+
 async function loadTeamScheduleAnalysis(){
   const tbody = document.getElementById('teamAnalysisTbody');
   if(tbody) tbody.innerHTML = '<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
-  await loadTeamScheduleRows();
-  if(teamAnalysisMode === 'week') renderTeamWeekAnalysis();
-  else renderTeamTodayAnalysis();
+
+  if(teamAnalysisMode === 'week') await renderTeamWeekAnalysis();
+  else await renderTeamTodayAnalysis();
 }
-function renderTeamTodayAnalysis(){
+
+async function renderTeamTodayAnalysis(){
   const thead = document.getElementById('teamAnalysisThead');
   const tbody = document.getElementById('teamAnalysisTbody');
   const summary = document.getElementById('teamAnalysisSummary');
@@ -1313,10 +1353,8 @@ function renderTeamTodayAnalysis(){
 
   thead.innerHTML = '<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
 
-  // 중요: 오늘 분석표는 절대로 과거 최신일로 fallback하지 않는다.
-  // 오늘 teamSchedules가 없으면 예정 0건으로 보여주고, 동기화 필요 문구를 표시한다.
-  const targetDate = todayStr;
-  const rows = buildTeamDayData(targetDate);
+  const todayRows = await loadTeamScheduleRows(todayStr);
+  const rows = buildTeamDayDataFromRows(todayRows, todayStr);
 
   const totalPlanned = rows.reduce((s,r)=>s+r.planned,0);
   const totalSubmitted = rows.reduce((s,r)=>s+r.submitted,0);
@@ -1327,53 +1365,115 @@ function renderTeamTodayAnalysis(){
       '<span class="team-chip total">예정 '+totalPlanned+'건</span>' +
       '<span class="team-chip ok">제출 '+totalSubmitted+'건</span>' +
       '<span class="team-chip miss">미제출 '+totalMissing+'건</span>' +
-      '<span class="team-chip warn">기준일 '+targetDate+'</span>';
+      '<span class="team-chip warn">기준일 '+todayStr+'</span>';
   }
 
   if(rows.length === 0){
     tbody.innerHTML =
-      '<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;">' +
-      '오늘('+targetDate+') teamSchedules 일정이 없습니다. 구글 일정 업로드 후 Firestore teamSchedules 동기화가 필요합니다.' +
+      '<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900;">' +
+      '오늘('+todayStr+') teamSchedules 일정이 없습니다. 구글 일정 불러오기 후 직원용 일정표 승인 반영을 다시 눌러주세요.' +
       '</td></tr>';
     return;
   }
 
   const after7 = isAfterSevenPmForTeam();
+
   tbody.innerHTML = rows.map(function(r){
     let status = '정상', cls = 'ok', trCls = 'team-row-ok';
-    if(r.missing > 0 && after7){ status = '미제출'; cls = 'danger'; trCls = 'team-row-danger'; }
-    else if(r.missing > 0){ status = '진행중'; cls = 'warn'; trCls = 'team-row-warn'; }
-    const storeHtml = r.stores.map(function(s){ return '· ' + esc(brandShortForTeam(s.brand)) + ' / ' + esc(s.store); }).join('<br>');
-    return '<tr class="'+trCls+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+storeHtml+'</div></td><td><span class="team-status-badge '+cls+'">'+status+'</span></td></tr>';
+
+    if(r.missing > 0 && after7){
+      status = '미제출';
+      cls = 'danger';
+      trCls = 'team-row-danger';
+    }else if(r.missing > 0){
+      status = '진행중';
+      cls = 'warn';
+      trCls = 'team-row-warn';
+    }
+
+    const storeHtml = r.stores.map(function(s){
+      return '· ' + esc(brandShortForTeam(s.brand)) + ' / ' + esc(s.store);
+    }).join('<br>');
+
+    return '<tr class="'+trCls+'">' +
+      '<td><b>'+esc(r.leader)+'</b></td>' +
+      '<td>'+r.planned+'건</td>' +
+      '<td>'+r.submitted+'건</td>' +
+      '<td>'+r.missing+'건</td>' +
+      '<td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td>' +
+      '<td><div class="team-store-list">'+storeHtml+'</div></td>' +
+      '<td><span class="team-status-badge '+cls+'">'+status+'</span></td>' +
+      '</tr>';
   }).join('');
 }
-function renderTeamWeekAnalysis(){
+
+async function renderTeamWeekAnalysis(){
   const thead = document.getElementById('teamAnalysisThead');
   const tbody = document.getElementById('teamAnalysisTbody');
   const summary = document.getElementById('teamAnalysisSummary');
+
   if(!thead || !tbody) return;
+
   const start = startOfWeekForTeam(new Date());
   const days = [];
-  for(let i=0;i<7;i++){ const d = addDaysForTeam(start, i); days.push({date:d, ymd:toYmdForTeam(d)}); }
-  thead.innerHTML = '<tr><th>팀장</th>' + days.map(function(d){ return '<th>'+d.ymd.slice(5)+'</th>'; }).join('') + '<th>총 예정</th><th>총 제출</th><th>총 미제출</th><th>상태</th></tr>';
-  const leaders = new Set();
-  days.forEach(function(day){
-    teamScheduleRows.filter(r=>String(r.scheduleDate||'')===day.ymd).forEach(function(r){ if(r.leader) leaders.add(String(r.leader).trim()); });
-  });
-  const rows = Array.from(leaders).map(function(leader){
-    let totalPlan = 0, totalSubmit = 0;
-    const dayCells = days.map(function(day){
-      const planned = teamScheduleRows.filter(function(r){ return String(r.scheduleDate||'')===day.ymd && String(r.leader||'').trim()===leader; }).length;
-      const submitted = countActualSubmissionsForTeam(leader, day.ymd, '');
-      totalPlan += planned; totalSubmit += submitted;
-      return {planned, submitted, missing:Math.max(0, planned-submitted)};
-    });
-    return {leader, dayCells, totalPlan, totalSubmit, totalMissing:Math.max(0,totalPlan-totalSubmit)};
 
+  for(let i=0;i<7;i++){
+    const d = addDaysForTeam(start, i);
+    days.push({date:d, ymd:toYmdForTeam(d)});
+  }
+
+  thead.innerHTML =
+    '<tr><th>팀장</th>' +
+    days.map(function(d){ return '<th>'+d.ymd.slice(5)+'</th>'; }).join('') +
+    '<th>총 예정</th><th>총 제출</th><th>총 미제출</th><th>상태</th></tr>';
+
+  const allWeekRows = await loadTeamScheduleRows();
+
+  const leaders = new Set();
+
+  days.forEach(function(day){
+    allWeekRows
+      .filter(r => String(r.scheduleDate || '').trim() === day.ymd)
+      .forEach(function(r){
+        if(r.leader) leaders.add(String(r.leader).trim());
+      });
   });
+
+  const rows = Array.from(leaders).map(function(leader){
+    let totalPlan = 0;
+    let totalSubmit = 0;
+
+    const dayCells = days.map(function(day){
+      const planned = allWeekRows.filter(function(r){
+        return String(r.scheduleDate || '').trim() === day.ymd &&
+          String(r.leader || '').trim() === leader;
+      }).length;
+
+      const submitted = countActualSubmissionsForTeam(leader, day.ymd, '');
+
+      totalPlan += planned;
+      totalSubmit += submitted;
+
+      return {
+        planned: planned,
+        submitted: submitted,
+        missing: Math.max(0, planned - submitted)
+      };
+    });
+
+    return {
+      leader: leader,
+      dayCells: dayCells,
+      totalPlan: totalPlan,
+      totalSubmit: totalSubmit,
+      totalMissing: Math.max(0, totalPlan - totalSubmit)
+    };
+  });
+
   const totalPlanned = rows.reduce((s,r)=>s+r.totalPlan,0);
   const totalSubmitted = rows.reduce((s,r)=>s+r.totalSubmit,0);
   const totalMissing = rows.reduce((s,r)=>s+r.totalMissing,0);
+
   if(summary){
     summary.innerHTML =
       '<span class="team-chip total">주간 예정 '+totalPlanned+'건</span>' +
@@ -1381,29 +1481,48 @@ function renderTeamWeekAnalysis(){
       '<span class="team-chip miss">주간 미제출 '+totalMissing+'건</span>' +
       '<span class="team-chip warn">기간 '+days[0].ymd+' ~ '+days[6].ymd+'</span>';
   }
-  if(rows.length === 0){ tbody.innerHTML = '<tr><td colspan="11">이번 주 분석된 팀장 일정이 없습니다.</td></tr>'; return; }
+
+  if(rows.length === 0){
+    tbody.innerHTML = '<tr><td colspan="11">이번 주 분석된 팀장 일정이 없습니다.</td></tr>';
+    return;
+  }
+
   tbody.innerHTML = rows.map(function(r){
     const cls = r.totalMissing > 0 ? 'danger' : 'ok';
     const trCls = r.totalMissing > 0 ? 'team-row-danger' : 'team-row-ok';
+
     return '<tr class="'+trCls+'"><td><b>'+esc(r.leader)+'</b></td>' +
-      r.dayCells.map(function(c){ return '<td>'+c.submitted+' / '+c.planned+'</td>'; }).join('') +
-      '<td>'+r.totalPlan+'</td><td>'+r.totalSubmit+'</td><td>'+r.totalMissing+'</td><td><span class="team-status-badge '+cls+'">'+(r.totalMissing>0?'미제출 있음':'완료')+'</span></td></tr>';
+      r.dayCells.map(function(c){
+        return '<td>'+c.submitted+' / '+c.planned+'</td>';
+      }).join('') +
+      '<td>'+r.totalPlan+'</td>' +
+      '<td>'+r.totalSubmit+'</td>' +
+      '<td>'+r.totalMissing+'</td>' +
+      '<td><span class="team-status-badge '+cls+'">'+(r.totalMissing>0?'미제출 있음':'완료')+'</span></td>' +
+      '</tr>';
   }).join('');
 }
+
 function showTeamAnalysisMode(mode){
   teamAnalysisMode = mode;
+
   const todayBtn = document.getElementById('teamTodayTab');
   const weekBtn = document.getElementById('teamWeekTab');
+
   if(todayBtn) todayBtn.classList.toggle('active', mode === 'today');
   if(weekBtn) weekBtn.classList.toggle('active', mode === 'week');
+
   loadTeamScheduleAnalysis();
 }
+
 function toggleTeamScheduleAnalysis(){
   const body = document.getElementById('teamAnalysisBody');
   if(!body) return;
+
   teamAnalysisCollapsed = !teamAnalysisCollapsed;
   body.style.display = teamAnalysisCollapsed ? 'none' : 'block';
 }
+
 if(typeof render === 'function' && !window.ravebicOriginalRenderForTeamAnalysis){
   window.ravebicOriginalRenderForTeamAnalysis = render;
   render = function(){
@@ -1411,9 +1530,10 @@ if(typeof render === 'function' && !window.ravebicOriginalRenderForTeamAnalysis)
     setTimeout(loadTeamScheduleAnalysis, 300);
   };
 }
-setTimeout(loadTeamScheduleAnalysis, 1500);
 
+setTimeout(loadTeamScheduleAnalysis, 1500);
 </script>
+
 <style>
 /* RAVEBIC 신뢰도 점수 */
 .rbc-score-box{margin:18px 0;padding:16px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}
