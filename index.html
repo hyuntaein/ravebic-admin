@@ -2543,4 +2543,193 @@ async function rbcLoadAlertCenter(){
 
 setTimeout(rbcLoadAlertCenter,2400);
 </script>
+
+<script>
+/* ===== 팀장 제출분석표 긴급 수정 패치 ===== */
+
+/* 콘솔 오류 방지 */
+window.fixScoreTitleAndFilter = window.fixScoreTitleAndFilter || function(){};
+window.arrangePage2Boxes = window.arrangePage2Boxes || function(){};
+
+/* 한국 기준 YYYY-MM-DD */
+function toYmdForTeam(date){
+  const d = new Date(date);
+  d.setHours(d.getHours() + 9);
+  return d.toISOString().slice(0, 10);
+}
+
+/* Firestore teamSchedules 다시 로드 */
+async function loadTeamScheduleRows(){
+  try {
+    const snap = await db.collection('teamSchedules').get();
+    const rows = [];
+
+    snap.forEach(doc => {
+      const d = doc.data() || {};
+      if (d.active === false) return;
+
+      const scheduleDate = String(d.scheduleDate || d.date || '').trim();
+      if (!scheduleDate) return;
+
+      rows.push({
+        id: doc.id,
+        ...d,
+        scheduleDate,
+        leader: d.leader || d.teamLeader || d.manager || '',
+        store: d.store || d.storeName || d.branchName || '',
+        brand: d.brand || '',
+        rawText: d.rawText || ''
+      });
+    });
+
+    window.teamScheduleRows = rows;
+    return rows;
+  } catch (e) {
+    console.error('teamSchedules load failed', e);
+    window.teamScheduleRows = [];
+    return [];
+  }
+}
+
+/* 오늘 제출 데이터 추출 */
+function getTodaySubmittedStores(todayStr){
+  const candidates = [
+    window.submissions,
+    window.allSubmissions,
+    window.submissionRows,
+    window.allData,
+    window.filteredData,
+    window.rows
+  ].find(v => Array.isArray(v));
+
+  if (!candidates) return new Set();
+
+  const submitted = new Set();
+
+  candidates.forEach(r => {
+    const rawDate = String(
+      r.submitDate || r.date || r.createdDate || r.createdAt || r.timestamp || r.submittedAt || ''
+    );
+
+    const store = String(
+      r.store || r.storeName || r.branchName || r.shop || r.pointName || ''
+    ).trim();
+
+    const normalizedDate = rawDate.includes(todayStr) || rawDate.includes(todayStr.replaceAll('-', '.'));
+
+    if (normalizedDate && store) {
+      submitted.add(store);
+    }
+  });
+
+  return submitted;
+}
+
+/* 오늘 분석표 렌더링 */
+async function renderTeamTodayAnalysis(){
+  const tbody = document.getElementById('teamAnalysisBody');
+  const summary = document.getElementById('teamAnalysisSummary');
+
+  if (!tbody || !summary) return;
+
+  const todayStr = toYmdForTeam(new Date());
+
+  let rows = Array.isArray(window.teamScheduleRows)
+    ? window.teamScheduleRows
+    : await loadTeamScheduleRows();
+
+  rows = rows.filter(r => String(r.scheduleDate || '').trim() === todayStr);
+
+  const submittedStores = getTodaySubmittedStores(todayStr);
+
+  if (rows.length === 0) {
+    summary.innerHTML =
+      '<span class="team-chip total">예정 0건</span>' +
+      '<span class="team-chip ok">제출 0건</span>' +
+      '<span class="team-chip miss">미제출 0건</span>' +
+      '<span class="team-chip warn">기준일 ' + todayStr + '</span>';
+
+    tbody.innerHTML =
+      '<tr>' +
+      '<td colspan="7" style="text-align:center;padding:18px;color:#b45309;">' +
+      '오늘(' + todayStr + ') teamSchedules 일정이 없습니다. 구글 일정 업로드 후 Firestore teamSchedules 동기화가 필요합니다.' +
+      '</td>' +
+      '</tr>';
+
+    return;
+  }
+
+  const byLeader = {};
+
+  rows.forEach(r => {
+    const leader = r.leader || '미지정';
+    if (!byLeader[leader]) {
+      byLeader[leader] = {
+        leader,
+        planned: 0,
+        submitted: 0,
+        missing: 0,
+        stores: [],
+        brandCount: {}
+      };
+    }
+
+    const store = r.store || r.rawText || '점포명 없음';
+    const brand = r.brand || '기타';
+
+    byLeader[leader].planned += 1;
+    byLeader[leader].stores.push(store);
+    byLeader[leader].brandCount[brand] = (byLeader[leader].brandCount[brand] || 0) + 1;
+
+    if (submittedStores.has(store)) {
+      byLeader[leader].submitted += 1;
+    } else {
+      byLeader[leader].missing += 1;
+    }
+  });
+
+  const leaders = Object.values(byLeader);
+
+  const totalPlanned = leaders.reduce((s, r) => s + r.planned, 0);
+  const totalSubmitted = leaders.reduce((s, r) => s + r.submitted, 0);
+  const totalMissing = leaders.reduce((s, r) => s + r.missing, 0);
+
+  summary.innerHTML =
+    '<span class="team-chip total">예정 ' + totalPlanned + '건</span>' +
+    '<span class="team-chip ok">제출 ' + totalSubmitted + '건</span>' +
+    '<span class="team-chip miss">미제출 ' + totalMissing + '건</span>' +
+    '<span class="team-chip warn">기준일 ' + todayStr + '</span>';
+
+  tbody.innerHTML = leaders.map(r => {
+    const brandText = Object.entries(r.brandCount)
+      .map(([k,v]) => k + ' ' + v)
+      .join(' / ');
+
+    const status = r.missing > 0 ? '진행중' : '완료';
+
+    return (
+      '<tr>' +
+      '<td><b>' + r.leader + '</b></td>' +
+      '<td>' + r.planned + '건</td>' +
+      '<td>' + r.submitted + '건</td>' +
+      '<td>' + r.missing + '건</td>' +
+      '<td>' + brandText + '</td>' +
+      '<td>' + r.stores.map(s => '· ' + s).join('<br>') + '</td>' +
+      '<td><span class="team-status-badge warn">' + status + '</span></td>' +
+      '</tr>'
+    );
+  }).join('');
+}
+
+/* 분석 새로고침 */
+async function loadTeamScheduleAnalysis(){
+  await loadTeamScheduleRows();
+  await renderTeamTodayAnalysis();
+}
+
+/* 버튼에서도 쓸 수 있게 등록 */
+window.loadTeamScheduleRows = loadTeamScheduleRows;
+window.renderTeamTodayAnalysis = renderTeamTodayAnalysis;
+window.loadTeamScheduleAnalysis = loadTeamScheduleAnalysis;
+</script>
 </body></html>
