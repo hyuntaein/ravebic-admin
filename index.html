@@ -425,6 +425,247 @@ select.status-pending {
   line-height:1.5;
 }
 
+
+/* RAVEBIC_ADMIN_MOBILE_SUBMISSION_CARD_V1 */
+@media (max-width: 768px){
+
+  body{
+    padding:6px !important;
+    background:#f4f7fb !important;
+  }
+
+  .wrap{
+    width:100% !important;
+    max-width:none !important;
+    margin:0 !important;
+    padding:10px !important;
+    border-radius:14px !important;
+  }
+
+  .admin-main-title{
+    font-size:24px !important;
+    padding:12px 14px !important;
+    margin-bottom:12px !important;
+  }
+
+  .btns{
+    gap:7px !important;
+    margin:10px 0 !important;
+  }
+
+  .btns button{
+    padding:10px 12px !important;
+    font-size:13px !important;
+    border-radius:12px !important;
+  }
+
+  .filters{
+    grid-template-columns:1fr 1fr !important;
+    gap:8px !important;
+    padding:10px !important;
+  }
+
+  .filters input,
+  .filters select{
+    font-size:13px !important;
+    padding:10px !important;
+  }
+
+  .cards{
+    grid-template-columns:repeat(2,1fr) !important;
+    gap:8px !important;
+  }
+
+  .card{
+    padding:10px !important;
+  }
+
+  .num{
+    font-size:20px !important;
+  }
+
+  /* 제출목록 테이블만 모바일 카드형으로 변경 */
+  table:has(#tbody) thead{
+    display:none !important;
+  }
+
+  table:has(#tbody){
+    border-collapse:separate !important;
+    border-spacing:0 10px !important;
+    min-width:0 !important;
+  }
+
+  #tbody{
+    display:block !important;
+  }
+
+  #tbody tr{
+    display:grid !important;
+    grid-template-columns:70px 50px minmax(0,1fr) 48px 58px !important;
+    grid-template-areas:
+      "time name store work status"
+      "note note note files manage" !important;
+    gap:6px !important;
+    background:#fffdf5 !important;
+    border:1px solid #e7d9ac !important;
+    border-radius:14px !important;
+    padding:10px !important;
+    margin:0 0 10px 0 !important;
+    box-shadow:0 2px 8px rgba(15,23,42,.05) !important;
+  }
+
+  #tbody td{
+    display:block !important;
+    border:0 !important;
+    padding:0 !important;
+    vertical-align:top !important;
+    white-space:normal !important;
+    word-break:keep-all !important;
+    overflow-wrap:break-word !important;
+    line-height:1.35 !important;
+    font-size:12px !important;
+  }
+
+  #tbody td:nth-child(1){
+    grid-area:time !important;
+    color:#0f172a !important;
+    font-size:11px !important;
+  }
+
+  #tbody td:nth-child(2){
+    grid-area:name !important;
+    font-weight:900 !important;
+    color:#111827 !important;
+    text-align:center !important;
+  }
+
+  #tbody td:nth-child(3){
+    grid-area:store !important;
+    font-size:15px !important;
+    font-weight:900 !important;
+    color:#2563eb !important;
+  }
+
+  #tbody td:nth-child(3)::before{
+    content:"▶ ";
+  }
+
+  #tbody td:nth-child(4),
+  #tbody td:nth-child(5){
+    display:none !important;
+  }
+
+  #tbody td:nth-child(6){
+    grid-area:work !important;
+    font-weight:900 !important;
+    text-align:center !important;
+    color:#0b3b77 !important;
+  }
+
+  #tbody td:nth-child(7){
+    grid-area:note !important;
+    color:#475569 !important;
+    font-size:12px !important;
+    max-height:92px !important;
+    overflow:auto !important;
+    padding-top:4px !important;
+  }
+
+  #tbody td:nth-child(8){
+    grid-area:files !important;
+    text-align:center !important;
+  }
+
+  #tbody td:nth-child(9){
+    grid-area:status !important;
+    text-align:center !important;
+  }
+
+  #tbody td:nth-child(10){
+    grid-area:manage !important;
+    text-align:center !important;
+  }
+
+  #tbody td:nth-child(8) .file-actions{
+    display:block !important;
+    margin:0 0 4px !important;
+  }
+
+  #tbody td:nth-child(8) .file-view-btn{
+    display:block !important;
+    padding:7px 5px !important;
+    border-radius:10px !important;
+    font-size:11px !important;
+    line-height:1.2 !important;
+    background:#dbeafe !important;
+  }
+
+  #tbody td:nth-child(8) .file-delete-btn,
+  #tbody td:nth-child(8) .small{
+    display:none !important;
+  }
+
+  #tbody td:nth-child(9) select{
+    width:54px !important;
+    min-width:54px !important;
+    padding:8px 4px !important;
+    font-size:12px !important;
+    text-align:center !important;
+  }
+
+  #tbody td:nth-child(10) .row-delete-btn{
+    padding:8px 6px !important;
+    width:52px !important;
+    font-size:11px !important;
+    line-height:1.25 !important;
+    border-radius:10px !important;
+  }
+
+  .pagination-bar{
+    gap:7px !important;
+    margin:12px 0 !important;
+  }
+
+  .pagination-bar button{
+    padding:9px 13px !important;
+    font-size:13px !important;
+  }
+
+  .pagination-info{
+    font-size:13px !important;
+    padding:6px !important;
+  }
+
+  .page-size-select{
+    min-width:80px !important;
+    padding:9px !important;
+  }
+
+  .team-analysis,
+  .rbc-monthly-box,
+  .rbc-risk-box,
+  .rbc-score-box{
+    padding:12px !important;
+    border-radius:15px !important;
+  }
+
+  .team-analysis-table,
+  .rbc-score-table,
+  .rbc-monthly-table{
+    font-size:12px !important;
+  }
+
+  .team-analysis-table th,
+  .team-analysis-table td,
+  .rbc-score-table th,
+  .rbc-score-table td,
+  .rbc-monthly-table th,
+  .rbc-monthly-table td{
+    padding:7px !important;
+    word-break:keep-all !important;
+  }
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
