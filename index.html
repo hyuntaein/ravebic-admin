@@ -1205,7 +1205,10 @@ setTimeout(function(){
       }, { merge:true });
 
       alert('직원 PIN 저장 완료');
+      if(typeof invalidateRavebicValidStaffNames === 'function') invalidateRavebicValidStaffNames();
       await window.loadStaffPins();
+      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+      if(typeof rbcLoadScore === 'function') rbcLoadScore();
 
     }catch(err){
       alert('직원 PIN 저장 실패:\n\n' + err);
@@ -1218,7 +1221,10 @@ setTimeout(function(){
 
     try{
       await db.collection('staffPins').doc(staffDocId(name)).delete();
+      if(typeof invalidateRavebicValidStaffNames === 'function') invalidateRavebicValidStaffNames();
       await window.loadStaffPins();
+      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+      if(typeof rbcLoadScore === 'function') rbcLoadScore();
     }catch(err){
       alert('삭제 실패:\n\n' + err);
     }
@@ -1319,6 +1325,64 @@ let teamScheduleRows = [];
 let teamAnalysisMode = 'today';
 let teamAnalysisCollapsed = false;
 
+
+// RAVEBIC_VALID_STAFF_FILTER_V1
+// 직원 PIN 명부(staffPins)에 등록된 이름만 팀장/평가 화면에 표시합니다.
+// staffPins를 못 읽거나 명부가 비어 있으면 기존 화면이 전부 사라지지 않도록 필터를 잠시 통과시킵니다.
+window.ravebicValidStaffNameSet = window.ravebicValidStaffNameSet || null;
+window.ravebicValidStaffNamePromise = window.ravebicValidStaffNamePromise || null;
+
+function normalizeStaffNameForFilter(v){
+  return String(v || '').replace(/\s+/g,'').trim();
+}
+
+async function loadRavebicValidStaffNames(force){
+  if(window.ravebicValidStaffNameSet && !force){
+    return window.ravebicValidStaffNameSet;
+  }
+  if(window.ravebicValidStaffNamePromise && !force){
+    return window.ravebicValidStaffNamePromise;
+  }
+  if(typeof db === 'undefined'){
+    window.ravebicValidStaffNameSet = new Set();
+    return window.ravebicValidStaffNameSet;
+  }
+
+  window.ravebicValidStaffNamePromise = db.collection('staffPins').get().then(function(snap){
+    const set = new Set();
+    snap.forEach(function(doc){
+      const d = doc.data() || {};
+      if(d.active === false) return;
+      const name = normalizeStaffNameForFilter(d.name || doc.id);
+      if(name) set.add(name);
+    });
+    window.ravebicValidStaffNameSet = set;
+    return set;
+  }).catch(function(err){
+    console.warn('staffPins filter load failed', err);
+    window.ravebicValidStaffNameSet = new Set();
+    return window.ravebicValidStaffNameSet;
+  }).finally(function(){
+    window.ravebicValidStaffNamePromise = null;
+  });
+
+  return window.ravebicValidStaffNamePromise;
+}
+
+function isRavebicValidStaffName(name){
+  const key = normalizeStaffNameForFilter(name);
+  if(!key) return false;
+  const set = window.ravebicValidStaffNameSet;
+  // 명부가 아직 없거나 비어 있으면 화면 전체가 비는 것을 막기 위해 기존처럼 통과
+  if(!set || set.size === 0) return true;
+  return set.has(key);
+}
+
+function invalidateRavebicValidStaffNames(){
+  window.ravebicValidStaffNameSet = null;
+  window.ravebicValidStaffNamePromise = null;
+}
+
 function toYmdForTeam(d){
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,'0');
@@ -1347,6 +1411,8 @@ function isAfterSevenPmForTeam(){
 
 async function loadTeamScheduleRows(dateStr){
   try{
+    await loadRavebicValidStaffNames();
+
     let ref = db.collection('teamSchedules');
 
     if(dateStr){
@@ -1365,6 +1431,7 @@ async function loadTeamScheduleRows(dateStr){
       if(d.active === false) return;
       if(bad.test(leader)) return;
       if(bad.test(store)) return;
+      if(!isRavebicValidStaffName(d.leader)) return;
 
       rows.push({
         id: doc.id,
@@ -1751,6 +1818,7 @@ async function rbcLoadScore(){
   const start=new Date(now.getFullYear(),now.getMonth(),1);
   const end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59);
   const sy=ymd(start), ey=ymd(end);
+  await loadRavebicValidStaffNames();
 
   const [schSnap, subSnap, msgSnap]=await Promise.all([
     db.collection('teamSchedules').get(),
@@ -1762,7 +1830,9 @@ async function rbcLoadScore(){
   schSnap.forEach(doc=>{
     const r=doc.data();
     const d=String(r.scheduleDate||'');
-    if(r.active===false||d<sy||d>ey||!r.leader)return;
+    const name=String(r.leader||'').trim();
+    if(r.active===false||d<sy||d>ey||!name)return;
+    if(!isRavebicValidStaffName(name))return;
     const key=[d,r.leader,r.brand,sk(r.store)].join('|');
     schedules[key]=r;
   });
@@ -1803,6 +1873,7 @@ async function rbcLoadScore(){
     const r=doc.data();
     const name=String(r.targetName||r.name||'').trim();
     if(!name)return;
+    if(!isRavebicValidStaffName(name))return;
     if(!result[name])result[name]={name,planned:0,submitted:0,onTime:0,late:0,missing:0,fix:0};
     result[name].fix++;
   });
@@ -2296,7 +2367,7 @@ function arrangePage2Boxes(){
   };
 
   function hideBadScheduleRows(){
-    const bad=/타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/;
+    const bad=/양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/;
 
     document.querySelectorAll('#rbcScoreBody tr, #teamAnalysisTbody tr').forEach(function(tr){
       const text=(tr.innerText||'').replace(/\s+/g,'');
@@ -2418,7 +2489,7 @@ function arrangePage2Boxes(){
   }
 
   function isBadText(v){
-    return /타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/.test(String(v||'').replace(/\s+/g,''));
+    return /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/.test(String(v||'').replace(/\s+/g,''));
   }
 
   function esc2(v){
@@ -2439,7 +2510,8 @@ function arrangePage2Boxes(){
 
   window.openRbcLeaderDetail=async function(name){
     name=String(name||'').trim();
-    if(!name)return;
+    await loadRavebicValidStaffNames();
+    if(!name || !isRavebicValidStaffName(name))return;
 
     const modal=document.getElementById('rbcLeaderModal');
     const title=document.getElementById('rbcLeaderTitle');
@@ -2471,6 +2543,7 @@ function arrangePage2Boxes(){
         if(r.active===false)return;
         if(d<sy||d>ey)return;
         if(String(r.leader||'').trim()!==name)return;
+        if(!isRavebicValidStaffName(r.leader))return;
         if(isBadText(r.leader)||isBadText(r.store)||isBadText(r.workType))return;
 
         schedules.push({id:doc.id,...r});
@@ -2599,6 +2672,7 @@ function arrangePage2Boxes(){
       if(!name || name==='팀장' || td.dataset.leaderClick==='1')return;
 
       if(isBadText(name))return;
+      if(window.ravebicValidStaffNameSet && window.ravebicValidStaffNameSet.size && !isRavebicValidStaffName(name))return;
 
       td.dataset.leaderClick='1';
       td.classList.add('rbc-leader-click');
@@ -2716,11 +2790,12 @@ async function rbcLoadAlertCenter(){
   }
 
   function badText(v){
-    return /타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/.test(String(v||'').replace(/\s+/g,''));
+    return /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/.test(String(v||'').replace(/\s+/g,''));
   }
 
   try{
     const now=new Date();
+    await loadRavebicValidStaffNames();
     const today=ymd(now);
     const hour=now.getHours();
 
@@ -2736,6 +2811,7 @@ async function rbcLoadAlertCenter(){
       if(r.active===false)return;
       if(String(r.scheduleDate||'')!==today)return;
       if(!r.leader)return;
+      if(!isRavebicValidStaffName(r.leader))return;
       if(badText(r.leader)||badText(r.store)||badText(r.workType))return;
       schedules.push(r);
     });
