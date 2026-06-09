@@ -1395,14 +1395,72 @@ function brandShortForTeam(brand){
   return brand || '기타';
 }
 
-function countActualSubmissionsForTeam(leader, dateStr, brand){
-  return (allRows || []).filter(function(r){
+function normalizeStoreForTeam(v){
+  return String(v || '')
+    .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
+    .replace(/\s+/g,'')
+    .replace(/[·ㆍ.\-_/]/g,'')
+    .trim();
+}
+
+function countActualSubmissionsForTeam(leader, dateStr, brand, plannedStores){
+  const plannedSet = new Set();
+
+  (plannedStores || []).forEach(function(s){
+    const key = normalizeStoreForTeam(s && (s.store || s));
+    if(key) plannedSet.add(key);
+  });
+
+  const submittedStores = new Set();
+
+  (allRows || []).forEach(function(r){
     const d = dtOf(r);
     const sameDate = toYmdForTeam(d) === dateStr;
     const sameLeader = String(r.name || '').trim() === String(leader || '').trim();
     const sameBrand = !brand || String(r.brand || '').trim() === String(brand || '').trim();
-    return sameDate && sameLeader && sameBrand;
-  }).length;
+
+    if(!sameDate || !sameLeader || !sameBrand) return;
+
+    const submitStore = normalizeStoreForTeam(r.store);
+    if(!submitStore) return;
+
+    if(plannedSet.size){
+      let matched = false;
+      plannedSet.forEach(function(planStore){
+        if(
+          submitStore === planStore ||
+          submitStore.includes(planStore) ||
+          planStore.includes(submitStore)
+        ){
+          matched = true;
+        }
+      });
+
+      if(!matched) return;
+    }
+
+    submittedStores.add(submitStore);
+  });
+
+  if(plannedSet.size){
+    let count = 0;
+    plannedSet.forEach(function(planStore){
+      let found = false;
+      submittedStores.forEach(function(submitStore){
+        if(
+          submitStore === planStore ||
+          submitStore.includes(planStore) ||
+          planStore.includes(submitStore)
+        ){
+          found = true;
+        }
+      });
+      if(found) count++;
+    });
+    return count;
+  }
+
+  return submittedStores.size;
 }
 
 function buildTeamDayDataFromRows(rows, dateStr){
@@ -1442,7 +1500,7 @@ function buildTeamDayDataFromRows(rows, dateStr){
 
   Object.keys(map).forEach(function(leader){
     const row = map[leader];
-    row.submitted = countActualSubmissionsForTeam(leader, dateStr, '');
+    row.submitted = countActualSubmissionsForTeam(leader, dateStr, '', row.stores);
     row.missing = Math.max(0, row.planned - row.submitted);
   });
 
@@ -1560,12 +1618,13 @@ async function renderTeamWeekAnalysis(){
     let totalSubmit = 0;
 
     const dayCells = days.map(function(day){
-      const planned = allWeekRows.filter(function(r){
+      const plannedRows = allWeekRows.filter(function(r){
         return String(r.scheduleDate || '').trim() === day.ymd &&
           String(r.leader || '').trim() === leader;
-      }).length;
+      });
 
-      const submitted = countActualSubmissionsForTeam(leader, day.ymd, '');
+      const planned = plannedRows.length;
+      const submitted = countActualSubmissionsForTeam(leader, day.ymd, '', plannedRows);
 
       totalPlan += planned;
       totalSubmit += submitted;
