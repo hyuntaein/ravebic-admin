@@ -666,6 +666,62 @@ select.status-pending {
   }
 }
 
+
+/* RAVEBIC_ADMIN_MOBILE_STORE_TRIANGLE_CLEAN_V2 */
+@media (max-width: 768px){
+
+  #tbody tr{
+    grid-template-columns:78px 54px minmax(0,1fr) 58px 72px !important;
+    grid-template-areas:
+      "time name store work status"
+      "note note note files manage" !important;
+    align-items:start !important;
+  }
+
+  /* 기존 점포 셀 안에 이미 ▶가 있으므로 CSS로 추가했던 ▶ 제거 */
+  #tbody td:nth-child(3)::before{
+    content:"" !important;
+  }
+
+  #tbody td:nth-child(3){
+    grid-area:store !important;
+    font-size:16px !important;
+    line-height:1.25 !important;
+    font-weight:900 !important;
+    color:#2563eb !important;
+    text-align:left !important;
+    word-break:keep-all !important;
+    overflow-wrap:break-word !important;
+    padding-top:1px !important;
+  }
+
+  #tbody td:nth-child(3) a{
+    color:#2563eb !important;
+    text-decoration:none !important;
+    font-weight:900 !important;
+  }
+
+  #tbody td:nth-child(7){
+    max-height:74px !important;
+    line-height:1.35 !important;
+  }
+
+  #tbody td:nth-child(8) .file-view-btn{
+    width:62px !important;
+    min-height:48px !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    text-align:center !important;
+    margin-bottom:4px !important;
+  }
+
+  #tbody td:nth-child(10) .row-delete-btn{
+    width:58px !important;
+    min-height:48px !important;
+  }
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
