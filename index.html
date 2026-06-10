@@ -751,6 +751,48 @@ select.status-pending {
   }
 }
 
+
+/* RAVEBIC_FILE_DOWNLOAD_BUTTON_V1 */
+.file-download-btn{
+  display:inline-block;
+  background:#16a34a;
+  color:#fff !important;
+  padding:6px 9px;
+  border-radius:8px;
+  font-size:12px;
+  text-decoration:none;
+  font-weight:900;
+  margin:2px 4px 2px 0;
+}
+
+@media (max-width:768px){
+  #tbody td:nth-child(8) .file-download-btn{
+    display:block !important;
+    width:62px !important;
+    min-height:34px !important;
+    padding:7px 5px !important;
+    border-radius:10px !important;
+    font-size:11px !important;
+    line-height:1.2 !important;
+    background:#16a34a !important;
+    color:#fff !important;
+    text-align:center !important;
+    margin-top:4px !important;
+  }
+
+  .rbcGenericDownloadBtn,
+  .rbc-modal-download-btn{
+    display:inline-block !important;
+    background:#16a34a !important;
+    color:white !important;
+    padding:8px 10px !important;
+    border-radius:10px !important;
+    font-weight:900 !important;
+    text-decoration:none !important;
+    margin-left:6px !important;
+  }
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -933,6 +975,7 @@ function buildFileActions(r){
     const viewUrl = esc(f.url || '#');
     return '<div class="file-actions">' +
       '<a class="file-view-btn" target="_blank" href="'+viewUrl+'">첨부 '+(i+1)+' 보기</a>' +
+      '<a class="file-download-btn" target="_blank" download href="'+viewUrl+'">다운로드</a>' +
       '<button class="file-delete-btn" type="button" onclick="deleteAttachedFile(\''+r.id+'\','+i+',\''+fileData+'\')">삭제</button>' +
       '<span class="small">'+name+'</span>' +
       '</div>';
@@ -3367,6 +3410,39 @@ function showModal(title, html){
   setTimeout(moveAlertCenterToTop, 300);
   setTimeout(moveAlertCenterToTop, 1000);
   setTimeout(moveAlertCenterToTop, 2500);
+})();
+</script>
+
+
+<script>
+/* RAVEBIC_MODAL_FILE_DOWNLOAD_PATCH_V1 */
+(function(){
+  function addDownloadButtonsInModal(){
+    document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a, .admin-message-card a, .correction-card a').forEach(function(a){
+      var txt = (a.textContent || '').replace(/\s+/g,'');
+      var href = a.getAttribute('href') || '';
+      if(!href || href === '#') return;
+      if(!/첨부\\d+보기|첨부파일보기|보기/.test(txt)) return;
+      if(a.nextElementSibling && a.nextElementSibling.classList && a.nextElementSibling.classList.contains('rbc-modal-download-btn')) return;
+
+      var d = document.createElement('a');
+      d.href = href;
+      d.target = '_blank';
+      d.download = '';
+      d.className = 'rbc-modal-download-btn';
+      d.textContent = '다운로드';
+      a.insertAdjacentElement('afterend', d);
+    });
+  }
+
+  document.addEventListener('click', function(){
+    setTimeout(addDownloadButtonsInModal, 80);
+    setTimeout(addDownloadButtonsInModal, 300);
+  });
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setInterval(addDownloadButtonsInModal, 1200);
+  });
 })();
 </script>
 
