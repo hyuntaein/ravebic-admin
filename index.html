@@ -1925,22 +1925,73 @@ async function loadTeamScheduleRows(dateStr){
     }
 
     const snap = await ref.get();
-    const rows = [];
+    const rawDocs = [];
 
     snap.forEach(function(doc){
       const d = doc.data() || {};
+      rawDocs.push({
+        id: doc.id,
+        data: d,
+        scheduleDate: String(d.scheduleDate || '').trim(),
+        sheetName: String(d.sheetName || '').trim(),
+        sourceRange: String(d.sourceRange || '').trim(),
+        leaderOrderIndex: Number(d.leaderOrderIndex || 999999),
+        rowIndex: Number(d.rowIndex || d.orderIndex || d.row || 999999)
+      });
+    });
+
+    function rangeStartNum(v){
+      const s = String(v || '');
+      const m = s.match(/[A-Z]+(\d+)/i);
+      return m ? Number(m[1]) : 999999;
+    }
+
+    rawDocs.sort(function(a,b){
+      return String(a.scheduleDate).localeCompare(String(b.scheduleDate)) ||
+             String(a.sheetName).localeCompare(String(b.sheetName)) ||
+             (rangeStartNum(a.sourceRange) - rangeStartNum(b.sourceRange)) ||
+             (a.rowIndex - b.rowIndex) ||
+             (a.leaderOrderIndex - b.leaderOrderIndex) ||
+             String(a.id).localeCompare(String(b.id));
+    });
+
+    const rows = [];
+    const lastLeaderByDateSheet = {};
+
+    rawDocs.forEach(function(item){
+      const d = item.data || {};
       const badLeader = /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/;
       const leaderText = String(d.leader || '').replace(/\s+/g,'');
-      const resolvedLeader = resolveRavebicScheduleLeader(d);
+      const dateSheetKey = item.scheduleDate + '|' + item.sheetName;
+
+      let resolvedLeader = resolveRavebicScheduleLeader(d);
+
+      // Google 일정표가 병합셀 구조일 때 두 번째 점포 행의 leader가 비거나 전화번호/메모로 들어오는 경우가 있습니다.
+      // 이때 같은 날짜/같은 시트에서 바로 앞 유효 팀장을 이어받습니다.
+      if(!resolvedLeader && lastLeaderByDateSheet[dateSheetKey]){
+        const storeText = String(d.store || '').replace(/\s+/g,'');
+        const rawText = String(d.rawText || d.text || d.memo || d.note || '').replace(/\s+/g,'');
+
+        const looksLikeStoreRow =
+          !!storeText &&
+          !/휴무|교육|차량|마감|수정|사무실/.test(storeText) &&
+          !/휴무|교육|차량|마감|수정|사무실/.test(rawText);
+
+        if(looksLikeStoreRow){
+          resolvedLeader = lastLeaderByDateSheet[dateSheetKey];
+        }
+      }
 
       if(d.active === false) return;
       if(badLeader.test(leaderText) && !resolvedLeader) return;
       if(!resolvedLeader) return;
 
+      lastLeaderByDateSheet[dateSheetKey] = resolvedLeader;
+
       rows.push({
-        id: doc.id,
+        id: item.id,
         ...d,
-        scheduleDate: String(d.scheduleDate || '').trim(),
+        scheduleDate: item.scheduleDate,
         leader: resolvedLeader,
         brand: String(d.brand || '').trim(),
         store: String(d.store || '').trim(),
@@ -3688,6 +3739,28 @@ window.debugTeamScheduleCount = async function(name, dateStr){
   });
   console.table(rows);
   console.log(name, dateStr, rows.length + '건');
+  return rows;
+};
+</script>
+
+
+<script>
+/* RAVEBIC_TEAM_SCHEDULE_DEBUG_V11 */
+window.debugTeamScheduleDate = async function(dateStr){
+  await loadRavebicValidStaffNames(true);
+  const rows = await loadTeamScheduleRows(dateStr);
+  console.table(rows.map(function(r){
+    return {
+      id:r.id,
+      date:r.scheduleDate,
+      leader:r.leader,
+      store:r.store,
+      brand:r.brand,
+      sourceRange:r.sourceRange,
+      rawText:r.rawText
+    };
+  }));
+  console.log(dateStr, rows.length + '건');
   return rows;
 };
 </script>
