@@ -1851,6 +1851,43 @@ function invalidateRavebicValidStaffNames(){
   window.ravebicValidStaffNamePromise = null;
 }
 
+
+function resolveRavebicScheduleLeader(d){
+  d = d || {};
+  const set = window.ravebicValidStaffNameSet;
+
+  const direct = resolveRavebicValidStaffName(d.leader);
+  if(direct) return direct;
+
+  const joined = normalizeStaffNameForFilter([
+    d.leader,
+    d.name,
+    d.staffName,
+    d.manager,
+    d.rawText,
+    d.text,
+    d.memo,
+    d.note,
+    d.sourceText,
+    d.sheetName,
+    d.sourceRange
+  ].filter(Boolean).join(' '));
+
+  if(!joined) return '';
+
+  if(!set || set.size === 0) return String(d.leader || '').trim();
+
+  let found = '';
+  set.forEach(function(staffName){
+    if(found) return;
+    if(joined.includes(staffName)){
+      found = staffName;
+    }
+  });
+
+  return found;
+}
+
 function toYmdForTeam(d){
   const y = d.getFullYear();
   const m = String(d.getMonth()+1).padStart(2,'0');
@@ -1894,7 +1931,7 @@ async function loadTeamScheduleRows(dateStr){
       const d = doc.data() || {};
       const badLeader = /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/;
       const leaderText = String(d.leader || '').replace(/\s+/g,'');
-      const resolvedLeader = resolveRavebicValidStaffName(d.leader);
+      const resolvedLeader = resolveRavebicScheduleLeader(d);
 
       if(d.active === false) return;
       if(badLeader.test(leaderText) && !resolvedLeader) return;
@@ -2297,7 +2334,7 @@ async function rbcLoadScore(){
   schSnap.forEach(doc=>{
     const r=doc.data();
     const d=String(r.scheduleDate||'');
-    const name=resolveRavebicValidStaffName(r.leader);
+    const name=resolveRavebicScheduleLeader(r);
     if(r.active===false||d<sy||d>ey||!name)return;
     const key=[d,name,r.brand,sk(r.store)].join('|');
     schedules[key]={...r, leader:name};
@@ -3010,7 +3047,7 @@ function arrangePage2Boxes(){
         if(r.active===false)return;
         if(d<sy||d>ey)return;
 
-        const resolvedLeader = resolveRavebicValidStaffName(r.leader);
+        const resolvedLeader = resolveRavebicScheduleLeader(r);
         if(resolvedLeader !== name)return;
         if(isBadText(r.leader) && !resolvedLeader)return;
         if(isBadText(r.workType))return;
@@ -3625,6 +3662,34 @@ function makeRavebicDownloadUrl(url, filename){
 
   setInterval(syncStatusColorsSoon, 2500);
 })();
+</script>
+
+
+<script>
+/* RAVEBIC_TEAM_SCHEDULE_DEBUG_V10 */
+window.debugTeamScheduleCount = async function(name, dateStr){
+  await loadRavebicValidStaffNames(true);
+  const snap = await db.collection('teamSchedules').where('scheduleDate','==',dateStr).get();
+  const rows = [];
+  snap.forEach(function(doc){
+    const d = doc.data() || {};
+    const leader = resolveRavebicScheduleLeader(d);
+    if(leader === name){
+      rows.push({
+        id: doc.id,
+        leader: d.leader,
+        resolvedLeader: leader,
+        store: d.store,
+        brand: d.brand,
+        rawText: d.rawText,
+        sourceRange: d.sourceRange
+      });
+    }
+  });
+  console.table(rows);
+  console.log(name, dateStr, rows.length + '건');
+  return rows;
+};
 </script>
 
 </body></html>
