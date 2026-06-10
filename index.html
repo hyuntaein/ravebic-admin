@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RAVEBIC 관리자 최종 수정본 일정표 직접열기</title>
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RAVEBIC 관리자 안정본 첨부파일 열기</title>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:18px;background:#f4f7fb;font-family:Arial,'Malgun Gothic',sans-serif;color:#10213f}.wrap{max-width:1180px;margin:0 auto;background:white;border:1px solid #cfe0f8;border-radius:24px;padding:22px;box-shadow:0 8px 24px rgba(15,23,42,.06)}h1{margin:0;color:#123f7a}.sub{color:#64748b;margin:6px 0 14px}.badge{display:inline-block;padding:10px 14px;border:1px solid #b8d3fb;background:#eef6ff;border-radius:14px;font-weight:900;color:#123f7a}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}.card{border:1px solid #ead8a8;background:#fffdf5;border-radius:16px;padding:14px}.num{font-size:24px;font-weight:900;color:#0b3b77}.filters{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1fr;gap:10px;padding:14px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px}button{border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.gray{background:#e5e7eb}.red{background:#b03a3a;color:white}.btns{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left;vertical-align:top}th{background:#eaf4ff;color:#0b3b77}.filelink{display:inline-block;margin:2px 0;color:#2563eb}.small{font-size:12px;color:#64748b}.section{margin-top:34px;padding-top:28px;border-top:3px solid #e5eefb}.section h2{margin:0 0 8px;color:#123f7a}.notice{font-size:13px;color:#555;line-height:1.55;margin:8px 0 16px}.tool-grid{display:grid;grid-template-columns:1fr;gap:22px}.tool-card{border:1px solid #d7e6fb;background:#fbfdff;border-radius:20px;padding:18px}.drop{border:3px dashed #7b8794;border-radius:18px;background:#fff;min-height:130px;display:flex;align-items:center;justify-content:center;text-align:center;margin:14px 0;padding:18px;transition:.15s}.drop.drag{background:#eef6ff;border-color:#1464c8}.drop p{font-size:16px;line-height:1.55;margin:0 0 8px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 18px}.box{background:#fffdf5;border:1px solid #ead8a8;border-radius:12px;padding:13px;text-align:center}.box b{display:block;font-size:22px;margin-top:4px}.smallbtn{padding:7px 11px;border-radius:8px;font-size:13px;background:#777;color:white}.err{color:#b00020;font-size:13px}td.store{text-align:left;font-weight:700}.analyzer-table th,.analyzer-table td{text-align:center;border:1px solid #d7d7d7}.analyzer-table th{background:#eef0f2;color:#111}.analyzer-table td.store{text-align:left}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{background:#e5e7eb;color:#111}.tab.active{background:#2563eb;color:#fff}.hidden{display:none}@media(max-width:800px){body{padding:8px}.wrap{padding:16px;border-radius:18px}.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}table{font-size:12px}.summary{grid-template-columns:repeat(2,1fr)}th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){display:none}}
@@ -752,122 +752,20 @@ select.status-pending {
 }
 
 
-/* RAVEBIC_FILE_DOWNLOAD_BUTTON_V1 */
-.file-download-btn{
-  display:inline-block;
-  background:#16a34a;
-  color:#fff !important;
-  padding:6px 9px;
-  border-radius:8px;
-  font-size:12px;
-  text-decoration:none;
-  font-weight:900;
-  margin:2px 4px 2px 0;
-}
-
-@media (max-width:768px){
-  #tbody td:nth-child(8) .file-download-btn{
-    display:block !important;
-    width:62px !important;
-    min-height:34px !important;
-    padding:7px 5px !important;
-    border-radius:10px !important;
-    font-size:11px !important;
-    line-height:1.2 !important;
-    background:#16a34a !important;
-    color:#fff !important;
-    text-align:center !important;
-    margin-top:4px !important;
-  }
-
-  .rbcGenericDownloadBtn,
-  .rbc-modal-download-btn{
-    display:inline-block !important;
-    background:#16a34a !important;
-    color:white !important;
-    padding:8px 10px !important;
-    border-radius:10px !important;
-    font-weight:900 !important;
-    text-decoration:none !important;
-    margin-left:6px !important;
-  }
-}
-
-
-/* RAVEBIC_FORCE_DOWNLOAD_BUTTON_V2 */
-.file-download-btn{
-  border:0;
-  cursor:pointer;
-  display:inline-block;
-  background:#16a34a;
-  color:#fff !important;
-  padding:6px 9px;
-  border-radius:8px;
-  font-size:12px;
-  text-decoration:none;
-  font-weight:900;
-  margin:2px 4px 2px 0;
-}
-
-@media (max-width:768px){
-  #tbody td:nth-child(8) .file-download-btn{
-    display:block !important;
-    width:62px !important;
-    min-height:34px !important;
-    padding:7px 5px !important;
-    border-radius:10px !important;
-    font-size:11px !important;
-    line-height:1.2 !important;
-    background:#16a34a !important;
-    color:#fff !important;
-    text-align:center !important;
-    margin-top:4px !important;
-  }
-
-  .rbc-modal-download-btn{
-    display:inline-block !important;
-    background:#16a34a !important;
-    color:white !important;
-    padding:8px 10px !important;
-    border-radius:10px !important;
-    font-weight:900 !important;
-    text-decoration:none !important;
-    margin-left:6px !important;
-    border:0 !important;
-    cursor:pointer !important;
-  }
-}
-
-
-/* RAVEBIC_ATTACHMENT_OPEN_ONLY_STYLE_V1 */
-.file-open-btn,
+/* RAVEBIC_ATTACHMENT_OPEN_ONLY_STYLE_STABLE_V1 */
 .rbc-attachment-open-link{
   display:inline-block;
   background:#eaf4ff;
   color:#2563eb !important;
-  padding:6px 9px;
-  border-radius:8px;
-  font-size:12px;
+  padding:7px 10px;
+  border-radius:9px;
+  font-size:13px;
   text-decoration:none;
   font-weight:900;
-  margin:2px 4px 2px 0;
+  margin:3px 6px 3px 0;
 }
 
 @media (max-width:768px){
-  #tbody td:nth-child(8) .file-open-btn{
-    display:block !important;
-    width:62px !important;
-    min-height:34px !important;
-    padding:7px 5px !important;
-    border-radius:10px !important;
-    font-size:11px !important;
-    line-height:1.2 !important;
-    background:#eaf4ff !important;
-    color:#2563eb !important;
-    text-align:center !important;
-    margin-top:4px !important;
-  }
-
   .rbc-attachment-open-link{
     display:inline-block !important;
     background:#eaf4ff !important;
@@ -1061,8 +959,7 @@ function buildFileActions(r){
     const name = esc(f.name || ('첨부 '+(i+1)));
     const viewUrl = esc(f.url || '#');
     return '<div class="file-actions">' +
-      '<a class="file-view-btn" target="_blank" href="'+viewUrl+'">첨부 '+(i+1)+' 보기</a>' +
-      '<a class="file-open-btn" target="_blank" href="'+viewUrl+'">새창열기</a>' +
+      '<a class="file-view-btn" target="_blank" href="'+viewUrl+'">첨부 '+(i+1)+' 열기</a>' +
       '<button class="file-delete-btn" type="button" onclick="deleteAttachedFile(\''+r.id+'\','+i+',\''+fileData+'\')">삭제</button>' +
       '<span class="small">'+name+'</span>' +
       '</div>';
@@ -3501,27 +3398,21 @@ function showModal(title, html){
 </script>
 
 
-
-
-
-
-
 <script>
-/* RAVEBIC_ATTACHMENT_OPEN_ONLY_V1 */
+/* RAVEBIC_ATTACHMENT_OPEN_ONLY_STABLE_V1 */
 (function(){
-  function cleanAttachmentPopup(){
+  function cleanAttachmentOpenLinks(){
     document.querySelectorAll('.rbc-modal-download-btn, .file-download-btn').forEach(function(el){
-      if(el.closest('#rbcGenericModal') || el.closest('.rbc-leader-modal')){
-        el.remove();
-      }
+      el.remove();
     });
 
-    document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a').forEach(function(a){
-      var txt = (a.textContent || '').replace(/\s+/g,'');
+    document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a, .store-history-modal a, .correction-modal a').forEach(function(a){
       var href = a.getAttribute('href') || '';
       if(!href || href === '#') return;
 
+      var txt = (a.textContent || '').replace(/\s+/g,'');
       var m = txt.match(/첨부(\d+)(보기|열기)?/);
+
       if(m){
         a.textContent = '📎 첨부 ' + m[1] + ' 열기';
         a.setAttribute('target','_blank');
@@ -3529,15 +3420,27 @@ function showModal(title, html){
         a.classList.add('rbc-attachment-open-link');
       }
     });
+
+    document.querySelectorAll('.file-view-btn').forEach(function(a){
+      var txt = (a.textContent || '').replace(/\s+/g,'');
+      var m = txt.match(/첨부(\d+)(보기|열기)?/);
+      if(m){
+        a.textContent = '첨부 ' + m[1] + ' 열기';
+        a.setAttribute('target','_blank');
+        a.removeAttribute('download');
+      }
+    });
   }
 
   document.addEventListener('click', function(){
-    setTimeout(cleanAttachmentPopup, 80);
-    setTimeout(cleanAttachmentPopup, 300);
+    setTimeout(cleanAttachmentOpenLinks, 80);
+    setTimeout(cleanAttachmentOpenLinks, 300);
+    setTimeout(cleanAttachmentOpenLinks, 800);
   });
 
   document.addEventListener('DOMContentLoaded', function(){
-    setInterval(cleanAttachmentPopup, 1000);
+    cleanAttachmentOpenLinks();
+    setInterval(cleanAttachmentOpenLinks, 1200);
   });
 })();
 </script>
