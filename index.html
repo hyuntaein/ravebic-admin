@@ -838,6 +838,48 @@ select.status-pending {
   }
 }
 
+
+/* RAVEBIC_ATTACHMENT_OPEN_ONLY_STYLE_V1 */
+.file-open-btn,
+.rbc-attachment-open-link{
+  display:inline-block;
+  background:#eaf4ff;
+  color:#2563eb !important;
+  padding:6px 9px;
+  border-radius:8px;
+  font-size:12px;
+  text-decoration:none;
+  font-weight:900;
+  margin:2px 4px 2px 0;
+}
+
+@media (max-width:768px){
+  #tbody td:nth-child(8) .file-open-btn{
+    display:block !important;
+    width:62px !important;
+    min-height:34px !important;
+    padding:7px 5px !important;
+    border-radius:10px !important;
+    font-size:11px !important;
+    line-height:1.2 !important;
+    background:#eaf4ff !important;
+    color:#2563eb !important;
+    text-align:center !important;
+    margin-top:4px !important;
+  }
+
+  .rbc-attachment-open-link{
+    display:inline-block !important;
+    background:#eaf4ff !important;
+    color:#2563eb !important;
+    padding:8px 10px !important;
+    border-radius:10px !important;
+    font-weight:900 !important;
+    text-decoration:none !important;
+    margin:4px 6px 4px 0 !important;
+  }
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -1020,7 +1062,7 @@ function buildFileActions(r){
     const viewUrl = esc(f.url || '#');
     return '<div class="file-actions">' +
       '<a class="file-view-btn" target="_blank" href="'+viewUrl+'">첨부 '+(i+1)+' 보기</a>' +
-      '<button class="file-download-btn" type="button" onclick="downloadRavebicFile(\''+viewUrl+'\', \''+name.replace(/'/g,'')+'\')">다운로드</button>' +
+      '<a class="file-open-btn" target="_blank" href="'+viewUrl+'">새창열기</a>' +
       '<button class="file-delete-btn" type="button" onclick="deleteAttachedFile(\''+r.id+'\','+i+',\''+fileData+'\')">삭제</button>' +
       '<span class="small">'+name+'</span>' +
       '</div>';
@@ -3460,76 +3502,44 @@ function showModal(title, html){
 
 
 
+
+
+
+
 <script>
-/* RAVEBIC_FORCE_DOWNLOAD_V2 */
-async function downloadRavebicFile(url, filename){
-  try{
-    if(!url || url === '#'){
-      alert('다운로드 주소가 없습니다.');
-      return;
-    }
-
-    var cleanName = String(filename || 'ravebic_file')
-      .replace(/[\\/:*?"<>|]/g, '_')
-      .trim();
-
-    if(!cleanName || cleanName === '첨부') cleanName = 'ravebic_file';
-
-    const res = await fetch(url, {mode:'cors'});
-    if(!res.ok) throw new Error('파일 요청 실패: ' + res.status);
-
-    const blob = await res.blob();
-    const blobUrl = URL.createObjectURL(blob);
-
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = cleanName;
-    document.body.appendChild(a);
-    a.click();
-
-    setTimeout(function(){
-      URL.revokeObjectURL(blobUrl);
-      a.remove();
-    }, 1500);
-
-  }catch(err){
-    alert('자동 다운로드가 막혔습니다. 새 창에서 파일이 열리면 브라우저 메뉴에서 저장해주세요.\n\n' + (err.message || err));
-    window.open(url, '_blank');
-  }
-}
-
+/* RAVEBIC_ATTACHMENT_OPEN_ONLY_V1 */
 (function(){
-  function addDownloadButtonsInModal(){
-    document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a').forEach(function(a, idx){
+  function cleanAttachmentPopup(){
+    document.querySelectorAll('.rbc-modal-download-btn, .file-download-btn').forEach(function(el){
+      if(el.closest('#rbcGenericModal') || el.closest('.rbc-leader-modal')){
+        el.remove();
+      }
+    });
+
+    document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a').forEach(function(a){
       var txt = (a.textContent || '').replace(/\s+/g,'');
       var href = a.getAttribute('href') || '';
       if(!href || href === '#') return;
-      if(!/첨부\\d+보기|첨부파일보기|보기/.test(txt)) return;
-      if(a.nextElementSibling && a.nextElementSibling.classList && a.nextElementSibling.classList.contains('rbc-modal-download-btn')) return;
 
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'rbc-modal-download-btn';
-      b.textContent = '다운로드';
-      b.addEventListener('click', function(e){
-        e.preventDefault();
-        var guessed = (a.textContent || ('첨부파일_' + (idx+1))).replace(/\s*보기\s*/g,'').trim();
-        downloadRavebicFile(href, guessed);
-      });
-      a.insertAdjacentElement('afterend', b);
+      var m = txt.match(/첨부(\d+)(보기|열기)?/);
+      if(m){
+        a.textContent = '📎 첨부 ' + m[1] + ' 열기';
+        a.setAttribute('target','_blank');
+        a.removeAttribute('download');
+        a.classList.add('rbc-attachment-open-link');
+      }
     });
   }
 
   document.addEventListener('click', function(){
-    setTimeout(addDownloadButtonsInModal, 80);
-    setTimeout(addDownloadButtonsInModal, 300);
+    setTimeout(cleanAttachmentPopup, 80);
+    setTimeout(cleanAttachmentPopup, 300);
   });
 
   document.addEventListener('DOMContentLoaded', function(){
-    setInterval(addDownloadButtonsInModal, 1200);
+    setInterval(cleanAttachmentPopup, 1000);
   });
 })();
 </script>
-
 
 </body></html>
