@@ -3326,94 +3326,39 @@ async function rbcLoadAlertCenter(){
     return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   }
 
-  function dt(r){
-    return r.submittedAt&&r.submittedAt.toDate
-      ? r.submittedAt.toDate()
-      : new Date(r.submittedAtText||r.date||r.createdAtText||0);
-  }
-
-  function sk(v){
-    return String(v||'')
-      .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
-      .replace(/\s+/g,'')
-      .replace(/[·ㆍ.\-_/]/g,'')
-      .trim();
-  }
-
   function escA(v){
     return String(v||'').replace(/[&<>'"]/g,function(s){
       return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
     });
   }
 
-  function badText(v){
-    return /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/.test(String(v||'').replace(/\s+/g,''));
+  function msgDate(r){
+    if(r.createdAt && r.createdAt.toDate) return r.createdAt.toDate();
+    return new Date(r.createdAtText || r.date || 0);
   }
 
   try{
     const now=new Date();
-    await loadRavebicValidStaffNames();
+    await loadRavebicValidStaffNames(true);
     const today=ymd(now);
     const hour=now.getHours();
 
-    const [schSnap,subSnap,msgSnap]=await Promise.all([
-      db.collection('teamSchedules').get(),
-      db.collection('submissions').get(),
-      db.collection('adminMessages').get()
-    ]);
+    // 제출분석표와 같은 보정 엔진을 사용합니다.
+    // 병합셀/빈 팀장행/앞 팀장 승계가 여기서 모두 처리됩니다.
+    if((!window.allRows && typeof allRows === 'undefined') || (typeof allRows !== 'undefined' && (!allRows || !allRows.length))){
+      if(typeof loadData === 'function') await loadData();
+    }
 
-    const schedules=[];
-    schSnap.forEach(doc=>{
-      const r={id:doc.id,...(doc.data()||{})};
-      if(r.active===false)return;
-      if(String(r.scheduleDate||'')!==today)return;
-      if(!r.leader)return;
-      if(!isRavebicValidStaffName(r.leader))return;
-      if(badText(r.leader)||badText(r.store)||badText(r.workType))return;
-      schedules.push(r);
-    });
+    const todayScheduleRows = await loadTeamScheduleRows(today);
+    const rows = buildTeamDayDataFromRows(todayScheduleRows, today);
 
-    const submissions=[];
-    subSnap.forEach(doc=>{
-      const r={id:doc.id,...(doc.data()||{})};
-      if(ymd(dt(r))===today)submissions.push(r);
-    });
-
+    const msgSnap = await db.collection('adminMessages').get();
     const messages=[];
-    msgSnap.forEach(doc=>{
+    msgSnap.forEach(function(doc){
       const r={id:doc.id,...(doc.data()||{})};
-      const t=new Date(r.createdAtText||0);
-      if(ymd(t)===today)messages.push(r);
+      if(ymd(msgDate(r))===today) messages.push(r);
     });
 
-    const leaderMap={};
-
-    schedules.forEach(sc=>{
-      const leader=String(sc.leader||'').trim();
-      if(!leaderMap[leader]){
-        leaderMap[leader]={leader,planned:0,submitted:0,missing:0,stores:[]};
-      }
-
-      leaderMap[leader].planned++;
-      leaderMap[leader].stores.push((sc.brand||'')+' '+(sc.store||''));
-
-      const found=submissions.find(s=>{
-        if(String(s.name||'').trim()!==leader)return false;
-        if(sc.brand && String(s.brand||'')!==String(sc.brand||''))return false;
-
-        const a=sk(s.store);
-        const b=sk(sc.store);
-
-        if(!a||!b)return false;
-
-        return a===b || a.includes(b) || b.includes(a);
-      });
-
-      if(found) leaderMap[leader].submitted++;
-      else leaderMap[leader].missing++;
-    });
-
-    const rows=Object.values(leaderMap);
     const totalPlan=rows.reduce((s,r)=>s+r.planned,0);
     const totalSubmit=rows.reduce((s,r)=>s+r.submitted,0);
     const totalMissing=rows.reduce((s,r)=>s+r.missing,0);
@@ -3422,7 +3367,7 @@ async function rbcLoadAlertCenter(){
     const doneLeaders=rows.filter(r=>r.planned>0 && r.missing===0);
 
     const fixByTarget={};
-    messages.forEach(m=>{
+    messages.forEach(function(m){
       const name=String(m.targetName||m.name||'미지정').trim();
       fixByTarget[name]=(fixByTarget[name]||0)+1;
     });
@@ -3467,26 +3412,26 @@ async function rbcLoadAlertCenter(){
         '<div class="rbc-alert-small">'+
           '예정 '+totalPlan+'건 / 제출 '+totalSubmit+'건 / 미제출 '+totalMissing+'건<br><br>'+
           missingHtml+
-        '</div>'+
-      '</div>'+
+        '</div>'+ 
+      '</div>'+ 
 
       '<div class="rbc-alert-card warn">'+
-        '<div class="rbc-alert-title">🟠 오늘 보완요청</div>'+
-        '<div class="rbc-alert-small">'+fixHtml+'</div>'+
-      '</div>'+
+        '<div class="rbc-alert-title">🟠 오늘 보완요청</div>'+ 
+        '<div class="rbc-alert-small">'+fixHtml+'</div>'+ 
+      '</div>'+ 
 
       '<div class="rbc-alert-card ok">'+
-        '<div class="rbc-alert-title">🟢 제출 완료 팀장</div>'+
-        '<div class="rbc-alert-small">'+doneHtml+'</div>'+
-      '</div>'+
+        '<div class="rbc-alert-title">🟢 제출 완료 팀장</div>'+ 
+        '<div class="rbc-alert-small">'+doneHtml+'</div>'+ 
+      '</div>'+ 
 
       '<div class="rbc-alert-card info">'+
-        '<div class="rbc-alert-title">📌 오늘 운영 요약</div>'+
+        '<div class="rbc-alert-title">📌 오늘 운영 요약</div>'+ 
         '<div class="rbc-alert-small">'+
-          '현재 시간 기준: '+now.toLocaleTimeString()+'<br>'+
-          '제출률: '+(totalPlan?Math.round(totalSubmit/totalPlan*100):0)+'%<br>'+
+          '현재 시간 기준: '+now.toLocaleTimeString()+'<br>'+ 
+          '제출률: '+(totalPlan?Math.round(totalSubmit/totalPlan*100):0)+'%<br>'+ 
           '마감 기준: 오후 9시'+
-        '</div>'+
+        '</div>'+ 
       '</div>';
 
   }catch(e){
