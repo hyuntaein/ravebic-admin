@@ -778,6 +778,99 @@ select.status-pending {
   }
 }
 
+
+/* RAVEBIC_DIRECT_DOWNLOAD_LINK_V7 */
+.file-save-btn,
+.rbc-attachment-save-link{
+  display:inline-block;
+  background:#16a34a;
+  color:#fff !important;
+  padding:7px 10px;
+  border-radius:9px;
+  font-size:13px;
+  text-decoration:none;
+  font-weight:900;
+  margin:3px 6px 3px 0;
+}
+
+@media (max-width:768px){
+  .rbc-attachment-save-link{
+    display:inline-block !important;
+    background:#16a34a !important;
+    color:#fff !important;
+    padding:8px 10px !important;
+    border-radius:10px !important;
+    font-weight:900 !important;
+    text-decoration:none !important;
+    margin:4px 6px 4px 0 !important;
+  }
+
+  #tbody td:nth-child(8) .file-save-btn{
+    display:block !important;
+    width:62px !important;
+    min-height:34px !important;
+    padding:7px 5px !important;
+    border-radius:10px !important;
+    font-size:11px !important;
+    line-height:1.2 !important;
+    background:#16a34a !important;
+    color:#fff !important;
+    text-align:center !important;
+    margin-top:4px !important;
+  }
+}
+
+
+/* RAVEBIC_MOBILE_STATUS_COLOR_SYNC_V9 */
+/* 모바일 카드형 화면에서도 PC와 같은 상태 색상을 적용합니다. */
+@media (max-width:768px){
+
+  #tbody tr.status-row-done{
+    background:#ecfdf5 !important;
+    border-color:#86efac !important;
+  }
+
+  #tbody tr.status-row-fix{
+    background:#fef2f2 !important;
+    border-color:#fca5a5 !important;
+  }
+
+  #tbody tr.status-row-pending{
+    background:#fffbeb !important;
+    border-color:#e7d9ac !important;
+  }
+
+  #tbody tr.status-row-done td{
+    background:transparent !important;
+  }
+
+  #tbody tr.status-row-fix td{
+    background:transparent !important;
+  }
+
+  #tbody tr.status-row-pending td{
+    background:transparent !important;
+  }
+
+  #tbody td:nth-child(9) select.status-done{
+    background:#dcfce7 !important;
+    color:#166534 !important;
+    border:1px solid #22c55e !important;
+  }
+
+  #tbody td:nth-child(9) select.status-fix{
+    background:#fee2e2 !important;
+    color:#991b1b !important;
+    border:1px solid #ef4444 !important;
+  }
+
+  #tbody td:nth-child(9) select.status-pending{
+    background:#fef9c3 !important;
+    color:#713f12 !important;
+    border:1px solid #facc15 !important;
+  }
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -1722,6 +1815,28 @@ async function loadRavebicValidStaffNames(force){
   return window.ravebicValidStaffNamePromise;
 }
 
+
+function resolveRavebicValidStaffName(name){
+  const raw = String(name || '').trim();
+  const key = normalizeStaffNameForFilter(raw);
+  const set = window.ravebicValidStaffNameSet;
+
+  if(!key) return '';
+
+  if(!set || set.size === 0) return raw;
+  if(set.has(key)) return raw;
+
+  let found = '';
+  set.forEach(function(staffName){
+    if(found) return;
+    if(key.includes(staffName) || staffName.includes(key)){
+      found = staffName;
+    }
+  });
+
+  return found;
+}
+
 function isRavebicValidStaffName(name){
   const key = normalizeStaffNameForFilter(name);
   if(!key) return false;
@@ -1777,20 +1892,19 @@ async function loadTeamScheduleRows(dateStr){
 
     snap.forEach(function(doc){
       const d = doc.data() || {};
-      const bad = /양수도|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/;
-      const leader = String(d.leader || '').replace(/\s+/g,'');
-      const store = String(d.store || '').replace(/\s+/g,'');
+      const badLeader = /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/;
+      const leaderText = String(d.leader || '').replace(/\s+/g,'');
+      const resolvedLeader = resolveRavebicValidStaffName(d.leader);
 
       if(d.active === false) return;
-      if(bad.test(leader)) return;
-      if(bad.test(store)) return;
-      if(!isRavebicValidStaffName(d.leader)) return;
+      if(badLeader.test(leaderText) && !resolvedLeader) return;
+      if(!resolvedLeader) return;
 
       rows.push({
         id: doc.id,
         ...d,
         scheduleDate: String(d.scheduleDate || '').trim(),
-        leader: String(d.leader || '').trim(),
+        leader: resolvedLeader,
         brand: String(d.brand || '').trim(),
         store: String(d.store || '').trim(),
         leaderOrderIndex: Number(d.leaderOrderIndex || 999999)
@@ -2183,11 +2297,10 @@ async function rbcLoadScore(){
   schSnap.forEach(doc=>{
     const r=doc.data();
     const d=String(r.scheduleDate||'');
-    const name=String(r.leader||'').trim();
+    const name=resolveRavebicValidStaffName(r.leader);
     if(r.active===false||d<sy||d>ey||!name)return;
-    if(!isRavebicValidStaffName(name))return;
-    const key=[d,r.leader,r.brand,sk(r.store)].join('|');
-    schedules[key]=r;
+    const key=[d,name,r.brand,sk(r.store)].join('|');
+    schedules[key]={...r, leader:name};
   });
 
   const subs=[];
@@ -2723,7 +2836,8 @@ function arrangePage2Boxes(){
     const bad=/양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|휴무|교육|차량|수정|마감|담당휴무/;
 
     document.querySelectorAll('#rbcScoreBody tr, #teamAnalysisTbody tr').forEach(function(tr){
-      const text=(tr.innerText||'').replace(/\s+/g,'');
+      const firstCell = tr.querySelector('td:first-child');
+      const text=(firstCell ? firstCell.innerText : tr.innerText || '').replace(/\s+/g,'');
       if(bad.test(text)){
         tr.style.display='none';
       }
@@ -2895,11 +3009,13 @@ function arrangePage2Boxes(){
 
         if(r.active===false)return;
         if(d<sy||d>ey)return;
-        if(String(r.leader||'').trim()!==name)return;
-        if(!isRavebicValidStaffName(r.leader))return;
-        if(isBadText(r.leader)||isBadText(r.store)||isBadText(r.workType))return;
 
-        schedules.push({id:doc.id,...r});
+        const resolvedLeader = resolveRavebicValidStaffName(r.leader);
+        if(resolvedLeader !== name)return;
+        if(isBadText(r.leader) && !resolvedLeader)return;
+        if(isBadText(r.workType))return;
+
+        schedules.push({id:doc.id,...r, leader:resolvedLeader});
       });
 
       const subs=[];
@@ -3398,50 +3514,116 @@ function showModal(title, html){
 </script>
 
 
-<script>
-/* RAVEBIC_ATTACHMENT_OPEN_ONLY_STABLE_V1 */
-(function(){
-  function cleanAttachmentOpenLinks(){
-    document.querySelectorAll('.rbc-modal-download-btn, .file-download-btn').forEach(function(el){
-      el.remove();
-    });
 
-    document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a, .store-history-modal a, .correction-modal a').forEach(function(a){
+<script>
+/* RAVEBIC_DIRECT_DOWNLOAD_LINK_V7 */
+function makeRavebicDownloadUrl(url, filename){
+  if(!url || url === '#') return '#';
+
+  var safeName = String(filename || 'ravebic_file')
+    .replace(/[\\/:*?"<>|]/g, '_')
+    .trim();
+
+  if(!safeName) safeName = 'ravebic_file';
+
+  var sep = url.indexOf('?') >= 0 ? '&' : '?';
+
+  return url + sep + 'response-content-disposition=' +
+    encodeURIComponent('attachment; filename="' + safeName + '"');
+}
+
+(function(){
+  function addSaveButtons(){
+    document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a, .store-history-modal a, .correction-modal a').forEach(function(a, idx){
       var href = a.getAttribute('href') || '';
       if(!href || href === '#') return;
 
       var txt = (a.textContent || '').replace(/\s+/g,'');
-      var m = txt.match(/첨부(\d+)(보기|열기)?/);
+      var m = txt.match(/첨부\s*(\d+)(보기|열기)?|첨부(\d+)(보기|열기)?/);
+      if(!m) return;
 
-      if(m){
-        a.textContent = '📎 첨부 ' + m[1] + ' 열기';
-        a.setAttribute('target','_blank');
-        a.removeAttribute('download');
-        a.classList.add('rbc-attachment-open-link');
+      var no = m[1] || m[3] || (idx + 1);
+      a.textContent = '📎 첨부 ' + no + ' 열기';
+      a.setAttribute('target','_blank');
+      a.removeAttribute('download');
+      a.classList.add('rbc-attachment-open-link');
+
+      if(a.nextElementSibling && a.nextElementSibling.classList && a.nextElementSibling.classList.contains('rbc-attachment-save-link')){
+        return;
       }
+
+      var save = document.createElement('a');
+      save.href = makeRavebicDownloadUrl(href, '첨부파일_' + no);
+      save.target = '_blank';
+      save.download = '첨부파일_' + no;
+      save.className = 'rbc-attachment-save-link';
+      save.textContent = '⬇ 저장';
+      a.insertAdjacentElement('afterend', save);
     });
 
-    document.querySelectorAll('.file-view-btn').forEach(function(a){
+    document.querySelectorAll('.file-view-btn').forEach(function(a, idx){
+      var href = a.getAttribute('href') || '';
+      if(!href || href === '#') return;
+
       var txt = (a.textContent || '').replace(/\s+/g,'');
-      var m = txt.match(/첨부(\d+)(보기|열기)?/);
-      if(m){
-        a.textContent = '첨부 ' + m[1] + ' 열기';
-        a.setAttribute('target','_blank');
-        a.removeAttribute('download');
+      var m = txt.match(/첨부\s*(\d+)(보기|열기)?|첨부(\d+)(보기|열기)?/);
+      if(!m) return;
+
+      var no = m[1] || m[3] || (idx + 1);
+      a.textContent = '첨부 ' + no + ' 열기';
+      a.setAttribute('target','_blank');
+      a.removeAttribute('download');
+
+      if(a.nextElementSibling && a.nextElementSibling.classList && a.nextElementSibling.classList.contains('file-save-btn')){
+        return;
       }
+
+      var save = document.createElement('a');
+      save.href = makeRavebicDownloadUrl(href, '첨부파일_' + no);
+      save.target = '_blank';
+      save.download = '첨부파일_' + no;
+      save.className = 'file-save-btn';
+      save.textContent = '저장';
+      a.insertAdjacentElement('afterend', save);
     });
   }
 
   document.addEventListener('click', function(){
-    setTimeout(cleanAttachmentOpenLinks, 80);
-    setTimeout(cleanAttachmentOpenLinks, 300);
-    setTimeout(cleanAttachmentOpenLinks, 800);
+    setTimeout(addSaveButtons, 80);
+    setTimeout(addSaveButtons, 300);
+    setTimeout(addSaveButtons, 800);
   });
 
   document.addEventListener('DOMContentLoaded', function(){
-    cleanAttachmentOpenLinks();
-    setInterval(cleanAttachmentOpenLinks, 1200);
+    addSaveButtons();
+    setInterval(addSaveButtons, 1200);
   });
+})();
+</script>
+
+
+<script>
+/* RAVEBIC_STATUS_COLOR_SYNC_AFTER_RENDER_V9 */
+(function(){
+  function syncStatusColorsSoon(){
+    if(typeof applyRavebicStatusColors === 'function'){
+      setTimeout(applyRavebicStatusColors, 50);
+      setTimeout(applyRavebicStatusColors, 250);
+      setTimeout(applyRavebicStatusColors, 700);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', syncStatusColorsSoon);
+  document.addEventListener('change', function(e){
+    if(e.target && e.target.tagName === 'SELECT'){
+      syncStatusColorsSoon();
+    }
+  });
+  document.addEventListener('click', function(){
+    syncStatusColorsSoon();
+  });
+
+  setInterval(syncStatusColorsSoon, 2500);
 })();
 </script>
 
