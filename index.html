@@ -722,6 +722,35 @@ select.status-pending {
   }
 }
 
+
+/* RAVEBIC_TOP_ALERT_CENTER_REPLACE_STATS_V1 */
+/* 상단 안내문/연결상태/통계카드는 숨기고, 관리자 알림센터를 그 자리로 올립니다. */
+.wrap > .sub,
+.wrap > #conn,
+.wrap > .cards{
+  display:none !important;
+}
+
+#rbcAlertCenterBox{
+  margin-top:8px !important;
+  margin-bottom:18px !important;
+  order:-100 !important;
+}
+
+.rbc-alert-box,
+#rbcAlertCenterBox{
+  border:1px solid #d7e6fb !important;
+  background:#f8fbff !important;
+  border-radius:18px !important;
+}
+
+@media (max-width:768px){
+  #rbcAlertCenterBox{
+    margin-top:6px !important;
+    margin-bottom:12px !important;
+  }
+}
+
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
   <div class="admin-lock-card">
@@ -3300,6 +3329,45 @@ function showModal(title, html){
 
   document.body.appendChild(modal);
 }
+</script>
+
+
+<script>
+/* RAVEBIC_MOVE_ALERT_CENTER_TO_TOP_V1 */
+(function(){
+  function moveAlertCenterToTop(){
+    var box =
+      document.getElementById('rbcAlertCenterBox') ||
+      document.getElementById('rbcAlertBox') ||
+      document.querySelector('.rbc-alert-box');
+
+    var wrap = document.querySelector('.wrap');
+    if(!box || !wrap) return;
+
+    var logout = wrap.querySelector('.admin-logout-btn');
+    var title = wrap.querySelector('.admin-main-title');
+
+    if(logout && logout.nextSibling){
+      wrap.insertBefore(box, logout.nextSibling);
+    }else if(title && title.nextSibling){
+      wrap.insertBefore(box, title.nextSibling);
+    }else{
+      wrap.insertBefore(box, wrap.firstChild);
+    }
+
+    box.style.display = '';
+    box.classList.remove('hidden');
+
+    if(typeof rbcLoadAlertCenter === 'function'){
+      setTimeout(rbcLoadAlertCenter, 300);
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', moveAlertCenterToTop);
+  setTimeout(moveAlertCenterToTop, 300);
+  setTimeout(moveAlertCenterToTop, 1000);
+  setTimeout(moveAlertCenterToTop, 2500);
+})();
 </script>
 
 </body></html>
