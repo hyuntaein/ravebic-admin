@@ -2737,13 +2737,11 @@ window.arrangePage2Boxes = window.arrangePage2Boxes || function(){
   const wrap=document.querySelector('.wrap');
   if(!wrap) return;
 
-  const alert=document.getElementById('rbcAlertCenterBox');
   const risk=document.getElementById('rbcRiskBox');
   const monthly=document.getElementById('rbcMonthlyBox');
   const score=document.getElementById('rbcScoreBox');
   const pin=document.querySelector('.pin-manager');
 
-  if(alert) wrap.appendChild(alert);
   if(risk) wrap.appendChild(risk);
   if(monthly) wrap.appendChild(monthly);
   if(score) wrap.appendChild(score);
@@ -2773,7 +2771,6 @@ window.arrangePage2Boxes = window.arrangePage2Boxes || function(){
 
   function page2Items(){
   return [
-    document.getElementById('rbcAlertCenterBox'),
     document.getElementById('rbcRiskBox'),
     document.getElementById('rbcMonthlyBox'),
     document.querySelector('.pin-manager'),
@@ -2870,8 +2867,7 @@ window.arrangePage2Boxes = window.arrangePage2Boxes || function(){
 
  function isPage2Item(el){
   if(!el) return false;
-  return el.id==='rbcAlertCenterBox' ||
-         el.id==='rbcRiskBox' ||
+  return el.id==='rbcRiskBox' ||
          el.id==='rbcMonthlyBox' ||
          el.id==='rbcScoreBox' ||
          el.classList.contains('pin-manager');
@@ -2883,13 +2879,11 @@ function arrangePage2Boxes(){
   const wrap=document.querySelector('.wrap');
   if(!wrap) return;
 
-  const alert=document.getElementById('rbcAlertCenterBox');
   const risk=document.getElementById('rbcRiskBox');
   const monthly=document.getElementById('rbcMonthlyBox');
   const score=document.getElementById('rbcScoreBox');
   const pin=document.querySelector('.pin-manager');
 
-  if(alert) wrap.appendChild(alert);
   if(risk) wrap.appendChild(risk);
   if(monthly) wrap.appendChild(monthly);
   if(score) wrap.appendChild(score);
@@ -3740,7 +3734,12 @@ window.debugTeamScheduleDate = async function(dateStr){
 .rbc-archive-card b{display:block;color:#0b3b77;font-size:22px;margin-top:4px}
 .rbc-archive-log{margin-top:12px;max-height:230px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;font-size:13px;line-height:1.55}
 .rbc-archive-warn{margin-top:10px;padding:12px;border-radius:14px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-weight:800;line-height:1.5}
-@media(max-width:768px){.rbc-archive-controls{display:grid;grid-template-columns:1fr}.rbc-archive-controls input{width:100%}}
+.rbc-auto-archive-panel{margin-top:12px;padding:13px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;line-height:1.55}
+.rbc-auto-archive-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.rbc-auto-archive-row input[type=checkbox]{width:22px;height:22px;accent-color:#16a34a}
+.rbc-auto-archive-row input[type=number]{width:95px;max-width:100%}
+.rbc-auto-archive-status{font-size:13px;color:#166534;font-weight:800;margin-top:8px}
+@media(max-width:768px){.rbc-archive-controls,.rbc-auto-archive-row{display:grid;grid-template-columns:1fr}.rbc-archive-controls input,.rbc-auto-archive-row input[type=number]{width:100%}}
 </style>
 
 <div class="rbc-archive-box" id="rbcArchiveBox">
@@ -3748,21 +3747,35 @@ window.debugTeamScheduleDate = async function(dateStr){
     <h2>데이터 아카이브 관리</h2>
     <button class="rbc-archive-btn gray" type="button" onclick="rbcToggleArchiveBox()">접기/펼치기</button>
   </div>
-  <div id="rbcArchiveBody">
+  <div id="rbcArchiveBody" style="display:none">
     <div class="small" style="margin-top:8px;color:#64748b">
       기준: submissions의 submittedAt 날짜가 지정 개월보다 오래된 자료를 archiveSubmissions로 복사하고, 원본은 archived:true로 표시해 제출목록에서 숨깁니다.
     </div>
+    <div class="rbc-auto-archive-panel">
+      <b>자동 아카이브 설정</b>
+      <div class="small" style="margin-top:4px;color:#166534">사용함으로 저장하면 매월 1일 이후 관리자앱 첫 접속 시, 해당 월에 1번만 자동으로 archive 이동/숨김을 실행합니다. 원본 파일 삭제는 하지 않습니다.</div>
+      <div class="rbc-auto-archive-row">
+        <label style="font-weight:900;display:flex;gap:8px;align-items:center"><input id="rbcAutoArchiveEnabled" type="checkbox"> 자동 아카이브 사용</label>
+        <label style="font-weight:900">자동 보관 기준</label>
+        <input id="rbcAutoArchiveMonths" type="number" min="1" value="13">
+        <span class="small">개월 이전 자료</span>
+        <button class="rbc-archive-btn green" type="button" onclick="rbcSaveAutoArchiveSettings()">자동설정 저장</button>
+        <button class="rbc-archive-btn gray" type="button" onclick="rbcArchiveAutoCheck(true)">자동실행 점검</button>
+      </div>
+      <div id="rbcAutoArchiveStatus" class="rbc-auto-archive-status">자동 아카이브 설정 불러오는 중...</div>
+    </div>
     <div class="rbc-archive-controls">
       <label style="font-weight:900">보관 기준</label>
-      <input id="rbcArchiveMonths" type="number" min="1" value="13">
-      <span class="small">개월 이전 자료</span>
+      <input id="rbcArchiveMonths" type="number" min="0" value="13">
+      <span class="small">개월 이전 자료 · 테스트 시 0 입력 가능</span>
       <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
       <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
+      <button class="rbc-archive-btn gray" type="button" onclick="rbcArchiveRestoreHidden()">숨김 원본 복구</button>
       <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
       <button class="rbc-archive-btn gray" type="button" onclick="rbcLoadArchiveLogs()">로그 보기</button>
     </div>
     <div class="rbc-archive-warn">
-      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
+      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 숨김 처리 후에도 복구할 수 있으며, 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
     </div>
     <div id="rbcArchiveSummary" class="rbc-archive-summary">
       <div class="rbc-archive-card">상태<b>대기</b></div>
@@ -3788,7 +3801,9 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   function archiveCutoffDate(){
     const monthsEl=document.getElementById('rbcArchiveMonths');
-    const months=Math.max(1, parseInt(monthsEl && monthsEl.value, 10) || 13);
+    let rawMonths = parseInt(monthsEl && monthsEl.value, 10);
+    if(isNaN(rawMonths)) rawMonths = 13;
+    const months = Math.max(0, rawMonths);
     const d=new Date();
     d.setMonth(d.getMonth()-months);
     d.setHours(23,59,59,999);
@@ -3944,6 +3959,79 @@ window.debugTeamScheduleDate = async function(dateStr){
     }
   };
 
+
+  window.rbcArchiveRestoreHidden=async function(){
+    try{
+      const c=archiveCutoffDate();
+      const snap=await db.collection('submissions').get();
+      const rows=[];
+      snap.forEach(function(doc){
+        const d=doc.data()||{};
+        const t=archiveDt(d);
+        if(d.archived === true && t && !isNaN(t.getTime()) && t <= c.cutoff){
+          rows.push({id:doc.id,...d,__archiveDate:t});
+        }
+      });
+      rows.sort(function(a,b){return a.__archiveDate-b.__archiveDate;});
+      archiveRenderSummary('복구 대상', rows, c.cutoff);
+      if(!rows.length){archiveSetLog('복구할 숨김 원본이 없습니다.');return;}
+
+      if(!confirm('숨김 처리된 원본 '+rows.length+'건을 다시 제출목록에 보이게 복구할까요?\n\narchiveSubmissions 백업 기록은 그대로 유지됩니다.')) return;
+
+      archiveSetLog('복구 실행 중... 창을 닫지 마세요.');
+      const runId='restore_archived_'+new Date().toISOString().replace(/[:.]/g,'-');
+      let restored=0;
+      let skipped=0;
+      let fail=0;
+      const errors=[];
+
+      for(const r of rows){
+        try{
+          const archiveDoc=await db.collection('archiveSubmissions').doc(r.id).get();
+          if(!archiveDoc.exists){
+            skipped++;
+            errors.push(r.id+': archiveSubmissions 백업 문서 없음 - 복구 건너뜀');
+            continue;
+          }
+
+          await db.collection('submissions').doc(r.id).update({
+            archived:false,
+            restoredAt:firebase.firestore.FieldValue.serverTimestamp(),
+            restoredAtText:new Date().toISOString(),
+            restoreRunId:runId
+          });
+          restored++;
+        }catch(err){
+          fail++;
+          errors.push(r.id+': '+(err.message||err));
+        }
+      }
+
+      const stats=archiveFileStats(rows);
+      await db.collection('archiveLogs').doc(runId).set({
+        runId:runId,
+        type:'restore_archived_originals',
+        months:c.months,
+        cutoffText:c.cutoff.toISOString(),
+        targetCount:rows.length,
+        successCount:restored,
+        skippedCount:skipped,
+        failCount:fail,
+        fileCount:stats.fileCount,
+        totalFileSize:stats.totalSize,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText:new Date().toISOString(),
+        errors:errors.slice(0,30)
+      });
+
+      archiveRenderSummary('복구 완료', rows, c.cutoff);
+      archiveSetLog('복구 완료: '+restored+'건 다시 표시 · 건너뜀 '+skipped+'건 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      if(typeof loadData==='function') await loadData();
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">복구 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
   window.rbcArchivePermanentDelete=async function(){
     try{
       const c=archiveCutoffDate();
@@ -4013,6 +4101,169 @@ window.debugTeamScheduleDate = async function(dateStr){
     }
   };
 
+
+  function archiveMonthKey(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  }
+
+  function archiveAutoStatus(msg){
+    const el=document.getElementById('rbcAutoArchiveStatus');
+    if(el) el.innerHTML=archiveEsc(msg).replace(/\n/g,'<br>');
+  }
+
+  async function archiveLoadAutoSettings(){
+    try{
+      const doc=await db.collection('settings').doc('archiveAutoSettings').get();
+      const data=doc.exists ? (doc.data()||{}) : {};
+      const enabled=!!data.enabled;
+      const months=Number(data.months || 13) || 13;
+      const enabledEl=document.getElementById('rbcAutoArchiveEnabled');
+      const monthsEl=document.getElementById('rbcAutoArchiveMonths');
+      const manualMonthsEl=document.getElementById('rbcArchiveMonths');
+      if(enabledEl) enabledEl.checked=enabled;
+      if(monthsEl) monthsEl.value=months;
+      if(manualMonthsEl && manualMonthsEl.value==='13') manualMonthsEl.value=months;
+      archiveAutoStatus(
+        '상태: '+(enabled?'사용함':'사용안함')+
+        '\n자동 보관 기준: '+months+'개월'+
+        '\n마지막 자동 실행월: '+(data.lastRunMonth || '-')+
+        '\n마지막 자동 실행일: '+(data.lastRunAtText || '-')
+      );
+      return data;
+    }catch(e){
+      archiveAutoStatus('자동 아카이브 설정 불러오기 실패: '+(e.message||e));
+      return {};
+    }
+  }
+
+  window.rbcSaveAutoArchiveSettings=async function(){
+    try{
+      const enabledEl=document.getElementById('rbcAutoArchiveEnabled');
+      const monthsEl=document.getElementById('rbcAutoArchiveMonths');
+      const months=Math.max(1, parseInt(monthsEl && monthsEl.value, 10) || 13);
+      const enabled=!!(enabledEl && enabledEl.checked);
+      await db.collection('settings').doc('archiveAutoSettings').set({
+        enabled:enabled,
+        months:months,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAtText:new Date().toISOString(),
+        updatedBy:'관리자앱'
+      },{merge:true});
+      const manualMonthsEl=document.getElementById('rbcArchiveMonths');
+      if(manualMonthsEl) manualMonthsEl.value=months;
+      archiveAutoStatus('저장 완료\n상태: '+(enabled?'사용함':'사용안함')+'\n자동 보관 기준: '+months+'개월');
+    }catch(e){
+      archiveAutoStatus('자동설정 저장 실패: '+(e.message||e));
+    }
+  };
+
+  async function archiveRunWithoutConfirm(sourceType, months){
+    const manualMonthsEl=document.getElementById('rbcArchiveMonths');
+    if(manualMonthsEl && months) manualMonthsEl.value=String(months);
+
+    const res=await archiveGetTargetRows();
+    if(!res.rows.length){
+      return {run:false, rows:0, done:0, fail:0, runId:'', fileCount:0, totalSize:0};
+    }
+
+    const runId=(sourceType || 'auto_archive')+'_'+new Date().toISOString().replace(/[:.]/g,'-');
+    let done=0;
+    let fail=0;
+    const errors=[];
+
+    for(const r of res.rows){
+      try{
+        const clean={...r};
+        delete clean.__archiveDate;
+        clean.originalSubmissionId=r.id;
+        clean.archivedAt=firebase.firestore.FieldValue.serverTimestamp();
+        clean.archivedAtText=new Date().toISOString();
+        clean.archiveRunId=runId;
+        clean.archiveCutoffText=res.cutoff.toISOString();
+        clean.archiveMonths=res.months;
+        clean.archiveSource=sourceType || 'auto_archive';
+
+        await db.collection('archiveSubmissions').doc(r.id).set(clean,{merge:true});
+        await db.collection('submissions').doc(r.id).update({
+          archived:true,
+          archivedAt:firebase.firestore.FieldValue.serverTimestamp(),
+          archivedAtText:new Date().toISOString(),
+          archiveRunId:runId,
+          archiveSource:sourceType || 'auto_archive'
+        });
+        done++;
+      }catch(err){
+        fail++;
+        errors.push(r.id+': '+(err.message||err));
+      }
+    }
+
+    const stats=archiveFileStats(res.rows);
+    await db.collection('archiveLogs').doc(runId).set({
+      runId:runId,
+      type:sourceType || 'auto_archive_hide',
+      months:res.months,
+      cutoffText:res.cutoff.toISOString(),
+      targetCount:res.rows.length,
+      successCount:done,
+      failCount:fail,
+      fileCount:stats.fileCount,
+      totalFileSize:stats.totalSize,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      createdAtText:new Date().toISOString(),
+      errors:errors.slice(0,20)
+    });
+
+    if(typeof loadData==='function') await loadData();
+    return {run:true, rows:res.rows.length, done:done, fail:fail, runId:runId, fileCount:stats.fileCount, totalSize:stats.totalSize, cutoff:res.cutoff, months:res.months};
+  }
+
+  window.rbcArchiveAutoCheck=async function(forceManual){
+    try{
+      archiveAutoStatus('자동 아카이브 점검 중...');
+      const doc=await db.collection('settings').doc('archiveAutoSettings').get();
+      const data=doc.exists ? (doc.data()||{}) : {};
+      const enabled=!!data.enabled;
+      const months=Number(data.months || 13) || 13;
+      const now=new Date();
+      const thisMonth=archiveMonthKey(now);
+
+      if(!enabled && !forceManual){
+        archiveAutoStatus('상태: 사용안함\n자동 아카이브는 실행하지 않았습니다.');
+        return;
+      }
+      if(!forceManual && data.lastRunMonth===thisMonth){
+        archiveAutoStatus('이번 달은 이미 자동 실행됨\n마지막 실행월: '+thisMonth+'\n마지막 실행일: '+(data.lastRunAtText||'-'));
+        return;
+      }
+      if(forceManual && !confirm('자동 아카이브 점검을 지금 실행할까요?\n\n대상 자료가 있으면 archiveSubmissions로 복사하고 원본은 숨김 처리합니다. 파일은 삭제하지 않습니다.')){
+        archiveAutoStatus('자동실행 점검 취소');
+        return;
+      }
+
+      const result=await archiveRunWithoutConfirm(forceManual?'auto_archive_manual_check':'auto_archive_hide', months);
+      await db.collection('settings').doc('archiveAutoSettings').set({
+        enabled:enabled,
+        months:months,
+        lastRunMonth:thisMonth,
+        lastRunAt:firebase.firestore.FieldValue.serverTimestamp(),
+        lastRunAtText:new Date().toISOString(),
+        lastRunResult:result
+      },{merge:true});
+
+      if(result.run){
+        archiveAutoStatus('자동 아카이브 실행 완료\n처리: '+result.done+'건 / 실패: '+result.fail+'건\n파일: '+result.fileCount+'개\n로그ID: '+result.runId);
+        archiveSetLog('자동 아카이브 실행 완료<br>처리 '+result.done+'건 · 실패 '+result.fail+'건 · 파일 '+result.fileCount+'개<br>로그ID: '+archiveEsc(result.runId));
+      }else{
+        archiveAutoStatus('자동 아카이브 점검 완료\n대상 자료가 없어 이번 달 실행 기록만 저장했습니다.\n실행월: '+thisMonth);
+        archiveSetLog('자동 아카이브 대상 자료가 없습니다. 이번 달 실행 기록을 저장했습니다.');
+      }
+    }catch(e){
+      archiveAutoStatus('자동 아카이브 실패: '+(e.message||e));
+      archiveSetLog('<span style="color:#991b1b">자동 아카이브 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
   window.rbcLoadArchiveLogs=async function(){
     try{
       archiveSetLog('로그 불러오는 중...');
@@ -4037,9 +4288,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     const wrap=document.querySelector('.wrap');
     const box=document.getElementById('rbcArchiveBox');
     if(!wrap || !box) return;
-
     // 아카이브는 자주 쓰는 기능이 아니므로 페이지2의 가장 하단으로 고정합니다.
-    // 위험도/월간분석/신뢰도/PIN 관리 뒤에 항상 위치하도록 appendChild를 사용합니다.
     wrap.appendChild(box);
   }
 
@@ -4080,7 +4329,7 @@ window.debugTeamScheduleDate = async function(dateStr){
   window.isPage2Item=function(el){
     if(el && el.id==='rbcArchiveBox') return true;
     if(typeof prevIsPage2Item==='function') return prevIsPage2Item(el);
-    return el && (el.id==='rbcAlertCenterBox'||el.id==='rbcRiskBox'||el.id==='rbcMonthlyBox'||el.id==='rbcScoreBox'||el.classList.contains('pin-manager'));
+    return el && (el.id==='rbcRiskBox'||el.id==='rbcMonthlyBox'||el.id==='rbcScoreBox'||el.classList.contains('pin-manager'));
   };
 
   const prevShow=window.showRbcPage;
@@ -4094,32 +4343,82 @@ window.debugTeamScheduleDate = async function(dateStr){
     };
   }
 
-  document.addEventListener('DOMContentLoaded', function(){placeArchiveBox(); setTimeout(function(){if(typeof showRbcPage==='function') showRbcPage(1);},200);});
+  document.addEventListener('DOMContentLoaded', function(){
+    placeArchiveBox();
+    const body=document.getElementById('rbcArchiveBody');
+    if(body && !body.dataset.initializedCollapsed){ body.dataset.initializedCollapsed='1'; body.style.display='none'; }
+    setTimeout(function(){if(typeof showRbcPage==='function') showRbcPage(1);},200);
+    setTimeout(function(){ archiveLoadAutoSettings().then(function(){ rbcArchiveAutoCheck(false); }); },1800);
+  });
   setTimeout(placeArchiveBox,500);
   setTimeout(placeArchiveBox,1500);
 })();
 </script>
 
 
-
 <script>
-/* RAVEBIC_ARCHIVE_BOTTOM_FIX_V1 */
+/* RAVEBIC_ALERT_CENTER_PAGE1_FIX_V1 */
 (function(){
-  function keepArchiveAtPage2Bottom(){
+  function placeAlertCenterPage1(){
     var wrap=document.querySelector('.wrap');
-    var box=document.getElementById('rbcArchiveBox');
-    if(!wrap || !box) return;
-    wrap.appendChild(box);
-    if(typeof window.showRbcPage==='function'){
-      var p2=document.getElementById('rbcPage2Btn');
-      var isPage2=p2 && p2.classList && p2.classList.contains('active');
-      box.style.display = isPage2 ? '' : 'none';
+    var alert=document.getElementById('rbcAlertCenterBox');
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!wrap || !alert) return;
+    if(tabs && tabs.nextSibling){
+      wrap.insertBefore(alert, tabs.nextSibling);
+    }else{
+      var logout=wrap.querySelector('.admin-logout-btn');
+      if(logout && logout.nextSibling) wrap.insertBefore(alert, logout.nextSibling);
+      else wrap.insertBefore(alert, wrap.firstChild);
     }
   }
-  document.addEventListener('DOMContentLoaded', keepArchiveAtPage2Bottom);
-  setTimeout(keepArchiveAtPage2Bottom, 300);
-  setTimeout(keepArchiveAtPage2Bottom, 1000);
-  setTimeout(keepArchiveAtPage2Bottom, 2500);
+
+  var previousShowRbcPage = window.showRbcPage;
+  window.showRbcPage = function(page){
+    if(typeof previousShowRbcPage === 'function') previousShowRbcPage(page);
+    placeAlertCenterPage1();
+
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(alert) alert.style.display = page===1 ? '' : 'none';
+
+    var archive=document.getElementById('rbcArchiveBox');
+    if(archive) archive.style.display = page===2 ? '' : 'none';
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    placeAlertCenterPage1();
+    setTimeout(function(){ if(typeof window.showRbcPage==='function') window.showRbcPage(1); }, 250);
+  });
+  setTimeout(placeAlertCenterPage1, 700);
+  setTimeout(placeAlertCenterPage1, 1700);
+})();
+</script>
+
+
+
+<script>
+/* RAVEBIC_ARCHIVE_AUTO_BOTTOM_FINAL_V1 */
+(function(){
+  function forceArchiveBottom(){
+    var wrap=document.querySelector('.wrap');
+    var box=document.getElementById('rbcArchiveBox');
+    if(wrap && box) wrap.appendChild(box);
+  }
+  var prev=window.showRbcPage;
+  window.showRbcPage=function(page){
+    if(typeof prev==='function') prev(page);
+    forceArchiveBottom();
+    var archive=document.getElementById('rbcArchiveBox');
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(archive) archive.style.display=page===2?'':'none';
+    if(alert) alert.style.display=page===1?'':'none';
+  };
+  document.addEventListener('DOMContentLoaded',function(){
+    forceArchiveBottom();
+    setTimeout(function(){ if(typeof window.showRbcPage==='function') window.showRbcPage(1); },400);
+  });
+  setTimeout(forceArchiveBottom,800);
+  setTimeout(forceArchiveBottom,2000);
 })();
 </script>
 </body></html>
