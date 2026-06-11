@@ -1040,7 +1040,7 @@ select.status-pending {
 const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13",measurementId:"G-EEN6GM72JT"};
 firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const storage=firebase.storage();
 let allRows=[];let filtered=[];let currentPage=1;let pageSize=10;function dtOf(r){return r.submittedAt&&r.submittedAt.toDate?r.submittedAt.toDate():new Date(r.submittedAtText||r.date||0)}
-async function loadData(){document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr>';try{const snap=await db.collection('submissions').get();allRows=[];snap.forEach(d=>allRows.push({id:d.id,...d.data()}));allRows.sort((a,b)=>dtOf(b)-dtOf(a));document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';applyFilters();}catch(e){console.error(e);document.getElementById('conn').textContent='연결 실패';document.getElementById('tbody').innerHTML='<tr><td colspan="10">Firebase 연결 실패: '+e.message+'</td></tr>';}}
+async function loadData(){document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr>';try{const snap=await db.collection('submissions').get();allRows=[];snap.forEach(d=>{const row={id:d.id,...d.data()}; if(row.archived!==true) allRows.push(row);});allRows.sort((a,b)=>dtOf(b)-dtOf(a));document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';applyFilters();}catch(e){console.error(e);document.getElementById('conn').textContent='연결 실패';document.getElementById('tbody').innerHTML='<tr><td colspan="10">Firebase 연결 실패: '+e.message+'</td></tr>';}}
 function applyFilters(){currentPage=1;const q=document.getElementById('q').value.trim().toLowerCase();const from=document.getElementById('from').value;const to=document.getElementById('to').value;const region=document.getElementById('region').value;const brand=document.getElementById('brand').value;const work=document.getElementById('workType').value;filtered=allRows.filter(r=>{const text=((r.name||'')+' '+(r.store||'')+' '+(r.note||'')).toLowerCase();const d=dtOf(r);if(q&&!text.includes(q))return false;if(from&&d<new Date(from+'T00:00:00'))return false;if(to&&d>new Date(to+'T23:59:59'))return false;if(region&&r.region!==region)return false;if(brand&&r.brand!==brand)return false;if(work&&r.workType!==work)return false;return true;});render();}
 
 function safeJsonForAttr(obj){return encodeURIComponent(JSON.stringify(obj||{}));}
@@ -3708,6 +3708,397 @@ window.debugTeamScheduleDate = async function(dateStr){
   console.log(dateStr, rows.length + '건');
   return rows;
 };
+</script>
+
+
+
+<style>
+/* RAVEBIC_ARCHIVE_MANAGER_V1 */
+.rbc-archive-box{
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #bfdbfe;
+  background:#f8fbff;
+  border-radius:18px;
+}
+.rbc-archive-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.rbc-archive-head h2{margin:0;color:#123f7a;font-size:22px}
+.rbc-archive-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.rbc-archive-controls input{width:95px;max-width:100%}
+.rbc-archive-btn{background:#2563eb!important;color:#fff!important;border:0!important;border-radius:13px!important;padding:12px 15px!important;font-weight:900!important;cursor:pointer!important}
+.rbc-archive-btn.gray{background:#64748b!important}
+.rbc-archive-btn.green{background:#16a34a!important}
+.rbc-archive-btn.red{background:#b91c1c!important}
+.rbc-archive-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.rbc-archive-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:12px;line-height:1.45}
+.rbc-archive-card b{display:block;color:#0b3b77;font-size:22px;margin-top:4px}
+.rbc-archive-log{margin-top:12px;max-height:230px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;font-size:13px;line-height:1.55}
+.rbc-archive-warn{margin-top:10px;padding:12px;border-radius:14px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-weight:800;line-height:1.5}
+@media(max-width:768px){.rbc-archive-controls{display:grid;grid-template-columns:1fr}.rbc-archive-controls input{width:100%}}
+</style>
+
+<div class="rbc-archive-box" id="rbcArchiveBox">
+  <div class="rbc-archive-head">
+    <h2>데이터 아카이브 관리</h2>
+    <button class="rbc-archive-btn gray" type="button" onclick="rbcToggleArchiveBox()">접기/펼치기</button>
+  </div>
+  <div id="rbcArchiveBody">
+    <div class="small" style="margin-top:8px;color:#64748b">
+      기준: submissions의 submittedAt 날짜가 지정 개월보다 오래된 자료를 archiveSubmissions로 복사하고, 원본은 archived:true로 표시해 제출목록에서 숨깁니다.
+    </div>
+    <div class="rbc-archive-controls">
+      <label style="font-weight:900">보관 기준</label>
+      <input id="rbcArchiveMonths" type="number" min="1" value="13">
+      <span class="small">개월 이전 자료</span>
+      <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
+      <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
+      <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
+      <button class="rbc-archive-btn gray" type="button" onclick="rbcLoadArchiveLogs()">로그 보기</button>
+    </div>
+    <div class="rbc-archive-warn">
+      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
+    </div>
+    <div id="rbcArchiveSummary" class="rbc-archive-summary">
+      <div class="rbc-archive-card">상태<b>대기</b></div>
+    </div>
+    <div id="rbcArchiveLog" class="rbc-archive-log">아직 실행 기록이 없습니다.</div>
+  </div>
+</div>
+
+<script>
+/* RAVEBIC_ARCHIVE_MANAGER_V1 */
+(function(){
+  function archiveEsc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+
+  function archiveDt(r){
+    return r && r.submittedAt && r.submittedAt.toDate
+      ? r.submittedAt.toDate()
+      : new Date((r && (r.submittedAtText || r.date)) || 0);
+  }
+
+  function archiveCutoffDate(){
+    const monthsEl=document.getElementById('rbcArchiveMonths');
+    const months=Math.max(1, parseInt(monthsEl && monthsEl.value, 10) || 13);
+    const d=new Date();
+    d.setMonth(d.getMonth()-months);
+    d.setHours(23,59,59,999);
+    return {months:months, cutoff:d};
+  }
+
+  function archiveYmd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function archiveFileStats(rows){
+    let fileCount=0;
+    let totalSize=0;
+    rows.forEach(function(r){
+      (r.files||[]).forEach(function(f){
+        fileCount++;
+        totalSize += Number(f.size || 0) || 0;
+      });
+    });
+    return {fileCount:fileCount,totalSize:totalSize};
+  }
+
+  function archiveSizeText(bytes){
+    bytes=Number(bytes||0);
+    if(bytes>=1024*1024*1024) return (bytes/1024/1024/1024).toFixed(2)+' GB';
+    if(bytes>=1024*1024) return (bytes/1024/1024).toFixed(2)+' MB';
+    if(bytes>=1024) return (bytes/1024).toFixed(1)+' KB';
+    return bytes+' B';
+  }
+
+  async function archiveGetTargetRows(){
+    const c=archiveCutoffDate();
+    const snap=await db.collection('submissions').get();
+    const rows=[];
+    snap.forEach(function(doc){
+      const d=doc.data()||{};
+      const t=archiveDt(d);
+      if(d.archived === true) return;
+      if(!t || isNaN(t.getTime())) return;
+      if(t <= c.cutoff){
+        rows.push({id:doc.id,...d,__archiveDate:t});
+      }
+    });
+    rows.sort(function(a,b){return a.__archiveDate-b.__archiveDate;});
+    return {rows:rows, months:c.months, cutoff:c.cutoff};
+  }
+
+  function archiveRenderSummary(title, rows, cutoff){
+    const stats=archiveFileStats(rows);
+    const oldest=rows.length ? archiveYmd(rows[0].__archiveDate) : '-';
+    const newest=rows.length ? archiveYmd(rows[rows.length-1].__archiveDate) : '-';
+    const el=document.getElementById('rbcArchiveSummary');
+    if(!el) return;
+    el.innerHTML =
+      '<div class="rbc-archive-card">상태<b>'+archiveEsc(title)+'</b></div>'+ 
+      '<div class="rbc-archive-card">대상 제출자료<b>'+rows.length.toLocaleString()+'건</b></div>'+ 
+      '<div class="rbc-archive-card">첨부파일<b>'+stats.fileCount.toLocaleString()+'개</b></div>'+ 
+      '<div class="rbc-archive-card">예상 파일용량<b>'+archiveEsc(archiveSizeText(stats.totalSize))+'</b></div>'+ 
+      '<div class="rbc-archive-card">기준일<b>'+archiveEsc(archiveYmd(cutoff))+'</b></div>'+ 
+      '<div class="rbc-archive-card">대상 기간<b>'+archiveEsc(oldest+' ~ '+newest)+'</b></div>';
+  }
+
+  function archiveSetLog(html){
+    const el=document.getElementById('rbcArchiveLog');
+    if(el) el.innerHTML=html;
+  }
+
+  window.rbcToggleArchiveBox=function(){
+    const body=document.getElementById('rbcArchiveBody');
+    if(body) body.style.display = body.style.display==='none' ? 'block' : 'none';
+  };
+
+  window.rbcArchiveSimulation=async function(){
+    try{
+      archiveSetLog('시뮬레이션 계산 중...');
+      const res=await archiveGetTargetRows();
+      archiveRenderSummary('시뮬레이션 완료', res.rows, res.cutoff);
+      const sample=res.rows.slice(0,10).map(function(r){
+        return '- '+archiveEsc(archiveYmd(r.__archiveDate)+' / '+(r.name||'')+' / '+(r.store||'')+' / 첨부 '+((r.files||[]).length)+'개');
+      }).join('<br>');
+      archiveSetLog(
+        '<b>삭제/이동 없이 조회만 완료했습니다.</b><br>'+ 
+        '기준: '+res.months+'개월 이전 · '+archiveEsc(archiveYmd(res.cutoff))+' 이전 자료<br><br>'+ 
+        (sample || '대상 자료가 없습니다.')
+      );
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">시뮬레이션 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  window.rbcArchiveRun=async function(){
+    try{
+      const res=await archiveGetTargetRows();
+      archiveRenderSummary('이동 준비', res.rows, res.cutoff);
+      if(!res.rows.length){
+        archiveSetLog('아카이브 대상 자료가 없습니다.');
+        return;
+      }
+      if(!confirm(res.rows.length+'건을 archiveSubmissions로 복사하고 원본은 제출목록에서 숨길까요?\n\n파일 자체는 삭제하지 않습니다.')) return;
+
+      archiveSetLog('아카이브 실행 중... 창을 닫지 마세요.');
+      const runId='archive_'+new Date().toISOString().replace(/[:.]/g,'-');
+      let done=0;
+      let fail=0;
+      const errors=[];
+
+      for(const r of res.rows){
+        try{
+          const clean={...r};
+          delete clean.__archiveDate;
+          clean.originalSubmissionId=r.id;
+          clean.archivedAt=firebase.firestore.FieldValue.serverTimestamp();
+          clean.archivedAtText=new Date().toISOString();
+          clean.archiveRunId=runId;
+          clean.archiveCutoffText=res.cutoff.toISOString();
+          clean.archiveMonths=res.months;
+
+          await db.collection('archiveSubmissions').doc(r.id).set(clean,{merge:true});
+          await db.collection('submissions').doc(r.id).update({
+            archived:true,
+            archivedAt:firebase.firestore.FieldValue.serverTimestamp(),
+            archivedAtText:new Date().toISOString(),
+            archiveRunId:runId
+          });
+          done++;
+        }catch(err){
+          fail++;
+          errors.push(r.id+': '+(err.message||err));
+        }
+      }
+
+      const stats=archiveFileStats(res.rows);
+      await db.collection('archiveLogs').doc(runId).set({
+        runId:runId,
+        type:'archive_hide',
+        months:res.months,
+        cutoffText:res.cutoff.toISOString(),
+        targetCount:res.rows.length,
+        successCount:done,
+        failCount:fail,
+        fileCount:stats.fileCount,
+        totalFileSize:stats.totalSize,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText:new Date().toISOString(),
+        errors:errors.slice(0,20)
+      });
+
+      archiveRenderSummary('아카이브 완료', res.rows, res.cutoff);
+      archiveSetLog('완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      if(typeof loadData==='function') await loadData();
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">아카이브 실행 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  window.rbcArchivePermanentDelete=async function(){
+    try{
+      const c=archiveCutoffDate();
+      const snap=await db.collection('submissions').get();
+      const rows=[];
+      snap.forEach(function(doc){
+        const d=doc.data()||{};
+        const t=archiveDt(d);
+        if(d.archived === true && t && !isNaN(t.getTime()) && t <= c.cutoff){
+          rows.push({id:doc.id,...d,__archiveDate:t});
+        }
+      });
+
+      archiveRenderSummary('영구삭제 대상', rows, c.cutoff);
+      if(!rows.length){archiveSetLog('영구삭제 대상 원본이 없습니다.');return;}
+
+      const msg='숨김 처리된 원본 '+rows.length+'건을 영구삭제합니다.\n\n주의: submissions 원본 문서와 연결된 Storage 파일도 삭제됩니다. archiveSubmissions에는 기록만 남습니다.\n\n진행하려면 아래 문구를 정확히 입력하세요.\n\n영구삭제';
+      const typed=prompt(msg,'');
+      if(typed!=='영구삭제'){
+        archiveSetLog('영구삭제가 취소되었습니다.');
+        return;
+      }
+
+      archiveSetLog('영구삭제 실행 중... 창을 닫지 마세요.');
+      const runId='delete_archived_'+new Date().toISOString().replace(/[:.]/g,'-');
+      let docDeleted=0;
+      let fileDeleted=0;
+      let fail=0;
+      const errors=[];
+
+      for(const r of rows){
+        try{
+          for(const f of (r.files||[])){
+            try{
+              if(f && f.url){ await storage.refFromURL(f.url).delete(); fileDeleted++; }
+              else if(f && f.path){ await storage.ref(f.path).delete(); fileDeleted++; }
+            }catch(fe){
+              errors.push('file '+(f.path||f.name||'')+': '+(fe.message||fe));
+            }
+          }
+          await db.collection('submissions').doc(r.id).delete();
+          docDeleted++;
+        }catch(err){
+          fail++;
+          errors.push(r.id+': '+(err.message||err));
+        }
+      }
+
+      await db.collection('archiveLogs').doc(runId).set({
+        runId:runId,
+        type:'delete_archived_originals',
+        months:c.months,
+        cutoffText:c.cutoff.toISOString(),
+        targetCount:rows.length,
+        deletedDocumentCount:docDeleted,
+        deletedFileCount:fileDeleted,
+        failCount:fail,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText:new Date().toISOString(),
+        errors:errors.slice(0,30)
+      });
+
+      archiveSetLog('영구삭제 완료: 원본 문서 '+docDeleted+'건 · 파일 '+fileDeleted+'개 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      if(typeof loadData==='function') await loadData();
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">영구삭제 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  window.rbcLoadArchiveLogs=async function(){
+    try{
+      archiveSetLog('로그 불러오는 중...');
+      const snap=await db.collection('archiveLogs').get();
+      const rows=[];
+      snap.forEach(function(doc){rows.push({id:doc.id,...(doc.data()||{})});});
+      rows.sort(function(a,b){return new Date(b.createdAtText||0)-new Date(a.createdAtText||0);});
+      if(!rows.length){archiveSetLog('저장된 아카이브 로그가 없습니다.');return;}
+      archiveSetLog(rows.slice(0,20).map(function(r){
+        return '<div style="border-bottom:1px solid #e2e8f0;padding:8px 0">'+
+          '<b>'+archiveEsc(r.type||'-')+'</b> · '+archiveEsc(r.createdAtText||'-')+'<br>'+ 
+          '대상 '+Number(r.targetCount||0).toLocaleString()+'건 / 성공 '+Number(r.successCount||r.deletedDocumentCount||0).toLocaleString()+'건 / 실패 '+Number(r.failCount||0).toLocaleString()+'건 / 파일 '+Number(r.fileCount||r.deletedFileCount||0).toLocaleString()+'개<br>'+ 
+          '<span class="small">'+archiveEsc(r.runId||r.id)+'</span>'+ 
+        '</div>';
+      }).join(''));
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">로그 불러오기 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  function placeArchiveBox(){
+    const wrap=document.querySelector('.wrap');
+    const box=document.getElementById('rbcArchiveBox');
+    const pin=document.querySelector('.pin-manager');
+    const monthly=document.getElementById('rbcMonthlyBox');
+    if(!wrap || !box) return;
+    if(pin && box.parentElement!==wrap){ wrap.insertBefore(box,pin); }
+    else if(monthly && box.parentElement!==wrap){ wrap.insertBefore(box,monthly.nextSibling); }
+    else if(box.parentElement!==wrap){ wrap.appendChild(box); }
+  }
+
+  const oldLoadData=window.loadData || loadData;
+  if(typeof oldLoadData==='function' && !window.rbcArchiveLoadDataWrapped){
+    window.rbcArchiveLoadDataWrapped=true;
+    window.loadData=async function(){
+      await oldLoadData.apply(this, arguments);
+      if(Array.isArray(window.allRows)){
+        window.allRows=window.allRows.filter(function(r){return r.archived!==true;});
+      }
+    };
+  }
+
+  if(typeof loadData==='function' && !window.rbcArchiveLocalLoadDataWrapped){
+    const originalLoadData=loadData;
+    loadData=async function(){
+      document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr>';
+      try{
+        const snap=await db.collection('submissions').get();
+        allRows=[];
+        snap.forEach(function(d){
+          const row={id:d.id,...d.data()};
+          if(row.archived!==true) allRows.push(row);
+        });
+        allRows.sort(function(a,b){return dtOf(b)-dtOf(a);});
+        document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';
+        applyFilters();
+      }catch(e){
+        console.error(e);
+        document.getElementById('conn').textContent='연결 실패';
+        document.getElementById('tbody').innerHTML='<tr><td colspan="10">Firebase 연결 실패: '+(e.message||e)+'</td></tr>';
+      }
+    };
+  }
+
+  const prevIsPage2Item=window.isPage2Item;
+  window.isPage2Item=function(el){
+    if(el && el.id==='rbcArchiveBox') return true;
+    if(typeof prevIsPage2Item==='function') return prevIsPage2Item(el);
+    return el && (el.id==='rbcAlertCenterBox'||el.id==='rbcRiskBox'||el.id==='rbcMonthlyBox'||el.id==='rbcScoreBox'||el.classList.contains('pin-manager'));
+  };
+
+  const prevShow=window.showRbcPage;
+  if(typeof prevShow==='function' && !window.rbcArchiveShowPageWrapped){
+    window.rbcArchiveShowPageWrapped=true;
+    window.showRbcPage=function(page){
+      placeArchiveBox();
+      prevShow(page);
+      const box=document.getElementById('rbcArchiveBox');
+      if(box) box.style.display=page===2?'':'none';
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){placeArchiveBox(); setTimeout(function(){if(typeof showRbcPage==='function') showRbcPage(1);},200);});
+  setTimeout(placeArchiveBox,500);
+  setTimeout(placeArchiveBox,1500);
+})();
 </script>
 
 </body></html>
