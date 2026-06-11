@@ -4396,29 +4396,144 @@ window.debugTeamScheduleDate = async function(dateStr){
 
 
 
+
+
+
 <script>
-/* RAVEBIC_ARCHIVE_AUTO_BOTTOM_FINAL_V1 */
+/* RAVEBIC_PAGE_LAYOUT_FINAL_FIX_V2
+   - 관리자 알림센터: 페이지1 고정
+   - 데이터 아카이브 관리: 페이지2 최하단 고정
+   - 기존 showRbcPage 충돌 방지용 최종 레이아웃 컨트롤러
+*/
 (function(){
-  function forceArchiveBottom(){
-    var wrap=document.querySelector('.wrap');
-    var box=document.getElementById('rbcArchiveBox');
-    if(wrap && box) wrap.appendChild(box);
+  function getWrap(){ return document.querySelector('.wrap'); }
+
+  function ensureTabs(){
+    var wrap=getWrap();
+    if(!wrap) return;
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      tabs.innerHTML=
+        '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>'+ 
+        '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+
+      var cards=wrap.querySelector('.cards');
+      if(cards && cards.nextSibling) wrap.insertBefore(tabs, cards.nextSibling);
+      else wrap.insertBefore(tabs, wrap.firstChild);
+    }
+
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.onclick=function(){ window.showRbcPage(1); };
+    if(p2) p2.onclick=function(){ window.showRbcPage(2); };
   }
-  var prev=window.showRbcPage;
-  window.showRbcPage=function(page){
-    if(typeof prev==='function') prev(page);
-    forceArchiveBottom();
-    var archive=document.getElementById('rbcArchiveBox');
+
+  function placeAlertPage1(){
+    var wrap=getWrap();
     var alert=document.getElementById('rbcAlertCenterBox');
-    if(archive) archive.style.display=page===2?'':'none';
-    if(alert) alert.style.display=page===1?'':'none';
+    if(!wrap || !alert) return;
+
+    ensureTabs();
+    var tabs=document.getElementById('rbcPageTabs');
+
+    if(tabs && tabs.nextSibling){
+      wrap.insertBefore(alert, tabs.nextSibling);
+    }else if(tabs){
+      wrap.appendChild(alert);
+    }else{
+      var logout=wrap.querySelector('.admin-logout-btn');
+      if(logout && logout.nextSibling) wrap.insertBefore(alert, logout.nextSibling);
+      else wrap.insertBefore(alert, wrap.firstChild);
+    }
+  }
+
+  function placeArchiveBottom(){
+    var wrap=getWrap();
+    var archive=document.getElementById('rbcArchiveBox');
+    if(!wrap || !archive) return;
+    wrap.appendChild(archive);
+  }
+
+  function arrangePage2Bottom(){
+    var wrap=getWrap();
+    if(!wrap) return;
+
+    var risk=document.getElementById('rbcRiskBox');
+    var monthly=document.getElementById('rbcMonthlyBox');
+    var score=document.getElementById('rbcScoreBox');
+    var pin=document.querySelector('.pin-manager');
+    var archive=document.getElementById('rbcArchiveBox');
+
+    if(risk) wrap.appendChild(risk);
+    if(monthly) wrap.appendChild(monthly);
+    if(score) wrap.appendChild(score);
+    if(pin) wrap.appendChild(pin);
+    if(archive) wrap.appendChild(archive);
+  }
+
+  function isPage2Item(el){
+    if(!el) return false;
+    return el.id==='rbcRiskBox' ||
+           el.id==='rbcMonthlyBox' ||
+           el.id==='rbcScoreBox' ||
+           el.id==='rbcArchiveBox' ||
+           (el.classList && el.classList.contains('pin-manager'));
+  }
+
+  window.isPage2Item = isPage2Item;
+
+  window.showRbcPage=function(page){
+    page = Number(page)===2 ? 2 : 1;
+
+    ensureTabs();
+    placeAlertPage1();
+    arrangePage2Bottom();
+
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.classList.toggle('active', page===1);
+    if(p2) p2.classList.toggle('active', page===2);
+
+    var wrap=getWrap();
+    if(!wrap) return;
+
+    Array.from(wrap.children).forEach(function(el){
+      if(el.id==='rbcPageTabs') return;
+      if(el.classList && el.classList.contains('admin-main-title')) return;
+      if(el.classList && el.classList.contains('admin-logout-btn')) return;
+      if(el.classList && el.classList.contains('sub')) return;
+      if(el.id==='conn') return;
+      if(el.classList && el.classList.contains('cards')) return;
+
+      if(isPage2Item(el)){
+        el.style.display = page===2 ? '' : 'none';
+      }else{
+        el.style.display = page===1 ? '' : 'none';
+      }
+    });
+
+    var alert=document.getElementById('rbcAlertCenterBox');
+    var archive=document.getElementById('rbcArchiveBox');
+    if(alert) alert.style.display = page===1 ? '' : 'none';
+    if(archive) archive.style.display = page===2 ? '' : 'none';
   };
-  document.addEventListener('DOMContentLoaded',function(){
-    forceArchiveBottom();
-    setTimeout(function(){ if(typeof window.showRbcPage==='function') window.showRbcPage(1); },400);
-  });
-  setTimeout(forceArchiveBottom,800);
-  setTimeout(forceArchiveBottom,2000);
+
+  function initFinalLayout(){
+    ensureTabs();
+    placeAlertPage1();
+    arrangePage2Bottom();
+    window.showRbcPage(1);
+    if(typeof rbcLoadAlertCenter==='function') setTimeout(rbcLoadAlertCenter, 300);
+  }
+
+  document.addEventListener('DOMContentLoaded', initFinalLayout);
+  setTimeout(initFinalLayout, 300);
+  setTimeout(initFinalLayout, 1000);
+  setTimeout(initFinalLayout, 2500);
 })();
 </script>
+
 </body></html>
