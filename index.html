@@ -3754,8 +3754,8 @@ window.debugTeamScheduleDate = async function(dateStr){
     </div>
     <div class="rbc-archive-controls">
       <label style="font-weight:900">보관 기준</label>
-      <input id="rbcArchiveMonths" type="number" min="1" value="13">
-      <span class="small">개월 이전 자료</span>
+      <input id="rbcArchiveMonths" type="number" min="0" value="13">
+      <span class="small">개월 이전 자료 · 테스트 시 0 입력 가능</span>
       <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
       <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
       <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
@@ -3788,7 +3788,9 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   function archiveCutoffDate(){
     const monthsEl=document.getElementById('rbcArchiveMonths');
-    const months=Math.max(1, parseInt(monthsEl && monthsEl.value, 10) || 13);
+    let rawMonths = parseInt(monthsEl && monthsEl.value, 10);
+    if(isNaN(rawMonths)) rawMonths = 13;
+    const months = Math.max(0, rawMonths);
     const d=new Date();
     d.setMonth(d.getMonth()-months);
     d.setHours(23,59,59,999);
