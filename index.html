@@ -3752,11 +3752,12 @@ window.debugTeamScheduleDate = async function(dateStr){
       <span class="small">개월 이전 자료 · 테스트 시 0 입력 가능</span>
       <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
       <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
+      <button class="rbc-archive-btn gray" type="button" onclick="rbcArchiveRestoreHidden()">숨김 원본 복구</button>
       <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
       <button class="rbc-archive-btn gray" type="button" onclick="rbcLoadArchiveLogs()">로그 보기</button>
     </div>
     <div class="rbc-archive-warn">
-      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
+      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 숨김 처리 후에도 복구할 수 있으며, 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
     </div>
     <div id="rbcArchiveSummary" class="rbc-archive-summary">
       <div class="rbc-archive-card">상태<b>대기</b></div>
@@ -3937,6 +3938,79 @@ window.debugTeamScheduleDate = async function(dateStr){
       if(typeof loadData==='function') await loadData();
     }catch(e){
       archiveSetLog('<span style="color:#991b1b">아카이브 실행 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+
+  window.rbcArchiveRestoreHidden=async function(){
+    try{
+      const c=archiveCutoffDate();
+      const snap=await db.collection('submissions').get();
+      const rows=[];
+      snap.forEach(function(doc){
+        const d=doc.data()||{};
+        const t=archiveDt(d);
+        if(d.archived === true && t && !isNaN(t.getTime()) && t <= c.cutoff){
+          rows.push({id:doc.id,...d,__archiveDate:t});
+        }
+      });
+      rows.sort(function(a,b){return a.__archiveDate-b.__archiveDate;});
+      archiveRenderSummary('복구 대상', rows, c.cutoff);
+      if(!rows.length){archiveSetLog('복구할 숨김 원본이 없습니다.');return;}
+
+      if(!confirm('숨김 처리된 원본 '+rows.length+'건을 다시 제출목록에 보이게 복구할까요?\n\narchiveSubmissions 백업 기록은 그대로 유지됩니다.')) return;
+
+      archiveSetLog('복구 실행 중... 창을 닫지 마세요.');
+      const runId='restore_archived_'+new Date().toISOString().replace(/[:.]/g,'-');
+      let restored=0;
+      let skipped=0;
+      let fail=0;
+      const errors=[];
+
+      for(const r of rows){
+        try{
+          const archiveDoc=await db.collection('archiveSubmissions').doc(r.id).get();
+          if(!archiveDoc.exists){
+            skipped++;
+            errors.push(r.id+': archiveSubmissions 백업 문서 없음 - 복구 건너뜀');
+            continue;
+          }
+
+          await db.collection('submissions').doc(r.id).update({
+            archived:false,
+            restoredAt:firebase.firestore.FieldValue.serverTimestamp(),
+            restoredAtText:new Date().toISOString(),
+            restoreRunId:runId
+          });
+          restored++;
+        }catch(err){
+          fail++;
+          errors.push(r.id+': '+(err.message||err));
+        }
+      }
+
+      const stats=archiveFileStats(rows);
+      await db.collection('archiveLogs').doc(runId).set({
+        runId:runId,
+        type:'restore_archived_originals',
+        months:c.months,
+        cutoffText:c.cutoff.toISOString(),
+        targetCount:rows.length,
+        successCount:restored,
+        skippedCount:skipped,
+        failCount:fail,
+        fileCount:stats.fileCount,
+        totalFileSize:stats.totalSize,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText:new Date().toISOString(),
+        errors:errors.slice(0,30)
+      });
+
+      archiveRenderSummary('복구 완료', rows, c.cutoff);
+      archiveSetLog('복구 완료: '+restored+'건 다시 표시 · 건너뜀 '+skipped+'건 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      if(typeof loadData==='function') await loadData();
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">복구 실패: '+archiveEsc(e.message||e)+'</span>');
     }
   };
 
