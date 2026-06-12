@@ -4784,4 +4784,97 @@ window.debugTeamScheduleDate = async function(dateStr){
   }, 800);
 })();
 </script>
+
+
+<script>
+/* RAVEBIC_TEAM_SCHEDULE_PARK_FIX_V2
+   2026-06-12 박승현 복수점포 보정: Firestore에 한 줄만 집계되는 경우 오늘 분석표/주간표에서 2건으로 보정합니다.
+*/
+(function(){
+  function rbcTeamNorm(v){
+    return String(v || '')
+      .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
+      .replace(/\s+/g,'')
+      .replace(/[·ㆍ.\-_/]/g,'')
+      .trim();
+  }
+
+  function rbcPatchParkSeungHyunRows(rows, dateStr){
+    rows = Array.isArray(rows) ? rows.slice() : [];
+    if(String(dateStr || '') !== '2026-06-12') return rows;
+
+    var parkRows = rows.filter(function(r){
+      return String(r.scheduleDate || '').trim() === '2026-06-12' &&
+             String(r.leader || '').trim() === '박승현';
+    });
+    if(!parkRows.length) return rows;
+
+    var hasCenter = parkRows.some(function(r){ return rbcTeamNorm(r.store).indexOf('동두천중앙로점') >= 0; });
+    var hasPlaza = parkRows.some(function(r){ return rbcTeamNorm(r.store).indexOf('동두천도심광장점') >= 0; });
+
+    if(hasCenter && hasPlaza) return rows;
+
+    var base = parkRows[0] || {};
+    if(!hasCenter){
+      rows.push(Object.assign({}, base, {
+        id: 'rbc_manual_20260612_park_center',
+        scheduleDate: '2026-06-12',
+        leader: '박승현',
+        brand: '세븐일레븐',
+        store: '동두천중앙로점',
+        rawText: '(50105) 동두천중앙로점 09*',
+        leaderOrderIndex: Number(base.leaderOrderIndex || 9)
+      }));
+    }
+    if(!hasPlaza){
+      rows.push(Object.assign({}, base, {
+        id: 'rbc_manual_20260612_park_plaza',
+        scheduleDate: '2026-06-12',
+        leader: '박승현',
+        brand: '세븐일레븐',
+        store: '동두천도심광장점',
+        rawText: '(50591) 동두천도심광장점 13*',
+        leaderOrderIndex: Number(base.leaderOrderIndex || 9)
+      }));
+    }
+    return rows;
+  }
+
+  if(typeof window.loadTeamScheduleRows === 'function' && !window.rbcParkLoadRowsWrappedV2){
+    window.rbcParkLoadRowsWrappedV2 = true;
+    var oldLoadTeamScheduleRows = window.loadTeamScheduleRows;
+    window.loadTeamScheduleRows = async function(dateStr){
+      var rows = await oldLoadTeamScheduleRows.apply(this, arguments);
+      if(dateStr){
+        rows = rbcPatchParkSeungHyunRows(rows, dateStr);
+      }else{
+        rows = rbcPatchParkSeungHyunRows(rows, '2026-06-12');
+      }
+      window.teamScheduleRows = rows;
+      return rows;
+    };
+  }
+
+  if(typeof loadTeamScheduleRows === 'function' && !window.rbcParkLocalLoadRowsWrappedV2){
+    window.rbcParkLocalLoadRowsWrappedV2 = true;
+    var oldLocalLoadTeamScheduleRows = loadTeamScheduleRows;
+    loadTeamScheduleRows = async function(dateStr){
+      var rows = await oldLocalLoadTeamScheduleRows.apply(this, arguments);
+      if(dateStr){
+        rows = rbcPatchParkSeungHyunRows(rows, dateStr);
+      }else{
+        rows = rbcPatchParkSeungHyunRows(rows, '2026-06-12');
+      }
+      window.teamScheduleRows = rows;
+      return rows;
+    };
+  }
+
+  setTimeout(function(){
+    if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+    if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+  }, 700);
+})();
+</script>
+
 </body></html>
