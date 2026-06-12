@@ -3894,6 +3894,43 @@ window.debugTeamScheduleDate = async function(dateStr){
     }
   };
 
+
+
+  /* RAVEBIC_DRIVE_BACKUP_REQUEST_V2
+     관리자앱에서 수동 아카이브를 실행했을 때도 Cloud Function이 Drive 백업을 처리할 수 있도록
+     archiveLogs에 archivedDocIds를 남기고, 배포된 HTTP 함수가 있으면 즉시 호출합니다.
+  */
+  const RBC_DRIVE_BACKUP_FUNCTION_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/manualArchiveDriveBackup';
+
+  async function rbcRequestDriveBackup(runId, docIds, sourceType){
+    if(!runId) return {ok:false, message:'runId 없음'};
+    docIds = Array.isArray(docIds) ? docIds : [];
+
+    try{
+      await db.collection('archiveLogs').doc(runId).set({
+        driveBackupRequested:true,
+        driveBackupRequestedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        driveBackupRequestedAtText:new Date().toISOString(),
+        driveBackupRequestSource:sourceType || 'admin_app',
+        archivedDocIds:docIds
+      }, {merge:true});
+    }catch(e){
+      console.warn('Drive backup request log update failed', e);
+    }
+
+    try{
+      const resp = await fetch(RBC_DRIVE_BACKUP_FUNCTION_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({runId:runId, docIds:docIds, source:sourceType || 'admin_app'})
+      });
+      const text = await resp.text();
+      if(!resp.ok) throw new Error(text || ('HTTP '+resp.status));
+      return {ok:true, message:text || 'Drive 백업 함수 호출 완료'};
+    }catch(e){
+      return {ok:false, message:e.message || String(e)};
+    }
+  }
   window.rbcArchiveRun=async function(){
     try{
       const res=await archiveGetTargetRows();
@@ -3909,6 +3946,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       let done=0;
       let fail=0;
       const errors=[];
+      const archivedDocIds=[];
 
       for(const r of res.rows){
         try{
@@ -3929,6 +3967,7 @@ window.debugTeamScheduleDate = async function(dateStr){
             archiveRunId:runId
           });
           done++;
+          archivedDocIds.push(r.id);
         }catch(err){
           fail++;
           errors.push(r.id+': '+(err.message||err));
@@ -3946,13 +3985,23 @@ window.debugTeamScheduleDate = async function(dateStr){
         failCount:fail,
         fileCount:stats.fileCount,
         totalFileSize:stats.totalSize,
+        archivedDocIds:archivedDocIds,
+        driveBackupRequested:false,
+        driveBackup:false,
         createdAt:firebase.firestore.FieldValue.serverTimestamp(),
         createdAtText:new Date().toISOString(),
         errors:errors.slice(0,20)
       });
 
       archiveRenderSummary('아카이브 완료', res.rows, res.cutoff);
-      archiveSetLog('완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      archiveSetLog('완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>Drive 백업 요청 중...<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      const backupResult = await rbcRequestDriveBackup(runId, archivedDocIds, 'manual_archive_hide');
+      archiveSetLog(
+        '완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>'+ 
+        (backupResult.ok ? '✅ Google Drive 백업 요청 완료' : '⚠️ Google Drive 백업 함수 호출 실패: '+archiveEsc(backupResult.message)+'<br>※ Cloud Function manualArchiveDriveBackup 배포가 필요합니다.')+
+        '<br>로그ID: '+archiveEsc(runId)+
+        (errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):'')
+      );
       if(typeof loadData==='function') await loadData();
     }catch(e){
       archiveSetLog('<span style="color:#991b1b">아카이브 실행 실패: '+archiveEsc(e.message||e)+'</span>');
@@ -4170,6 +4219,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     let done=0;
     let fail=0;
     const errors=[];
+    const archivedDocIds=[];
 
     for(const r of res.rows){
       try{
@@ -4192,6 +4242,7 @@ window.debugTeamScheduleDate = async function(dateStr){
           archiveSource:sourceType || 'auto_archive'
         });
         done++;
+        archivedDocIds.push(r.id);
       }catch(err){
         fail++;
         errors.push(r.id+': '+(err.message||err));
@@ -4209,13 +4260,22 @@ window.debugTeamScheduleDate = async function(dateStr){
       failCount:fail,
       fileCount:stats.fileCount,
       totalFileSize:stats.totalSize,
+      archivedDocIds:archivedDocIds,
+      driveBackupRequested:false,
+      driveBackup:false,
       createdAt:firebase.firestore.FieldValue.serverTimestamp(),
       createdAtText:new Date().toISOString(),
       errors:errors.slice(0,20)
     });
 
+    const backupResult = await rbcRequestDriveBackup(runId, archivedDocIds, sourceType || 'auto_archive_hide');
+    await db.collection('archiveLogs').doc(runId).set({
+      driveBackupFunctionCalled:backupResult.ok,
+      driveBackupFunctionMessage:backupResult.message || ''
+    }, {merge:true});
+
     if(typeof loadData==='function') await loadData();
-    return {run:true, rows:res.rows.length, done:done, fail:fail, runId:runId, fileCount:stats.fileCount, totalSize:stats.totalSize, cutoff:res.cutoff, months:res.months};
+    return {run:true, rows:res.rows.length, done:done, fail:fail, runId:runId, fileCount:stats.fileCount, totalSize:stats.totalSize, cutoff:res.cutoff, months:res.months, driveBackupFunctionCalled:backupResult.ok};
   }
 
   window.rbcArchiveAutoCheck=async function(forceManual){
@@ -4252,8 +4312,8 @@ window.debugTeamScheduleDate = async function(dateStr){
       },{merge:true});
 
       if(result.run){
-        archiveAutoStatus('자동 아카이브 실행 완료\n처리: '+result.done+'건 / 실패: '+result.fail+'건\n파일: '+result.fileCount+'개\n로그ID: '+result.runId);
-        archiveSetLog('자동 아카이브 실행 완료<br>처리 '+result.done+'건 · 실패 '+result.fail+'건 · 파일 '+result.fileCount+'개<br>로그ID: '+archiveEsc(result.runId));
+        archiveAutoStatus('자동 아카이브 실행 완료\n처리: '+result.done+'건 / 실패: '+result.fail+'건\n파일: '+result.fileCount+'개\nDrive 함수 호출: '+(result.driveBackupFunctionCalled?'성공':'실패/미배포')+'\n로그ID: '+result.runId);
+        archiveSetLog('자동 아카이브 실행 완료<br>처리 '+result.done+'건 · 실패 '+result.fail+'건 · 파일 '+result.fileCount+'개<br>Drive 함수 호출 '+(result.driveBackupFunctionCalled?'성공':'실패/미배포')+'<br>로그ID: '+archiveEsc(result.runId));
       }else{
         archiveAutoStatus('자동 아카이브 점검 완료\n대상 자료가 없어 이번 달 실행 기록만 저장했습니다.\n실행월: '+thisMonth);
         archiveSetLog('자동 아카이브 대상 자료가 없습니다. 이번 달 실행 기록을 저장했습니다.');
