@@ -4596,4 +4596,192 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+
+<script>
+/* RAVEBIC_TEAM_ANALYSIS_FINAL_FIX_20260612
+   1) 취소 점포 제외: active=false, 취소/삭제/제외 표시, 그리고 2026-06-12 오세빈 계양효성점 수동 제외
+   2) 박승현 같은 복수점포는 Firestore 문서가 있으면 반드시 예정건수에 포함
+   3) 예정 점포는 같은 팀장+날짜+브랜드+점포 기준으로 중복 제거
+*/
+(function(){
+  function rbcNorm(v){
+    return String(v || '')
+      .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
+      .replace(/\s+/g,'')
+      .replace(/[·ㆍ.\-_/]/g,'')
+      .trim();
+  }
+
+  function rbcIsCancelledScheduleRow(r){
+    r = r || {};
+    const text = [
+      r.store, r.rawText, r.text, r.memo, r.note, r.sourceText, r.status, r.cancelReason
+    ].map(function(v){ return String(v || ''); }).join(' ').replace(/\s+/g,'');
+
+    if(r.active === false) return true;
+    if(r.cancelled === true || r.canceled === true || r.isCancelled === true) return true;
+    if(/취소|삭제|제외|경영주요청취소|점포취소/.test(text)) return true;
+
+    // 2026-06-12 일정표에서 빨간 취소선 처리된 점포. Firestore에는 취소선 정보가 저장되지 않아 여기서 제외합니다.
+    if(String(r.scheduleDate || '') === '2026-06-12' &&
+       String(r.leader || '').trim() === '오세빈' &&
+       rbcNorm(r.store) === rbcNorm('계양효성점')){
+      return true;
+    }
+
+    return false;
+  }
+
+  window.rbcIsCancelledScheduleRow = rbcIsCancelledScheduleRow;
+
+  const oldBuild = window.buildTeamDayDataFromRows || buildTeamDayDataFromRows;
+  window.buildTeamDayDataFromRows = buildTeamDayDataFromRows = function(rows, dateStr){
+    const map = {};
+    const seen = new Set();
+
+    (rows || []).forEach(function(r){
+      if(String(r.scheduleDate || '').trim() !== dateStr) return;
+      if(rbcIsCancelledScheduleRow(r)) return;
+
+      const leader = String(r.leader || '').trim();
+      if(!leader) return;
+
+      const storeKey = rbcNorm(r.store);
+      if(!storeKey) return;
+
+      const brand = String(r.brand || '').trim();
+      const uniqKey = [dateStr, leader, brand, storeKey].join('|');
+      if(seen.has(uniqKey)) return;
+      seen.add(uniqKey);
+
+      if(!map[leader]){
+        map[leader] = {
+          leader: leader,
+          leaderOrderIndex: r.leaderOrderIndex || 999999,
+          planned: 0,
+          submitted: 0,
+          missing: 0,
+          seven: 0,
+          emart: 0,
+          etc: 0,
+          stores: []
+        };
+      }
+
+      map[leader].planned++;
+
+      if(brand === '세븐일레븐') map[leader].seven++;
+      else if(brand === '이마트24') map[leader].emart++;
+      else map[leader].etc++;
+
+      map[leader].stores.push({
+        brand: brand,
+        store: String(r.store || '').trim()
+      });
+    });
+
+    Object.keys(map).forEach(function(leader){
+      const row = map[leader];
+      row.submitted = countActualSubmissionsForTeam(leader, dateStr, '', row.stores);
+      row.missing = Math.max(0, row.planned - row.submitted);
+    });
+
+    return Object.values(map).sort(function(a,b){
+      return (a.leaderOrderIndex || 999999) - (b.leaderOrderIndex || 999999);
+    });
+  };
+
+  const oldWeek = window.renderTeamWeekAnalysis || renderTeamWeekAnalysis;
+  if(typeof oldWeek === 'function'){
+    // 주간표도 취소/중복 제거가 반영되도록 plannedRows를 한 번 정리합니다.
+    window.renderTeamWeekAnalysis = renderTeamWeekAnalysis = async function(){
+      const thead = document.getElementById('teamAnalysisThead');
+      const tbody = document.getElementById('teamAnalysisTbody');
+      const summary = document.getElementById('teamAnalysisSummary');
+      if(!thead || !tbody) return;
+
+      const start = startOfWeekForTeam(new Date());
+      const days = [];
+      for(let i=0;i<7;i++){
+        const d = addDaysForTeam(start, i);
+        days.push({date:d, ymd:toYmdForTeam(d)});
+      }
+
+      thead.innerHTML =
+        '<tr><th>팀장</th>' +
+        days.map(function(d){ return '<th>'+d.ymd.slice(5)+'</th>'; }).join('') +
+        '<th>총 예정</th><th>총 제출</th><th>총 미제출</th><th>상태</th></tr>';
+
+      const allWeekRowsRaw = await loadTeamScheduleRows();
+      const allWeekRows = (allWeekRowsRaw || []).filter(function(r){ return !rbcIsCancelledScheduleRow(r); });
+      const leaders = new Set();
+
+      days.forEach(function(day){
+        allWeekRows.filter(function(r){ return String(r.scheduleDate || '').trim() === day.ymd; })
+          .forEach(function(r){ if(r.leader) leaders.add(String(r.leader).trim()); });
+      });
+
+      const rows = Array.from(leaders).map(function(leader){
+        let totalPlan = 0;
+        let totalSubmit = 0;
+
+        const dayCells = days.map(function(day){
+          const seen = new Set();
+          const plannedRows = allWeekRows.filter(function(r){
+            if(String(r.scheduleDate || '').trim() !== day.ymd) return false;
+            if(String(r.leader || '').trim() !== leader) return false;
+            const key = [day.ymd, leader, String(r.brand || '').trim(), rbcNorm(r.store)].join('|');
+            if(seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          const planned = plannedRows.length;
+          const submitted = countActualSubmissionsForTeam(leader, day.ymd, '', plannedRows);
+          totalPlan += planned;
+          totalSubmit += submitted;
+          return {planned:planned, submitted:submitted, missing:Math.max(0, planned - submitted)};
+        });
+
+        return {leader:leader, dayCells:dayCells, totalPlan:totalPlan, totalSubmit:totalSubmit, totalMissing:Math.max(0, totalPlan-totalSubmit)};
+      });
+
+      const totalPlanned = rows.reduce(function(s,r){return s+r.totalPlan;},0);
+      const totalSubmitted = rows.reduce(function(s,r){return s+r.totalSubmit;},0);
+      const totalMissing = rows.reduce(function(s,r){return s+r.totalMissing;},0);
+
+      if(summary){
+        summary.innerHTML =
+          '<span class="team-chip total">주간 예정 '+totalPlanned+'건</span>' +
+          '<span class="team-chip ok">주간 제출 '+totalSubmitted+'건</span>' +
+          '<span class="team-chip miss">주간 미제출 '+totalMissing+'건</span>' +
+          '<span class="team-chip warn">기간 '+days[0].ymd+' ~ '+days[6].ymd+'</span>';
+      }
+
+      if(rows.length === 0){
+        tbody.innerHTML = '<tr><td colspan="11">이번 주 분석된 팀장 일정이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = rows.map(function(r){
+        const cls = r.totalMissing > 0 ? 'danger' : 'ok';
+        const trCls = r.totalMissing > 0 ? 'team-row-danger' : 'team-row-ok';
+        return '<tr class="'+trCls+'"><td><b>'+esc(r.leader)+'</b></td>' +
+          r.dayCells.map(function(c){ return '<td>'+c.submitted+' / '+c.planned+'</td>'; }).join('') +
+          '<td>'+r.totalPlan+'</td>' +
+          '<td>'+r.totalSubmit+'</td>' +
+          '<td>'+r.totalMissing+'</td>' +
+          '<td><span class="team-status-badge '+cls+'">'+(r.totalMissing>0?'미제출 있음':'완료')+'</span></td>' +
+          '</tr>';
+      }).join('');
+    };
+  }
+
+  setTimeout(function(){
+    if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+    if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+  }, 800);
+})();
+</script>
 </body></html>
