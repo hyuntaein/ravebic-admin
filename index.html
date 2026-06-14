@@ -94,33 +94,12 @@ select.status-pending {
 }
 .office-staff-line{display:flex;align-items:center;gap:8px;font-weight:900;color:#0b3b77;white-space:nowrap}
 .office-staff-line input{width:20px!important;height:20px!important;accent-color:#2563eb}
-/* RAVEBIC_ADMIN_OFFICE_STAFF_ORDER_SELECT_V2 */
-.admin-lock-card .admin-staff-choice{
-  width:100% !important;
-  display:block !important;
-  background:#e5e7eb !important;
-  color:#111827 !important;
-  border:2px solid transparent !important;
-  border-radius:14px !important;
-  margin:4px 0 !important;
-  box-shadow:none !important;
-}
-.admin-lock-card .admin-staff-choice.active{
-  background:#16a34a !important;
-  color:#fff !important;
-  border-color:#065f46 !important;
-  box-shadow:0 0 0 4px rgba(22,163,74,.18) !important;
-}
-.admin-lock-card .admin-staff-choice.active::before{
-  content:"✓ 선택됨  ";
-}
-.staff-order-input{max-width:140px}
 
 
 /* RAVEBIC_STAFF_PIN_SAFE_V2 */
 .pin-manager{margin-top:34px;padding-top:28px;border-top:3px solid #e5eefb}
 .pin-manager h2{margin:0 0 8px;color:#123f7a}
-.pin-form{display:grid;grid-template-columns:1fr 1fr 0.8fr auto auto auto;gap:10px;margin:14px 0;align-items:center}
+.pin-form{display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;margin:14px 0;align-items:center}
 .pin-table{width:100%;border-collapse:collapse;margin-top:12px}
 .pin-table th,.pin-table td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left}
 .pin-table th{background:#eaf4ff;color:#0b3b77}
@@ -1060,11 +1039,10 @@ select.status-pending {
 
 <div class="pin-manager">
   <h2>직원 PIN 관리</h2>
-  <div class="notice">직원용 일정표는 직원명/PIN으로 열고, 관리자앱 첫 화면은 사무실직원으로 체크된 이름만 선택해서 들어갑니다. 관리자 비밀번호는 기존 바탕화면 비번을 그대로 사용합니다.<br><b>직급순 설정방법:</b> 직급순서에 숫자를 넣으면 숫자가 낮은 직원이 로그인 첫 화면 위에 표시됩니다. 예: 대표 1, 실장 2, 과장 3.</div>
+  <div class="notice">직원용 일정표는 직원명/PIN으로 열고, 관리자앱 첫 화면은 사무실직원으로 체크된 이름만 선택해서 들어갑니다. 관리자 비밀번호는 기존 바탕화면 비번을 그대로 사용합니다.</div>
   <div class="pin-form">
     <input id="staffNameInput" placeholder="직원명 예: 인현태" value="인현태">
     <input id="staffPinInput" placeholder="PIN 예: 1111" value="1111">
-    <input id="staffOrderInput" class="staff-order-input" type="number" min="1" step="1" placeholder="직급순서 예: 1">
     <label class="office-staff-line"><input id="officeStaffInput" type="checkbox"> 사무실직원</label>
     <button class="pin-save" type="button" id="saveStaffPinBtn">직원 추가/수정</button>
     <button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" onclick="var box=document.getElementById('staffPinListArea'); if(!box){alert('직원 목록 영역을 찾지 못했습니다.');return false;} if(box.style.display==='none'){box.style.display='block';this.innerText='목록 접기';}else{box.style.display='none';this.innerText='목록 펼치기';} return false;">목록 접기</button>
@@ -1072,8 +1050,8 @@ select.status-pending {
   <div class="small" id="staffPinStatus">직원 PIN 목록을 불러오는 중...</div>
   <div id="staffPinListArea" style="overflow:auto">
     <table class="pin-table">
-      <thead><tr><th>직원명</th><th>PIN</th><th>직급순서</th><th>사무실직원</th><th>등록/수정일</th><th>관리</th></tr></thead>
-      <tbody id="staffPinTbody"><tr><td colspan="6">불러오는 중...</td></tr></tbody>
+      <thead><tr><th>직원명</th><th>PIN</th><th>사무실직원</th><th>등록/수정일</th><th>관리</th></tr></thead>
+      <tbody id="staffPinTbody"><tr><td colspan="5">불러오는 중...</td></tr></tbody>
     </table>
   </div>
 </div>
@@ -1630,7 +1608,6 @@ function renderOfficeStaffLoginList(){
   }else if(ravebicOfficeStaffNames.length === 1){
     setSelectedOfficeStaffName(ravebicOfficeStaffNames[0]);
   }
-  if(help) help.textContent = '초록색으로 표시된 이름이 현재 선택된 사무실직원입니다.';
 }
 
 async function loadOfficeStaffForAdminLogin(){
@@ -1640,21 +1617,16 @@ async function loadOfficeStaffForAdminLogin(){
   try{
     if(typeof db === 'undefined') throw new Error('Firebase DB 준비 전입니다.');
     const snap = await db.collection('staffPins').get();
-    const rows = [];
+    const names = [];
     snap.forEach(function(doc){
       const d = doc.data() || {};
       if(d.active === false) return;
       if(d.officeStaff === true || d.role === '사무실직원' || d.adminAccess === true){
         const name = String(d.name || doc.id || '').trim();
-        const order = Number(d.staffOrder || d.order || d.rankOrder || 9999);
-        if(name) rows.push({name:name, order:isFinite(order) ? order : 9999});
+        if(name) names.push(name);
       }
     });
-    const seen = new Set();
-    ravebicOfficeStaffNames = rows
-      .sort(function(a,b){ return (a.order - b.order) || a.name.localeCompare(b.name,'ko'); })
-      .filter(function(r){ if(seen.has(r.name)) return false; seen.add(r.name); return true; })
-      .map(function(r){ return r.name; });
+    ravebicOfficeStaffNames = Array.from(new Set(names)).sort(function(a,b){return a.localeCompare(b,'ko');});
     renderOfficeStaffLoginList();
   }catch(err){
     ravebicOfficeStaffNames = [];
@@ -1775,16 +1747,15 @@ setTimeout(function(){
           id: doc.id,
           name: d.name || doc.id,
           pin: d.pin || '',
-          staffOrder: Number(d.staffOrder || d.order || d.rankOrder || 9999),
           officeStaff: d.officeStaff === true || d.role === '사무실직원' || d.adminAccess === true,
           updated: updated
         });
       });
 
-      rows.sort(function(a,b){ return (a.staffOrder - b.staffOrder) || a.name.localeCompare(b.name, 'ko'); });
+      rows.sort(function(a,b){ return a.name.localeCompare(b.name, 'ko'); });
 
       if(rows.length === 0){
-        tbody.innerHTML = '<tr><td colspan="6">등록된 직원 PIN이 없습니다.</td></tr>'; 
+        tbody.innerHTML = '<tr><td colspan="5">등록된 직원 PIN이 없습니다.</td></tr>';
         if(status) status.textContent = '등록된 직원 PIN이 없습니다.';
         return;
       }
@@ -1793,7 +1764,6 @@ setTimeout(function(){
         return '<tr>' +
           '<td>' + safeText(r.name) + '</td>' +
           '<td>' + safeText(r.pin) + '</td>' +
-          '<td>' + (r.staffOrder >= 9999 ? '-' : safeText(r.staffOrder)) + '</td>' +
           '<td>' + (r.officeStaff ? '사무실직원' : '-') + '</td>' +
           '<td>' + safeText(r.updated) + '</td>' +
           '<td><button class="pin-del" type="button" data-staff-name="' + safeText(r.id) + '">삭제</button></td>' +
@@ -1803,7 +1773,7 @@ setTimeout(function(){
       if(status) status.textContent = '직원 PIN ' + rows.length + '명 등록됨';
 
     }catch(err){
-      tbody.innerHTML = '<tr><td colspan="6">직원 PIN 목록 불러오기 실패: ' + safeText(err.message || err) + '</td></tr>'; 
+      tbody.innerHTML = '<tr><td colspan="5">직원 PIN 목록 불러오기 실패: ' + safeText(err.message || err) + '</td></tr>';
       if(status) status.textContent = '직원 PIN 목록 불러오기 실패';
     }
   };
@@ -1812,12 +1782,10 @@ setTimeout(function(){
     const nameEl = document.getElementById('staffNameInput');
     const pinEl = document.getElementById('staffPinInput');
     const officeEl = document.getElementById('officeStaffInput');
-    const orderEl = document.getElementById('staffOrderInput');
 
     const name = nameEl ? nameEl.value.trim() : '';
     const pin = pinEl ? pinEl.value.trim() : '';
     const officeStaff = officeEl ? !!officeEl.checked : false;
-    const staffOrder = orderEl && orderEl.value ? Number(orderEl.value) : 9999;
 
     if(!name){ alert('직원명을 입력하세요.'); return; }
     if(!pin){ alert('PIN을 입력하세요.'); return; }
@@ -1827,7 +1795,6 @@ setTimeout(function(){
         name: name,
         pin: pin,
         officeStaff: officeStaff,
-        staffOrder: isFinite(staffOrder) ? staffOrder : 9999,
         role: officeStaff ? '사무실직원' : '현장직원',
         active: true,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1867,8 +1834,6 @@ setTimeout(function(){
     if(nameEl) nameEl.value = '인현태';
     if(pinEl) pinEl.value = '1111';
     const officeEl = document.getElementById('officeStaffInput');
-    const orderEl = document.getElementById('staffOrderInput');
-    if(orderEl) orderEl.value = '1';
     if(officeEl) officeEl.checked = true;
     await window.saveStaffPin();
   };
@@ -4089,7 +4054,7 @@ window.debugTeamScheduleDate = async function(dateStr){
      관리자앱에서 수동 아카이브를 실행했을 때도 Cloud Function이 Drive 백업을 처리할 수 있도록
      archiveLogs에 archivedDocIds를 남기고, 배포된 HTTP 함수가 있으면 즉시 호출합니다.
   */
-  const RBC_DRIVE_BACKUP_FUNCTION_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/manualArchiveDriveBackup';
+  const RBC_DRIVE_BACKUP_FUNCTION_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/manualArchiveDriveBackupV2';
 
   async function rbcRequestDriveBackup(runId, docIds, sourceType){
     if(!runId) return {ok:false, message:'runId 없음'};
