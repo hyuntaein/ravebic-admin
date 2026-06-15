@@ -4815,4 +4815,77 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+
+<!-- RAVEBIC_OFFICE_LOGIN_RESTORE_ONLY_20260615 -->
+<script>
+(function(){
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s];});}
+  async function getStaffRows(){
+    if(typeof db==='undefined') return [];
+    var snap=await db.collection('staffPins').get();
+    var rows=[];
+    snap.forEach(function(doc){
+      var d=doc.data()||{};
+      if(d.active===false) return;
+      var name=String(d.name||doc.id||'').trim();
+      if(!name) return;
+      var isOffice=(d.officeStaff===true||d.isOffice===true||d.office===true||d.adminAccess===true||d.role==='사무실직원'||d.staffType==='office');
+      var order=Number(d.staffOrder||d.officeOrder||d.order||d.orderIndex||d.rankOrder||999999);
+      rows.push({id:doc.id,name:name,pin:String(d.pin||''),officeStaff:isOffice,staffOrder:isNaN(order)?999999:order});
+    });
+    rows.sort(function(a,b){return (a.staffOrder-b.staffOrder)||a.name.localeCompare(b.name,'ko');});
+    return rows;
+  }
+  async function rebuildOfficeLogin(){
+    var lock=document.getElementById('adminLockScreen');
+    var card=document.querySelector('#adminLockScreen .admin-lock-card') || document.querySelector('.admin-lock-card');
+    if(!lock || !card) return;
+    var old=document.getElementById('adminOfficeStaffBox');
+    if(old) old.remove();
+    var box=document.createElement('div');
+    box.id='adminOfficeStaffBox';
+    box.style.margin='12px 0';
+    box.innerHTML='<div style="font-weight:900;color:#0b3b78;margin-bottom:8px">사무실직원 이름 선택</div><div id="adminOfficeStaffList" style="display:flex;gap:8px;flex-wrap:wrap"></div><div id="adminOfficeStaffHelp" class="small" style="margin-top:6px"></div>';
+    var loginBtn=document.getElementById('adminLoginBtn');
+    if(loginBtn) card.insertBefore(box,loginBtn); else card.appendChild(box);
+    var list=document.getElementById('adminOfficeStaffList');
+    try{
+      var rows=await getStaffRows();
+      var office=rows.filter(function(r){return r.officeStaff;});
+      if(!office.length){list.innerHTML='<span class="small">사무실직원 미등록</span>';return;}
+      var saved=sessionStorage.getItem('ravebicAdminStaffName')||sessionStorage.getItem('ravebicAdminSelectedStaffName')||'';
+      if(!saved || !office.some(function(r){return r.name===saved;})) saved=office[0].name;
+      window.rbcSelectedOfficeStaffName=saved;
+      sessionStorage.setItem('ravebicAdminStaffName',saved);
+      sessionStorage.setItem('ravebicAdminSelectedStaffName',saved);
+      list.innerHTML=office.map(function(r){
+        var active=r.name===saved;
+        var label=(r.staffOrder<999999?String(r.staffOrder)+'. ':'')+r.name;
+        return '<button type="button" class="admin-office-btn" data-office-name="'+esc(r.name)+'" style="padding:10px 13px;border-radius:12px;border:1px solid #bfdbfe;font-weight:900;'+(active?'background:#16a34a;color:#fff':'background:#fff;color:#123f7a')+'">'+esc(label)+'</button>';
+      }).join('');
+      var help=document.getElementById('adminOfficeStaffHelp');
+      if(help) help.textContent='직급순서 숫자가 낮은 직원이 왼쪽/위에 표시됩니다.';
+    }catch(e){
+      list.innerHTML='<span class="small">사무실직원 목록 불러오기 실패: '+esc(e.message||e)+'</span>';
+    }
+  }
+  document.addEventListener('click',function(e){
+    var btn=e.target&&e.target.closest?e.target.closest('.admin-office-btn'):null;
+    if(!btn) return;
+    var name=btn.getAttribute('data-office-name')||btn.textContent.trim().replace(/^\d+\.\s*/,'');
+    window.rbcSelectedOfficeStaffName=name;
+    sessionStorage.setItem('ravebicAdminStaffName',name);
+    sessionStorage.setItem('ravebicAdminSelectedStaffName',name);
+    Array.from(document.querySelectorAll('.admin-office-btn')).forEach(function(b){
+      var on=b===btn;
+      b.style.background=on?'#16a34a':'#fff';
+      b.style.color=on?'#fff':'#123f7a';
+    });
+  },true);
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(rebuildOfficeLogin,300);setTimeout(rebuildOfficeLogin,1200);});
+  window.addEventListener('load',function(){setTimeout(rebuildOfficeLogin,300);});
+})();
+</script>
+
 </body></html>
