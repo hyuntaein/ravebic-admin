@@ -5274,4 +5274,343 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+
+<!-- RAVEBIC_EMERGENCY_STABLE_FIX_20260615_V8 -->
+<style>
+/* V8: office login + stable page + archive dedupe */
+.rbc-office-login-line{margin:12px 0;text-align:left}
+.rbc-office-login-line label{display:block;font-weight:900;color:#0b3b78;margin-bottom:6px}
+.rbc-office-login-line select{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:14px;font-size:16px;background:#fff}
+.rbc-office-pin-extra{display:grid;grid-template-columns:150px 170px;gap:10px;align-items:center}
+.rbc-office-pin-extra label{font-weight:900;display:flex;gap:8px;align-items:center;white-space:nowrap}
+.rbc-office-pin-extra input[type="checkbox"]{width:22px!important;height:22px!important;margin:0!important;accent-color:#2563eb}
+.rbc-office-pin-extra input[type="number"]{width:100%!important}
+@media(max-width:800px){.rbc-office-pin-extra{grid-template-columns:1fr}}
+</style>
+<script>
+/*
+  RAVEBIC_EMERGENCY_STABLE_FIX_20260615_V8
+  목적:
+  1) 관리자 첫 로그인 사무실직원 선택 복구
+  2) 페이지2 클릭 후 페이지1로 자동 복귀되는 현상 차단
+  3) 데이터 아카이브 자동설정 중복 표시 제거
+  4) 일정반영은 수동 붙여넣기 없이 자동만 시도. CORS면 서버 프록시 필요 메시지 표시.
+*/
+(function(){
+  var CURRENT_PAGE = Number(sessionStorage.getItem('rbcAdminCurrentPage') || '1') === 2 ? 2 : 1;
+  var ARCHIVE_ZIP_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s];});}
+  function norm(v){return String(v||'').replace(/\s+/g,'').trim();}
+  function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function simpleId(v){return String(v||'').replace(/\s+/g,'_').replace(/[\\/#?%:.,\[\]{}|~`^<>]/g,'_').slice(0,150);}
+  function wrap(){return document.querySelector('.wrap');}
+
+  function removeScheduleManual(){
+    var btn=document.getElementById('rbcScheduleManualBtn'); if(btn) btn.remove();
+    var modal=document.getElementById('rbcScheduleManualModal'); if(modal) modal.remove();
+  }
+
+  function removeDuplicateArchivePanels(){
+    var panels=Array.from(document.querySelectorAll('#rbcArchiveBody .rbc-auto-archive-panel'));
+    panels.forEach(function(p,i){ if(i>0) p.remove(); });
+    var restores=Array.from(document.querySelectorAll('#rbcArchiveBox button')).filter(function(b){return (b.textContent||'').replace(/\s+/g,'').includes('숨김원본복구');});
+    restores.forEach(function(b,i){ if(i>0) b.remove(); });
+    var zips=Array.from(document.querySelectorAll('#rbcArchiveBox button')).filter(function(b){return (b.textContent||'').replace(/\s+/g,'').includes('ZIP다운로드');});
+    zips.forEach(function(b,i){ if(i>0) b.remove(); });
+  }
+
+  function ensureArchiveZipButton(){
+    var controls=document.querySelector('#rbcArchiveBox .rbc-archive-controls');
+    if(!controls) return;
+    if(!document.getElementById('rbcArchiveZipDownloadBtnV8')){
+      var btn=document.createElement('button');
+      btn.id='rbcArchiveZipDownloadBtnV8';
+      btn.className='rbc-archive-btn green';
+      btn.type='button';
+      btn.textContent='아카이브 첨부파일 ZIP 다운로드';
+      btn.onclick=function(){window.open(ARCHIVE_ZIP_URL,'_blank');};
+      controls.appendChild(btn);
+    }
+  }
+
+  function ensureTabs(){
+    var w=wrap(); if(!w) return;
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      tabs.innerHTML='<button id="rbcPage1Btn" class="rbc-page-tab" type="button">페이지1 제출관리</button><button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+      var title=w.querySelector('.admin-main-title');
+      var logout=w.querySelector('.admin-logout-btn');
+      if(logout && logout.nextSibling) w.insertBefore(tabs, logout.nextSibling);
+      else if(title && title.nextSibling) w.insertBefore(tabs, title.nextSibling);
+      else w.insertBefore(tabs,w.firstChild);
+    }
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.onclick=function(e){e.preventDefault(); window.showRbcPage(1);};
+    if(p2) p2.onclick=function(e){e.preventDefault(); window.showRbcPage(2);};
+  }
+
+  function isAlways(el){
+    return el && (el.id==='rbcPageTabs' || el.classList.contains('admin-main-title') || el.classList.contains('admin-logout-btn') || el.classList.contains('sub') || el.id==='conn' || el.classList.contains('cards'));
+  }
+  function isPage2(el){
+    return el && (el.id==='rbcRiskBox' || el.id==='rbcMonthlyBox' || el.id==='rbcScoreBox' || el.id==='rbcArchiveBox' || (el.classList && el.classList.contains('pin-manager')));
+  }
+
+  function forceOrder(){
+    var w=wrap(); if(!w) return;
+    ensureTabs();
+    var tabs=document.getElementById('rbcPageTabs');
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(alert && tabs) w.insertBefore(alert,tabs.nextSibling);
+    ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox'].forEach(function(id){var el=document.getElementById(id); if(el) w.appendChild(el);});
+    var pin=document.querySelector('.pin-manager'); if(pin) w.appendChild(pin);
+    var archive=document.getElementById('rbcArchiveBox'); if(archive) w.appendChild(archive);
+    removeDuplicateArchivePanels();
+    ensureArchiveZipButton();
+    removeScheduleManual();
+  }
+
+  window.showRbcPage=function(page){
+    CURRENT_PAGE = Number(page)===2 ? 2 : 1;
+    window.__rbcCurrentPage = CURRENT_PAGE;
+    sessionStorage.setItem('rbcAdminCurrentPage', String(CURRENT_PAGE));
+    forceOrder();
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.classList.toggle('active',CURRENT_PAGE===1);
+    if(p2) p2.classList.toggle('active',CURRENT_PAGE===2);
+    var w=wrap(); if(!w) return;
+    Array.from(w.children).forEach(function(el){
+      if(isAlways(el)) return;
+      if(el.id==='rbcAlertCenterBox') el.style.display = CURRENT_PAGE===1 ? '' : 'none';
+      else if(isPage2(el)) el.style.display = CURRENT_PAGE===2 ? '' : 'none';
+      else el.style.display = CURRENT_PAGE===1 ? '' : 'none';
+    });
+  };
+  window.isPage2Item=isPage2;
+
+  async function getOfficeStaffRows(){
+    try{
+      if(typeof db==='undefined') return [];
+      var snap=await db.collection('staffPins').get();
+      var all=[], office=[];
+      snap.forEach(function(doc){
+        var d=doc.data()||{};
+        if(d.active===false) return;
+        var name=String(d.name||doc.id||'').trim();
+        if(!name) return;
+        var row={id:doc.id,name:name,pin:String(d.pin||''),office:!!(d.officeStaff||d.isOffice||d.office||d.staffType==='office'||d.role==='office'),order:Number(d.officeOrder||d.order||d.sortOrder||9999)};
+        all.push(row); if(row.office) office.push(row);
+      });
+      var rows=(office.length?office:all).sort(function(a,b){return (a.order-b.order)||a.name.localeCompare(b.name,'ko');});
+      return rows;
+    }catch(e){console.warn('office staff load failed',e);return [];}
+  }
+
+  async function ensureOfficeLogin(){
+    var card=document.querySelector('#adminLockScreen .admin-lock-card'); if(!card) return;
+    if(document.getElementById('rbcOfficeLoginSelect')) return;
+    var line=document.createElement('div');
+    line.className='rbc-office-login-line';
+    line.innerHTML='<label>사무실직원 이름 선택</label><select id="rbcOfficeLoginSelect"><option value="">사무실직원 목록 불러오는 중...</option></select>';
+    var remember=document.querySelector('.admin-remember-line');
+    if(remember) card.insertBefore(line, remember);
+    else card.insertBefore(line, document.getElementById('adminLoginBtn'));
+    var sel=document.getElementById('rbcOfficeLoginSelect');
+    var rows=await getOfficeStaffRows();
+    if(!sel) return;
+    if(!rows.length){sel.innerHTML='<option value="인현태">인현태</option>';}
+    else sel.innerHTML='<option value="">선택하세요</option>'+rows.map(function(r){return '<option value="'+esc(r.name)+'">'+esc(r.name)+'</option>';}).join('');
+    var saved=sessionStorage.getItem('ravebicAdminStaffName')||localStorage.getItem('ravebicLastOfficeStaffName')||'';
+    if(saved) sel.value=saved;
+  }
+
+  var oldAdminLogin=window.adminLogin;
+  window.adminLogin=function(){
+    var sel=document.getElementById('rbcOfficeLoginSelect');
+    var staff=sel ? String(sel.value||'').trim() : '';
+    if(sel && !staff){alert('사무실직원 이름을 선택하세요.'); sel.focus(); return;}
+    if(staff){
+      window.rbcSelectedOfficeStaffName=staff;
+      sessionStorage.setItem('ravebicAdminStaffName',staff);
+      localStorage.setItem('ravebicLastOfficeStaffName',staff);
+    }
+    if(typeof oldAdminLogin==='function') return oldAdminLogin.apply(this,arguments);
+  };
+
+  function ensurePinOfficeControls(){
+    var form=document.querySelector('.pin-form'); if(!form) return;
+    if(!document.getElementById('rbcOfficeStaffCheck')){
+      var box=document.createElement('div');
+      box.className='rbc-office-pin-extra';
+      box.innerHTML='<label><input id="rbcOfficeStaffCheck" type="checkbox"> 사무실직원</label><input id="rbcOfficeStaffOrder" type="number" min="1" placeholder="직급순서 예: 1">';
+      form.appendChild(box);
+    }
+  }
+
+  window.saveStaffPin=async function(){
+    var name=(document.getElementById('staffNameInput')?.value||'').trim();
+    var pin=(document.getElementById('staffPinInput')?.value||'').trim();
+    var office=!!document.getElementById('rbcOfficeStaffCheck')?.checked;
+    var orderVal=parseInt(document.getElementById('rbcOfficeStaffOrder')?.value,10);
+    if(!name){alert('직원명을 입력하세요.');return;}
+    if(!pin){alert('PIN을 입력하세요.');return;}
+    try{
+      await db.collection('staffPins').doc(name).set({
+        name:name,
+        pin:pin,
+        active:true,
+        officeStaff:office,
+        isOffice:office,
+        officeOrder:isNaN(orderVal)?9999:orderVal,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      },{merge:true});
+      alert('직원 PIN 저장 완료');
+      if(typeof invalidateRavebicValidStaffNames==='function') invalidateRavebicValidStaffNames();
+      if(typeof loadStaffPins==='function') await loadStaffPins();
+      await ensureOfficeLogin();
+    }catch(e){alert('직원 PIN 저장 실패:\n\n'+(e.message||e));}
+  };
+
+  function staffNamesFromPins(){
+    return getOfficeStaffRows().then(function(rows){return rows.map(function(r){return r.name;});});
+  }
+  function parseScheduleDate(s){
+    s=String(s||'');
+    var m=s.match(/(20\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})/);
+    if(m) return m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+    m=s.match(/(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*(?:일)?/);
+    if(m) return new Date().getFullYear()+'-'+String(+m[1]).padStart(2,'0')+'-'+String(+m[2]).padStart(2,'0');
+    var d=new Date(s); return isNaN(d.getTime())?'':ymd(d);
+  }
+  function rowsFromAnyPayload(payload,names){
+    var raw=[];
+    if(Array.isArray(payload)) raw=payload;
+    else if(payload && Array.isArray(payload.rows)) raw=payload.rows;
+    else if(payload && Array.isArray(payload.data)) raw=payload.data;
+    else if(payload && Array.isArray(payload.schedules)) raw=payload.schedules;
+    var rows=[];
+    raw.forEach(function(r,i){
+      if(Array.isArray(r)) r={rawText:r.join(' '), text:r.join(' ')};
+      r=r||{};
+      var joined=String(r.rawText||r.text||r.memo||r.note||JSON.stringify(r));
+      var date=parseScheduleDate(r.scheduleDate||r.date||r.날짜||joined);
+      var leader=String(r.leader||r.name||r.팀장||r.담당자||'').trim();
+      if(!leader){var njoined=norm(joined); for(var a=0;a<names.length;a++){if(njoined.indexOf(norm(names[a]))>=0){leader=names[a];break;}}}
+      var brand=String(r.brand||r.브랜드||'').trim();
+      if(!brand){brand=/세븐|seven/i.test(joined)?'세븐일레븐':(/이마트\s*24|이마트24|emart/i.test(joined)?'이마트24':'');}
+      var store=String(r.store||r.점포명||r.storeName||'').trim();
+      if(!store){
+        store=joined;
+        names.forEach(function(n){store=store.replace(new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),' ');});
+        store=store.replace(/20\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*(?:일)?/g,' ')
+          .replace(/\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*(?:일)?/g,' ')
+          .replace(/세븐일레븐|세븐|이마트\s*24|이마트24|정기실사|인수실사|양수도|폐점|휴무|교육|사무실|차량|마감|수정/gi,' ')
+          .replace(/[^가-힣A-Za-z0-9점호점\s]/g,' ')
+          .replace(/\s+/g,' ').trim();
+      }
+      if(date && leader && store && store.length>=2) rows.push({scheduleDate:date,leader:leader,brand:brand,store:store,rowIndex:i,rawText:joined});
+    });
+    return rows;
+  }
+  async function saveTeamScheduleRows(rows,source){
+    var batch=db.batch(), ops=0, count=0, seen={};
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i]; if(!r.scheduleDate||!r.leader||!r.store) continue;
+      var id=simpleId(r.scheduleDate+'_'+r.leader+'_'+(r.brand||'')+'_'+r.store);
+      if(seen[id]) continue; seen[id]=1;
+      batch.set(db.collection('teamSchedules').doc(id),{
+        scheduleDate:r.scheduleDate, leader:r.leader, brand:r.brand||'', store:r.store,
+        active:true, rowIndex:r.rowIndex||i, leaderOrderIndex:r.leaderOrderIndex||999999,
+        source:source||'admin_auto_import_v8', rawText:r.rawText||'',
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(), updatedAtText:new Date().toISOString()
+      },{merge:true});
+      ops++; count++;
+      if(ops>=420){await batch.commit(); batch=db.batch(); ops=0;}
+    }
+    if(ops) await batch.commit();
+    return count;
+  }
+  async function importScheduleAutomatically(url){
+    var proxyUrls=[
+      'https://us-central1-ravebic-app.cloudfunctions.net/importGoogleScheduleToTeamSchedules',
+      'https://us-central1-ravebic-app.cloudfunctions.net/syncGoogleScheduleToTeamSchedules',
+      'https://us-central1-ravebic-app.cloudfunctions.net/importGoogleSchedule'
+    ];
+    var last='';
+    for(var i=0;i<proxyUrls.length;i++){
+      try{
+        var pr=await fetch(proxyUrls[i],{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scheduleUrl:url,source:'admin_v8'})});
+        var pt=await pr.text(); var pj={}; try{pj=JSON.parse(pt);}catch(e){pj={message:pt};}
+        if(pr.ok && (pj.ok || pj.count || pj.importedCount || pj.savedCount)) return {ok:true,count:Number(pj.count||pj.importedCount||pj.savedCount||0),message:'서버 프록시 성공'};
+        last=pj.message||pt||('HTTP '+pr.status);
+      }catch(e){last=e.message||String(e);}
+    }
+    try{
+      var names=await staffNamesFromPins();
+      var dr=await fetch(url,{method:'GET',cache:'no-store'});
+      var text=await dr.text();
+      var payload; try{payload=JSON.parse(text);}catch(e){payload={rows:text.split(/\r?\n/).map(function(x){return {rawText:x};})};}
+      var rows=rowsFromAnyPayload(payload,names);
+      if(!rows.length) return {ok:false,count:0,message:'일정 행을 찾지 못했습니다.'};
+      var cnt=await saveTeamScheduleRows(rows,'apps_script_direct_v8');
+      return {ok:cnt>0,count:cnt,message:'직접 자동반영 성공'};
+    }catch(e){
+      return {ok:false,count:0,message:(e.message||String(e))+' / Firebase Function 일정 프록시 배포가 필요합니다.'};
+    }
+  }
+
+  window.approveGoogleSchedule=async function(){
+    var status=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined') ? GOOGLE_SCHEDULE_API_URL : '';
+    var approver=window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '관리자';
+    try{
+      if(status) status.textContent='직원용 일정표 승인 및 분석 일정 자동반영 중...';
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),
+        range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),
+        pdfUrl:url, scheduleUrl:url,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(), approvedAtText:new Date().toISOString(),
+        approvedBy:approver, source:'admin_v8'
+      },{merge:true});
+      var result=await importScheduleAutomatically(url);
+      if(result.ok){
+        if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 일정 자동반영: '+result.count+'건';
+        if(status) status.textContent='승인 완료 · 분석 일정 '+result.count+'건 자동반영';
+        if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+        if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
+        alert('직원용 일정 승인 저장 및 분석표 자동반영 완료\n\nteamSchedules '+result.count+'건 저장했습니다.');
+      }else{
+        if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 자동반영 실패: '+esc(result.message);
+        if(status) status.textContent='승인 저장 완료 · 분석 자동반영 실패';
+        alert('승인 저장은 완료됐지만 분석표 자동반영은 실패했습니다.\n\n사유: '+result.message+'\n\n이 경우 index.html 문제가 아니라 Google Apps Script CORS 때문에 Firebase Function 일정 프록시가 필요합니다.');
+      }
+    }catch(e){
+      if(status) status.textContent='일정 승인 반영 실패';
+      alert('일정 승인 반영 실패:\n\n'+(e.message||e));
+    }
+  };
+
+  function init(){
+    ensureTabs();
+    forceOrder();
+    ensureOfficeLogin();
+    ensurePinOfficeControls();
+    window.showRbcPage(CURRENT_PAGE);
+  }
+  document.addEventListener('DOMContentLoaded',init);
+  setTimeout(init,100);
+  setTimeout(init,700);
+  setTimeout(init,1800);
+  setInterval(function(){forceOrder(); window.showRbcPage(CURRENT_PAGE);},3000);
+})();
+</script>
+
 </body></html>
