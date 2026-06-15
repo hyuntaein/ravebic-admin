@@ -4889,3 +4889,102 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 
 </body></html>
+<!-- RAVEBIC_FINAL_RESTORE_ZIP_AND_SCHEDULE_GET_20260615 -->
+<script>
+(function(){
+  var ZIP_URL='https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
+  var SCHEDULE_URLS=[
+    'https://us-central1-ravebic-app.cloudfunctions.net/importGoogleScheduleToFirestore',
+    'https://importgooglescheduletofirestore-m5efixlnqa-uc.a.run.app'
+  ];
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s];});}
+
+  function ensureArchiveZipButton(){
+    var box=document.getElementById('rbcArchiveBox');
+    if(!box) return;
+    var old=document.getElementById('rbcArchiveZipDownloadBtn');
+    if(old) return;
+    var btn=document.createElement('button');
+    btn.id='rbcArchiveZipDownloadBtn';
+    btn.type='button';
+    btn.textContent='아카이브 첨부파일 ZIP 다운로드';
+    btn.style.cssText='background:#16a34a;color:#fff;border:0;border-radius:12px;padding:12px 18px;font-weight:900;margin:6px;cursor:pointer;';
+    btn.onclick=function(e){
+      if(e) e.preventDefault();
+      var u=ZIP_URL+'?t='+Date.now();
+      window.open(u,'_blank');
+      return false;
+    };
+    var logBtn=box.querySelector('button[onclick*="ArchiveLog"],button[onclick*="archiveLog"],button[onclick*="rbcArchiveLog"],button');
+    var toolbar=null;
+    Array.from(box.querySelectorAll('div')).some(function(d){
+      var txt=d.textContent||'';
+      if(txt.indexOf('아카이브 시뮬레이션')>=0 || txt.indexOf('archive로 이동')>=0 || txt.indexOf('로그 보기')>=0){ toolbar=d; return true; }
+      return false;
+    });
+    if(toolbar) toolbar.appendChild(btn);
+    else if(logBtn && logBtn.parentNode) logBtn.parentNode.appendChild(btn);
+    else box.insertBefore(btn, box.children[2]||null);
+  }
+
+  async function callScheduleFunction(url){
+    var full=url+(url.indexOf('?')>=0?'&':'?')+'t='+Date.now();
+    var res=await fetch(full,{method:'GET',mode:'cors',cache:'no-store'});
+    var text=await res.text();
+    var data={};
+    try{data=JSON.parse(text);}catch(e){data={message:text};}
+    if(!res.ok || data.ok===false){throw new Error(data.message||text||('HTTP '+res.status));}
+    return data;
+  }
+
+  window.rbcImportGoogleScheduleRowsFromAppsScript=async function(){
+    var last='';
+    for(var i=0;i<SCHEDULE_URLS.length;i++){
+      try{
+        var data=await callScheduleFunction(SCHEDULE_URLS[i]);
+        return {ok:true,count:Number(data.count||data.importedScheduleCount||data.importedCount||data.savedCount||0),message:data.message||'일정 자동반영 완료'};
+      }catch(e){
+        last=(e&&e.message)?e.message:String(e);
+      }
+    }
+    return {ok:false,count:0,message:last||'Firebase Function 호출 실패'};
+  };
+
+  window.approveGoogleSchedule=async function(){
+    var status=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    var approver=window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '관리자';
+    try{
+      if(status) status.textContent='일정 승인 저장 및 서버 자동반영 중...';
+      if(typeof db!=='undefined'){
+        await db.collection('settings').doc('approvedSchedule').set({
+          approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+          approvedAtText:new Date().toISOString(),
+          approvedBy:approver,
+          source:'admin_final_get_schedule_proxy'
+        },{merge:true});
+      }
+      var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
+      if(!result.ok) throw new Error(result.message||'자동반영 실패');
+      if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 일정 자동반영: '+result.count+'건';
+      if(status) status.textContent='승인 완료 · 분석 일정 '+result.count+'건 자동반영';
+      if(typeof loadApprovedInfo==='function') loadApprovedInfo();
+      if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
+      if(typeof rbcLoadScore==='function') rbcLoadScore();
+      alert('직원용 일정 승인 저장 및 분석표 자동반영 완료\n\nteamSchedules '+result.count+'건 저장했습니다.');
+    }catch(e){
+      if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br><span style="color:#b91c1c">분석 자동반영 실패: '+esc(e.message||e)+'</span>';
+      if(status) status.textContent='승인 저장 완료 · 분석 자동반영 실패';
+      alert('일정 자동반영 실패:\n\n'+(e.message||e)+'\n\n다음 확인: Functions > importGoogleScheduleToFirestore > 로그');
+    }
+  };
+
+  function boot(){ensureArchiveZipButton();}
+  document.addEventListener('DOMContentLoaded',boot);
+  setTimeout(boot,300);
+  setTimeout(boot,1200);
+  setTimeout(boot,3000);
+  window.rbcEnsureArchiveZipButton=ensureArchiveZipButton;
+})();
+</script>
