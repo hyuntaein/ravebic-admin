@@ -4597,4 +4597,380 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+
+<!-- RAVEBIC_OFFICE_STAFF_AND_ARCHIVE_DOWNLOAD_FINAL_V1 -->
+<style>
+/* RAVEBIC_OFFICE_STAFF_AND_ARCHIVE_DOWNLOAD_FINAL_V1 */
+.rbc-office-login-box{
+  margin:14px 0 16px;
+  padding:14px;
+  border:1px solid #bfdbfe;
+  background:#f8fbff;
+  border-radius:16px;
+  text-align:left;
+}
+.rbc-office-login-title{
+  font-weight:900;
+  color:#0b3b78;
+  margin-bottom:8px;
+}
+.rbc-office-counts{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+  margin:8px 0 10px;
+}
+.rbc-office-chip{
+  display:inline-block;
+  padding:7px 9px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  background:#e0f2fe;
+  color:#075985;
+}
+.rbc-office-chip.office{background:#dcfce7;color:#166534}
+.rbc-office-chip.field{background:#ffedd5;color:#9a3412}
+.rbc-office-staff-list{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:7px;
+}
+.rbc-office-staff-btn{
+  width:100%;
+  border:2px solid transparent!important;
+  background:#e5e7eb!important;
+  color:#111827!important;
+  border-radius:13px!important;
+  padding:10px 12px!important;
+  font-size:14px!important;
+  font-weight:900!important;
+  cursor:pointer!important;
+  text-align:left!important;
+}
+.rbc-office-staff-btn.active{
+  background:#16a34a!important;
+  color:#fff!important;
+  border-color:#065f46!important;
+  box-shadow:0 0 0 4px rgba(22,163,74,.15)!important;
+}
+.rbc-office-staff-btn.active::before{content:'✓ 선택됨  ';}
+.rbc-office-help{
+  margin-top:8px;
+  font-size:12px;
+  color:#64748b;
+  line-height:1.45;
+}
+.office-staff-line{display:flex;align-items:center;gap:8px;font-weight:900;color:#0b3b77;white-space:nowrap}
+.office-staff-line input{width:20px!important;height:20px!important;accent-color:#2563eb}
+.staff-order-input{max-width:140px}
+.rbc-staff-count-line{
+  margin:10px 0;
+  padding:10px 12px;
+  border:1px solid #dbeafe;
+  background:#f8fbff;
+  border-radius:13px;
+  color:#0b3b77;
+  font-weight:900;
+}
+@media(max-width:800px){.pin-form{grid-template-columns:1fr!important}.staff-order-input{max-width:100%}}
+</style>
+
+<script>
+/* RAVEBIC_OFFICE_STAFF_AND_ARCHIVE_DOWNLOAD_FINAL_V1 */
+(function(){
+  function escR(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+  function tsToText(v){
+    try{
+      if(v && v.toDate) return v.toDate().toLocaleString();
+      if(v instanceof Date) return v.toLocaleString();
+      if(v) return new Date(v).toLocaleString();
+    }catch(e){}
+    return '-';
+  }
+  function cleanForExport(v){
+    return JSON.parse(JSON.stringify(v || {}, function(k,val){
+      if(val && typeof val.toDate === 'function') return val.toDate().toISOString();
+      if(val && typeof val.seconds === 'number') return new Date(val.seconds*1000).toISOString();
+      return val;
+    }));
+  }
+  function downloadTextFile(filename, text, type){
+    var blob = new Blob([text], {type:type || 'text/plain;charset=utf-8;'});
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 500);
+  }
+  function ymd(){
+    var d=new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  window.rbcSelectedOfficeStaffName = window.rbcSelectedOfficeStaffName || '';
+
+  async function fetchStaffRows(){
+    if(typeof db === 'undefined') return [];
+    var snap = await db.collection('staffPins').get();
+    var rows=[];
+    snap.forEach(function(doc){
+      var d=doc.data()||{};
+      if(d.active === false) return;
+      rows.push({
+        id:doc.id,
+        name:String(d.name || doc.id || '').trim(),
+        pin:String(d.pin || '').trim(),
+        officeStaff: d.officeStaff === true || d.isOffice === true || d.office === true,
+        staffOrder: Number(d.staffOrder || d.order || d.orderIndex || 999999),
+        updated: tsToText(d.updatedAt || d.updatedAtText)
+      });
+    });
+    rows.sort(function(a,b){
+      return (a.staffOrder-b.staffOrder) || a.name.localeCompare(b.name,'ko');
+    });
+    return rows;
+  }
+
+  async function rbcRefreshOfficeLoginStaff(){
+    var box=document.getElementById('rbcOfficeLoginBox');
+    if(!box) return;
+    var count=document.getElementById('rbcOfficeLoginCounts');
+    var list=document.getElementById('rbcOfficeStaffList');
+    try{
+      var rows=await fetchStaffRows();
+      var office=rows.filter(function(r){return r.officeStaff;});
+      var field=rows.length-office.length;
+      if(count){
+        count.innerHTML=
+          '<span class="rbc-office-chip">전체 직원 '+rows.length+'명</span>'+ 
+          '<span class="rbc-office-chip office">사무실 직원 '+office.length+'명</span>'+ 
+          '<span class="rbc-office-chip field">현장 직원 '+field+'명</span>';
+      }
+      if(!list) return;
+      if(!office.length){
+        list.innerHTML='<div class="rbc-office-help">사무실직원으로 체크된 직원이 없습니다. 로그인 후 페이지2 → 직원 PIN 관리에서 사무실직원을 체크해 주세요.</div>';
+        return;
+      }
+      list.innerHTML=office.map(function(r){
+        return '<button type="button" class="rbc-office-staff-btn" data-office-name="'+escR(r.name)+'">'+escR(r.staffOrder<999999 ? (r.staffOrder+'. '+r.name) : r.name)+'</button>';
+      }).join('');
+    }catch(e){
+      if(list) list.innerHTML='<div class="rbc-office-help">사무실 직원 목록 불러오기 실패: '+escR(e.message||e)+'</div>';
+    }
+  }
+  window.rbcRefreshOfficeLoginStaff = rbcRefreshOfficeLoginStaff;
+
+  function injectOfficeLoginBox(){
+    var card=document.querySelector('.admin-lock-card');
+    if(!card || document.getElementById('rbcOfficeLoginBox')) return;
+    var p=card.querySelector('p');
+    var box=document.createElement('div');
+    box.id='rbcOfficeLoginBox';
+    box.className='rbc-office-login-box';
+    box.innerHTML=
+      '<div class="rbc-office-login-title">사무실 직원 선택</div>'+ 
+      '<div id="rbcOfficeLoginCounts" class="rbc-office-counts">직원 인원 계산 중...</div>'+ 
+      '<div id="rbcOfficeStaffList" class="rbc-office-staff-list"><div class="rbc-office-help">사무실 직원 목록 불러오는 중...</div></div>'+ 
+      '<div class="rbc-office-help">선택한 이름은 관리자 접속 기록용입니다. 비밀번호는 기존 관리자 비밀번호를 그대로 입력하세요.</div>';
+    if(p && p.nextSibling) card.insertBefore(box, p.nextSibling);
+    else card.insertBefore(box, card.firstChild);
+    setTimeout(rbcRefreshOfficeLoginStaff, 600);
+    setTimeout(rbcRefreshOfficeLoginStaff, 1600);
+  }
+
+  document.addEventListener('click', function(e){
+    var btn=e.target && e.target.closest ? e.target.closest('.rbc-office-staff-btn') : null;
+    if(!btn) return;
+    document.querySelectorAll('.rbc-office-staff-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    window.rbcSelectedOfficeStaffName = btn.getAttribute('data-office-name') || '';
+    sessionStorage.setItem('ravebicSelectedOfficeStaffName', window.rbcSelectedOfficeStaffName);
+  });
+
+  function injectStaffPinFields(){
+    var form=document.querySelector('.pin-form');
+    if(!form) return;
+    if(!document.getElementById('staffOrderInput')){
+      var order=document.createElement('input');
+      order.id='staffOrderInput';
+      order.className='staff-order-input';
+      order.type='number';
+      order.min='1';
+      order.step='1';
+      order.placeholder='직급순서 예: 1';
+      var pin=document.getElementById('staffPinInput');
+      if(pin && pin.nextSibling) form.insertBefore(order, pin.nextSibling);
+      else form.insertBefore(order, form.firstChild);
+    }
+    if(!document.getElementById('officeStaffInput')){
+      var label=document.createElement('label');
+      label.className='office-staff-line';
+      label.innerHTML='<input id="officeStaffInput" type="checkbox"> 사무실직원';
+      var orderEl=document.getElementById('staffOrderInput');
+      if(orderEl && orderEl.nextSibling) form.insertBefore(label, orderEl.nextSibling);
+      else form.insertBefore(label, form.firstChild);
+    }
+    var area=document.getElementById('staffPinListArea');
+    if(area && !document.getElementById('rbcStaffCountLine')){
+      var line=document.createElement('div');
+      line.id='rbcStaffCountLine';
+      line.className='rbc-staff-count-line';
+      line.textContent='직원 인원 계산 중...';
+      area.parentNode.insertBefore(line, area);
+    }
+    var thead=document.querySelector('.pin-table thead tr');
+    if(thead && !thead.dataset.officeFinal){
+      thead.dataset.officeFinal='1';
+      thead.innerHTML='<th>직원명</th><th>PIN</th><th>사무실</th><th>직급순서</th><th>등록/수정일</th><th>관리</th>';
+    }
+  }
+
+  window.loadStaffPins = async function(){
+    injectStaffPinFields();
+    var tbody=document.getElementById('staffPinTbody');
+    var status=document.getElementById('staffPinStatus');
+    var countLine=document.getElementById('rbcStaffCountLine');
+    if(!tbody || typeof db === 'undefined') return;
+    try{
+      var rows=await fetchStaffRows();
+      var office=rows.filter(function(r){return r.officeStaff;}).length;
+      var field=rows.length-office;
+      if(status) status.textContent='직원 PIN '+rows.length+'명 등록됨 · 사무실 '+office+'명 · 현장 '+field+'명';
+      if(countLine){
+        countLine.innerHTML='전체 직원 '+rows.length+'명&nbsp;&nbsp;|&nbsp;&nbsp;사무실 직원 '+office+'명&nbsp;&nbsp;|&nbsp;&nbsp;현장 직원 '+field+'명';
+      }
+      if(!rows.length){
+        tbody.innerHTML='<tr><td colspan="6">등록된 직원 PIN이 없습니다.</td></tr>';
+        return;
+      }
+      tbody.innerHTML=rows.map(function(r){
+        return '<tr>'+ 
+          '<td>'+escR(r.name)+'</td>'+ 
+          '<td>'+escR(r.pin)+'</td>'+ 
+          '<td>'+(r.officeStaff?'사무실':'현장')+'</td>'+ 
+          '<td>'+(r.staffOrder<999999?escR(r.staffOrder):'-')+'</td>'+ 
+          '<td>'+escR(r.updated)+'</td>'+ 
+          '<td><button class="pin-del" type="button" data-staff-name="'+escR(r.id)+'">삭제</button></td>'+ 
+        '</tr>';
+      }).join('');
+      setTimeout(rbcRefreshOfficeLoginStaff, 200);
+    }catch(err){
+      tbody.innerHTML='<tr><td colspan="6">직원 PIN 목록 불러오기 실패: '+escR(err.message||err)+'</td></tr>';
+      if(status) status.textContent='직원 PIN 목록 불러오기 실패';
+    }
+  };
+
+  window.saveStaffPin = async function(){
+    injectStaffPinFields();
+    var nameEl=document.getElementById('staffNameInput');
+    var pinEl=document.getElementById('staffPinInput');
+    var orderEl=document.getElementById('staffOrderInput');
+    var officeEl=document.getElementById('officeStaffInput');
+    var name=nameEl ? nameEl.value.trim() : '';
+    var pin=pinEl ? pinEl.value.trim() : '';
+    var staffOrder=orderEl && orderEl.value ? Number(orderEl.value) : null;
+    var officeStaff=!!(officeEl && officeEl.checked);
+    if(!name){alert('직원명을 입력하세요.');return;}
+    if(!pin){alert('PIN을 입력하세요.');return;}
+    try{
+      var data={
+        name:name,
+        pin:pin,
+        active:true,
+        officeStaff:officeStaff,
+        isOffice:officeStaff,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if(staffOrder && !isNaN(staffOrder)) data.staffOrder=staffOrder;
+      await db.collection('staffPins').doc(name).set(data,{merge:true});
+      alert('직원 PIN 저장 완료');
+      if(typeof invalidateRavebicValidStaffNames === 'function') invalidateRavebicValidStaffNames();
+      await window.loadStaffPins();
+      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+      if(typeof rbcLoadScore === 'function') rbcLoadScore();
+    }catch(err){
+      alert('직원 PIN 저장 실패:\n\n'+(err.message||err));
+    }
+  };
+
+  function injectArchiveDownloadButtons(){
+    var controls=document.querySelector('.rbc-archive-controls');
+    if(!controls || document.getElementById('rbcArchiveExcelDownloadBtn')) return;
+    var excel=document.createElement('button');
+    excel.id='rbcArchiveExcelDownloadBtn';
+    excel.className='rbc-archive-btn green';
+    excel.type='button';
+    excel.textContent='아카이브 엑셀 다운로드';
+    excel.onclick=window.rbcDownloadArchiveExcel;
+    var json=document.createElement('button');
+    json.id='rbcArchiveJsonDownloadBtn';
+    json.className='rbc-archive-btn gray';
+    json.type='button';
+    json.textContent='아카이브 JSON 다운로드';
+    json.onclick=window.rbcDownloadArchiveJson;
+    controls.appendChild(excel);
+    controls.appendChild(json);
+  }
+
+  async function getArchiveRowsForDownload(){
+    if(typeof db === 'undefined') throw new Error('Firebase 연결 전입니다.');
+    var snap=await db.collection('archiveSubmissions').get();
+    var rows=[];
+    snap.forEach(function(doc){ rows.push({id:doc.id, ...cleanForExport(doc.data()||{})}); });
+    rows.sort(function(a,b){
+      return String(b.submittedAtText || b.date || b.archivedAtText || '').localeCompare(String(a.submittedAtText || a.date || a.archivedAtText || ''));
+    });
+    return rows;
+  }
+
+  window.rbcDownloadArchiveJson = async function(){
+    try{
+      var rows=await getArchiveRowsForDownload();
+      if(!rows.length){ alert('archiveSubmissions에 다운로드할 자료가 없습니다.'); return; }
+      downloadTextFile('ravebic_archiveSubmissions_'+ymd()+'.json', JSON.stringify(rows,null,2), 'application/json;charset=utf-8;');
+    }catch(e){ alert('아카이브 JSON 다운로드 실패:\n\n'+(e.message||e)); }
+  };
+
+  window.rbcDownloadArchiveExcel = async function(){
+    try{
+      var rows=await getArchiveRowsForDownload();
+      if(!rows.length){ alert('archiveSubmissions에 다운로드할 자료가 없습니다.'); return; }
+      if(typeof XLSX === 'undefined') throw new Error('XLSX 라이브러리가 아직 로드되지 않았습니다. 새로고침 후 다시 시도하세요.');
+      var flat=rows.map(function(r){
+        var o={};
+        Object.keys(r).forEach(function(k){
+          var v=r[k];
+          if(Array.isArray(v)) o[k]=JSON.stringify(v);
+          else if(v && typeof v === 'object') o[k]=JSON.stringify(v);
+          else o[k]=v;
+        });
+        return o;
+      });
+      var ws=XLSX.utils.json_to_sheet(flat);
+      var wb=XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'archiveSubmissions');
+      XLSX.writeFile(wb, 'ravebic_archiveSubmissions_'+ymd()+'.xlsx');
+    }catch(e){ alert('아카이브 엑셀 다운로드 실패:\n\n'+(e.message||e)); }
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    injectOfficeLoginBox();
+    injectStaffPinFields();
+    injectArchiveDownloadButtons();
+    setTimeout(function(){ if(typeof window.loadStaffPins==='function') window.loadStaffPins(); }, 900);
+  });
+  setTimeout(injectOfficeLoginBox, 300);
+  setTimeout(injectStaffPinFields, 700);
+  setTimeout(injectArchiveDownloadButtons, 1200);
+  setTimeout(injectArchiveDownloadButtons, 2500);
+})();
+</script>
+
 </body></html>
