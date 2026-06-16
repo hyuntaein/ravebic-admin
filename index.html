@@ -4861,7 +4861,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       sessionStorage.setItem('ravebicAdminSelectedStaffName',saved);
       list.innerHTML=office.map(function(r){
         var active=r.name===saved;
-        var label=(r.staffOrder<999999?String(r.staffOrder)+'. ':'')+r.name;
+        var label=r.name;
         return '<button type="button" class="admin-office-btn" data-office-name="'+esc(r.name)+'" style="padding:10px 13px;border-radius:12px;border:1px solid #bfdbfe;font-weight:900;'+(active?'background:#16a34a;color:#fff':'background:#fff;color:#123f7a')+'">'+esc(label)+'</button>';
       }).join('');
       var help=document.getElementById('adminOfficeStaffHelp');
@@ -4889,280 +4889,187 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 
 
+
+<!-- RAVEBIC_PAGINATION_AND_OFFICE_NAME_FIX_20260616_FINAL -->
 <script>
-/* RAVEBIC_AUTO_CORRECTION_9PM_RESTORE_V1
-   오후 9시 이후, 오늘 일정이 있는데 제출자료가 없는 팀장에게 직원용 보완요청함 메시지를 자동 발송합니다.
-   - 직원용 앱이 읽는 adminMessages 컬렉션 사용
-   - autoCorrectionLogs로 같은 날짜/팀장 중복 발송 방지
-   - 관리자앱을 열어두거나 오후 9시 이후 접속하면 자동 점검
+/* RAVEBIC_PAGINATION_AND_OFFICE_NAME_FIX_20260616_FINAL
+   1) 제출목록 10개씩 페이지네이션을 점포그룹 기준으로 다시 고정
+   2) 사무실직원 로그인 버튼 이름 앞의 1. 2. 3. 번호 제거
 */
 (function(){
-  const RBC_AUTO_CORRECTION_ENABLED = true;
-  const RBC_AUTO_CORRECTION_HOUR = 21;
-  const RBC_AUTO_CORRECTION_STATUS_ID = 'rbcAutoCorrectionStatus';
-
-  function rbcAutoYmd(d){
-    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  }
-
-  function rbcAutoDt(r){
-    return r && r.submittedAt && r.submittedAt.toDate
-      ? r.submittedAt.toDate()
-      : new Date((r && (r.submittedAtText || r.date || r.createdAtText)) || 0);
-  }
-
-  function rbcAutoNorm(v){
-    return String(v || '')
-      .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
-      .replace(/\s+/g,'')
-      .replace(/[·ㆍ.\-_/]/g,'')
-      .trim();
-  }
-
-  function rbcAutoSafeId(v){
-    return String(v || '')
-      .replace(/\s+/g,'_')
-      .replace(/[\\/#?%:.,\[\]{}|~`^<>]/g,'_')
-      .slice(0,160);
-  }
-
-  function rbcAutoEsc(v){
-    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+  function rbcEsc(v){
+    return String(v||'').replace(/[&<>\'\"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','\"':'&quot;'}[s];
     });
   }
 
-  function rbcAutoSetStatus(msg){
-    let el = document.getElementById(RBC_AUTO_CORRECTION_STATUS_ID);
-    if(!el){
-      const alertBox = document.getElementById('rbcAlertCenterBox');
-      if(alertBox){
-        el = document.createElement('div');
-        el.id = RBC_AUTO_CORRECTION_STATUS_ID;
-        el.style.cssText = 'margin-top:8px;padding:10px 12px;border:1px solid #bfdbfe;background:#eff6ff;border-radius:12px;color:#0b3b77;font-size:13px;font-weight:800;line-height:1.45;';
-        alertBox.appendChild(el);
-      }
+  function rbcDtOf(r){
+    try{
+      return r && r.submittedAt && r.submittedAt.toDate ? r.submittedAt.toDate() : new Date((r && (r.submittedAtText || r.date)) || 0);
+    }catch(e){
+      return new Date(0);
     }
-    if(el) el.innerHTML = rbcAutoEsc(msg).replace(/\n/g,'<br>');
   }
 
-  function rbcAutoAddCheckButton(){
-    const head = document.querySelector('#rbcAlertCenterBox .rbc-alert-head div');
-    if(!head || document.getElementById('rbcAutoCorrectionCheckBtn')) return;
-
-    const btn = document.createElement('button');
-    btn.id = 'rbcAutoCorrectionCheckBtn';
-    btn.className = 'rbc-alert-btn';
-    btn.type = 'button';
-    btn.textContent = '자동보완 점검';
-    btn.onclick = function(){ window.rbcAutoSendMissingCorrectionMessages(true); };
-    head.appendChild(btn);
+  function rbcSafePageSize(){
+    var sel=document.getElementById('pageSizeSelect');
+    var v=parseInt(sel && sel.value,10);
+    if(!v) v=parseInt(window.pageSize || pageSize || 10,10) || 10;
+    window.pageSize = v;
+    try{ pageSize = v; }catch(e){}
+    return v;
   }
 
-  function rbcAutoSubmissionMatchesSchedule(sub, sc, dateStr){
-    if(!sub || !sc) return false;
-
-    const subDate = rbcAutoYmd(rbcAutoDt(sub));
-    if(subDate !== dateStr) return false;
-
-    const subName = String(sub.name || '').trim();
-    const leader = String(sc.leader || '').trim();
-    if(subName !== leader) return false;
-
-    const scBrand = String(sc.brand || '').trim();
-    const subBrand = String(sub.brand || '').trim();
-    if(scBrand && subBrand && scBrand !== subBrand) return false;
-
-    const scheduledStore = rbcAutoNorm(sc.store);
-    const submittedStore = rbcAutoNorm(sub.store);
-    if(!scheduledStore || !submittedStore) return false;
-
-    return submittedStore === scheduledStore ||
-           submittedStore.includes(scheduledStore) ||
-           scheduledStore.includes(submittedStore);
-  }
-
-  async function rbcAutoGetTodaySchedules(dateStr){
-    if(typeof loadRavebicValidStaffNames === 'function'){
-      try{ await loadRavebicValidStaffNames(true); }catch(e){}
-    }
-
-    if(typeof loadTeamScheduleRows === 'function'){
-      const rows = await loadTeamScheduleRows(dateStr);
-      return (rows || []).filter(function(r){
-        return String(r.scheduleDate || '').trim() === dateStr &&
-               String(r.leader || '').trim() &&
-               String(r.store || '').trim() &&
-               r.active !== false;
-      });
-    }
-
-    const snap = await db.collection('teamSchedules').where('scheduleDate','==',dateStr).get();
-    const rows = [];
-    snap.forEach(function(doc){
-      const d = doc.data() || {};
-      if(d.active === false) return;
-      const leader = String(d.leader || d.name || d.staffName || '').trim();
-      const store = String(d.store || d.storeName || '').trim();
-      if(!leader || !store) return;
-      rows.push({id:doc.id, ...d, leader:leader, store:store});
+  function rbcGroupFilteredStores(){
+    var src=[];
+    try{ src = Array.isArray(filtered) ? filtered : []; }catch(e){ src=[]; }
+    var groups={};
+    src.forEach(function(r){
+      var key=String((r && r.store) || '미지정점포').trim() || '미지정점포';
+      if(!groups[key]) groups[key]=[];
+      groups[key].push(r);
     });
-    return rows;
-  }
-
-  async function rbcAutoEnsureSubmissionsLoaded(){
-    if(typeof loadData === 'function' && (!Array.isArray(window.allRows || allRows) || !(window.allRows || allRows).length)){
-      try{ await loadData(); }catch(e){}
-    }
-
-    if(typeof allRows !== 'undefined' && Array.isArray(allRows)){
-      return allRows;
-    }
-
-    const snap = await db.collection('submissions').get();
-    const rows = [];
-    snap.forEach(function(doc){
-      const d = doc.data() || {};
-      if(d.archived === true) return;
-      rows.push({id:doc.id, ...d});
+    var stores=Object.keys(groups).sort(function(a,b){
+      var aa=Math.max.apply(null, groups[a].map(function(x){return rbcDtOf(x).getTime() || 0;}));
+      var bb=Math.max.apply(null, groups[b].map(function(x){return rbcDtOf(x).getTime() || 0;}));
+      return bb-aa;
     });
-    return rows;
+    return {groups:groups, stores:stores};
   }
 
-  async function rbcAutoSendMessageForLeader(dateStr, leader, missingRows, forceManual){
-    const logId = 'auto_fix_' + rbcAutoSafeId(dateStr + '_' + leader);
-    const logRef = db.collection('autoCorrectionLogs').doc(logId);
-    const oldLog = await logRef.get();
+  window.updatePaginationControls=function(totalPages,totalItems){
+    var info=document.getElementById('pageInfo');
+    var prev=document.getElementById('prevPageBtn');
+    var next=document.getElementById('nextPageBtn');
+    totalPages=Math.max(1,Number(totalPages)||1);
+    totalItems=Number(totalItems)||0;
+    try{
+      if(currentPage<1) currentPage=1;
+      if(currentPage>totalPages) currentPage=totalPages;
+    }catch(e){}
+    var cp=1;
+    try{ cp=currentPage; }catch(e){}
+    if(info) info.textContent=cp+' / '+totalPages+' 페이지 · 총 '+totalItems+'개 점포그룹';
+    if(prev) prev.disabled=cp<=1;
+    if(next) next.disabled=cp>=totalPages;
+  };
 
-    if(oldLog.exists && !forceManual){
-      return {sent:false, skipped:true, reason:'already_sent', leader:leader};
-    }
+  window.prevPage=function(){
+    try{
+      if(currentPage>1){ currentPage--; window.render(); }
+    }catch(e){}
+  };
 
-    const storeLines = missingRows.map(function(r, idx){
-      return (idx + 1) + '. ' + (r.brand ? '[' + r.brand + '] ' : '') + r.store;
-    }).join('\n');
+  window.nextPage=function(){
+    var data=rbcGroupFilteredStores();
+    var totalPages=Math.max(1,Math.ceil(data.stores.length / rbcSafePageSize()));
+    try{
+      if(currentPage<totalPages){ currentPage++; window.render(); }
+    }catch(e){}
+  };
 
-    const message =
-      '[자동 보완요청]\n' +
-      dateStr + ' 일정 중 오후 9시까지 제출 확인이 되지 않은 점포가 있습니다.\n\n' +
-      storeLines +
-      '\n\n직원용 앱에서 해당 점포 서류를 제출하거나, 이미 제출했다면 관리자에게 확인 요청 부탁드립니다.';
+  window.changePageSize=function(v){
+    var n=parseInt(v,10)||10;
+    try{ pageSize=n; }catch(e){}
+    window.pageSize=n;
+    try{ currentPage=1; }catch(e){}
+    window.render();
+  };
 
-    await db.collection('adminMessages').add({
-      targetName: leader,
-      message: message,
-      type: 'auto_missing_submission',
-      status: 'unread',
-      read: false,
-      autoDate: dateStr,
-      missingCount: missingRows.length,
-      missingStores: missingRows.map(function(r){
-        return {brand:r.brand || '', store:r.store || '', scheduleId:r.id || ''};
-      }),
-      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-      createdAtText: new Date().toISOString(),
-      sentBy: '자동보완요청',
-      source: 'admin_auto_9pm'
-    });
+  window.render=function(){
+    var tb=document.getElementById('tbody');
+    if(!tb) return;
 
-    await logRef.set({
-      date: dateStr,
-      leader: leader,
-      missingCount: missingRows.length,
-      missingStores: missingRows.map(function(r){
-        return {brand:r.brand || '', store:r.store || '', scheduleId:r.id || ''};
-      }),
-      message: message,
-      sentAt: firebase.firestore.FieldValue.serverTimestamp(),
-      sentAtText: new Date().toISOString(),
-      source: forceManual ? 'manual_check_button' : 'auto_9pm_check'
-    }, {merge:true});
+    var src=[];
+    try{ src=Array.isArray(filtered)?filtered:[]; }catch(e){ src=[]; }
 
-    return {sent:true, skipped:false, leader:leader, count:missingRows.length};
-  }
+    var todayStr=new Date().toDateString();
+    var total=document.getElementById('total');
+    var today=document.getElementById('today');
+    var s0=document.getElementById('s0');
+    var s1=document.getElementById('s1');
+    var s2=document.getElementById('s2');
+    if(total) total.textContent=src.length;
+    if(today) today.textContent=src.filter(function(r){return rbcDtOf(r).toDateString()===todayStr;}).length;
+    if(s0) s0.textContent=src.filter(function(r){return ((r && r.status)||'미확인')==='미확인';}).length;
+    if(s1) s1.textContent=src.filter(function(r){return r && r.status==='확인완료';}).length;
+    if(s2) s2.textContent=src.filter(function(r){return r && r.status==='보완요청';}).length;
 
-  window.rbcAutoSendMissingCorrectionMessages = async function(forceManual){
-    if(!RBC_AUTO_CORRECTION_ENABLED) return;
-
-    const now = new Date();
-    const dateStr = rbcAutoYmd(now);
-
-    if(now.getHours() < RBC_AUTO_CORRECTION_HOUR && !forceManual){
-      rbcAutoSetStatus('자동 보완요청 대기 중\n오후 9시 이후 미제출 일정이 있으면 직원용 보완요청함으로 자동 발송됩니다.');
+    if(!src.length){
+      tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';
+      window.updatePaginationControls(1,0);
       return;
     }
 
+    var data=rbcGroupFilteredStores();
+    var groups=data.groups;
+    var stores=data.stores;
+    var ps=rbcSafePageSize();
+    var totalPages=Math.max(1,Math.ceil(stores.length/ps));
     try{
-      rbcAutoSetStatus('자동 보완요청 점검 중...');
+      if(currentPage>totalPages) currentPage=totalPages;
+      if(currentPage<1) currentPage=1;
+    }catch(e){ currentPage=1; }
 
-      const schedules = await rbcAutoGetTodaySchedules(dateStr);
-      const submissions = await rbcAutoEnsureSubmissionsLoaded();
+    var start=(currentPage-1)*ps;
+    var pageStores=stores.slice(start,start+ps);
+    var html='';
+    window.__mergedFiles={};
 
-      const byLeader = {};
-
-      schedules.forEach(function(sc){
-        const leader = String(sc.leader || '').trim();
-        if(!leader) return;
-
-        const found = (submissions || []).some(function(sub){
-          return rbcAutoSubmissionMatchesSchedule(sub, sc, dateStr);
-        });
-
-        if(!found){
-          if(!byLeader[leader]) byLeader[leader] = [];
-          byLeader[leader].push(sc);
-        }
+    pageStores.forEach(function(store,idx){
+      var mergeIdx=start+idx;
+      var rows=(groups[store]||[]).slice().sort(function(a,b){return rbcDtOf(b)-rbcDtOf(a);});
+      var latestRow=rows[0]||{};
+      var latestTime=rbcDtOf(latestRow).toLocaleString();
+      var mergedFiles=[];
+      rows.forEach(function(r){
+        ((r && r.files)||[]).forEach(function(f){mergedFiles.push({rowId:r.id,file:f});});
       });
+      window.__mergedFiles[mergeIdx]=mergedFiles;
+      var filesHtml='<button class="file-view-btn" onclick="showMergedFiles('+mergeIdx+')">📎 첨부파일 '+mergedFiles.length+'개</button>';
+      var status=latestRow.status||'미확인';
+      html += '<tr>'+
+        '<td>'+rbcEsc(latestTime)+'</td>'+
+        '<td>'+rbcEsc(latestRow.name)+'</td>'+
+        '<td><button onclick="if(typeof openStoreHistory===\'function\'){openStoreHistory(\''+rbcEsc(store)+'\')}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ '+rbcEsc(store)+'</button></td>'+
+        '<td>'+rbcEsc(latestRow.region)+'</td>'+
+        '<td>'+rbcEsc(latestRow.brand)+'</td>'+
+        '<td>'+rbcEsc(latestRow.workType)+'</td>'+
+        '<td><span class="rbc-merged-note">총 '+rows.length+'회 제출</span>'+(latestRow.note?'<div class="small">'+rbcEsc(latestRow.note)+'</div>':'')+'</td>'+
+        '<td>'+filesHtml+'</td>'+
+        '<td><select onchange="changeStatus(\''+rbcEsc(latestRow.id)+'\',this.value)">'+
+          '<option '+(status==='미확인'?'selected':'')+'>미확인</option>'+
+          '<option '+(status==='확인완료'?'selected':'')+'>확인완료</option>'+
+          '<option '+(status==='보완요청'?'selected':'')+'>보완요청</option>'+
+        '</select></td>'+
+        '<td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(\''+rbcEsc(latestRow.id)+'\')">제출삭제</button></td>'+
+      '</tr>';
+    });
 
-      const leaders = Object.keys(byLeader);
-      if(!leaders.length){
-        rbcAutoSetStatus('자동 보완요청 점검 완료\n오늘 미제출 일정이 없어 자동 발송할 메시지가 없습니다.');
-        return {ok:true, sent:0, skipped:0, missingLeaders:0};
-      }
-
-      let sent = 0;
-      let skipped = 0;
-      const detail = [];
-
-      for(const leader of leaders){
-        const result = await rbcAutoSendMessageForLeader(dateStr, leader, byLeader[leader], !!forceManual);
-        if(result.sent) sent++;
-        else skipped++;
-        detail.push(leader + ' ' + byLeader[leader].length + '건' + (result.sent ? ' 발송' : ' 건너뜀'));
-      }
-
-      rbcAutoSetStatus(
-        '자동 보완요청 점검 완료\n' +
-        '대상 팀장: ' + leaders.length + '명 / 발송: ' + sent + '명 / 중복건너뜀: ' + skipped + '명\n' +
-        detail.slice(0,8).join('\n')
-      );
-
-      if(typeof rbcLoadAlertCenter === 'function'){
-        setTimeout(rbcLoadAlertCenter, 500);
-      }
-
-      return {ok:true, sent:sent, skipped:skipped, missingLeaders:leaders.length};
-
-    }catch(err){
-      console.error('auto correction failed', err);
-      rbcAutoSetStatus('자동 보완요청 실패: ' + (err.message || err));
-      return {ok:false, message:err.message || String(err)};
+    tb.innerHTML=html;
+    window.updatePaginationControls(totalPages,stores.length);
+    if(typeof applyRavebicStatusColors==='function'){
+      setTimeout(applyRavebicStatusColors,30);
+      setTimeout(applyRavebicStatusColors,250);
     }
   };
 
-  function rbcAutoInit(){
-    rbcAutoAddCheckButton();
-    rbcAutoSetStatus('자동 보완요청 기능 활성화됨\n오후 9시 이후 미제출 일정이 있으면 직원용 보완요청함으로 자동 발송됩니다.');
-    setTimeout(function(){ window.rbcAutoSendMissingCorrectionMessages(false); }, 4500);
+  function removeOfficeLoginNumbers(){
+    document.querySelectorAll('.admin-office-btn').forEach(function(btn){
+      var name=btn.getAttribute('data-office-name') || (btn.textContent||'').replace(/^\s*\d+\s*[.)]\s*/,'').trim();
+      if(name){ btn.textContent=name; }
+    });
   }
 
-  document.addEventListener('DOMContentLoaded', rbcAutoInit);
-  setTimeout(rbcAutoInit, 1200);
-  setTimeout(function(){ window.rbcAutoSendMissingCorrectionMessages(false); }, 9000);
-  setInterval(function(){ window.rbcAutoSendMissingCorrectionMessages(false); }, 5 * 60 * 1000);
+  document.addEventListener('DOMContentLoaded',function(){
+    removeOfficeLoginNumbers();
+    setTimeout(removeOfficeLoginNumbers,300);
+    setTimeout(removeOfficeLoginNumbers,1200);
+    setTimeout(function(){ if(typeof window.render==='function') window.render(); },1500);
+  });
+  setInterval(removeOfficeLoginNumbers,1500);
 })();
 </script>
-
 </body></html>
 <!-- RAVEBIC_FINAL_RESTORE_ZIP_AND_SCHEDULE_GET_20260615 -->
 <script>
