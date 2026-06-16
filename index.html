@@ -1020,7 +1020,7 @@ select.status-pending {
 <h2>세븐일레븐 J파일 분석</h2>
 <div id="sevenDrop" class="drop"><div><p><b>J파일/텍스트 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 번 끌어다 놓으면 계속 누적됩니다.</p><input type="file" id="sevenFileInput" multiple></div></div>
 <div class="btns"><button id="sevenExcelBtn" class="green" disabled>엑셀 다운로드</button><button id="sevenClearBtn" class="red">전체 초기화</button></div>
-<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>파일명</th><th>건수</th><th>작업시간</th><th>1개건수</th><th>삭제</th></tr></thead><tbody id="sevenTbody"><tr><td colspan="6">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
+<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>파일명</th><th>건수</th><th>작업시간</th><th>1개건수</th><th>몇인실사</th><th>구간</th><th>삭제</th></tr></thead><tbody id="sevenTbody"><tr><td colspan="8">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
 </div>
 </div>
 </div>
@@ -1368,11 +1368,61 @@ function exportEmartCsv(){const lines=[['No','점포명','총건수','총걸린�
 emartDrop.addEventListener('dragover',e=>{e.preventDefault();emartDrop.classList.add('drag')});emartDrop.addEventListener('dragleave',()=>emartDrop.classList.remove('drag'));emartDrop.addEventListener('drop',e=>{e.preventDefault();emartDrop.classList.remove('drag');handleEmartFiles(e.dataTransfer.files)});emartInput.addEventListener('change',e=>handleEmartFiles(e.target.files));document.getElementById('emartDownloadBtn').addEventListener('click',exportEmartXlsx);document.getElementById('emartCsvBtn').addEventListener('click',exportEmartCsv);document.getElementById('emartResetBtn').addEventListener('click',()=>{if(confirm('전체 결과를 초기화할까요?')){emartResults.length=0;emartInput.value='';renderEmart();}});
 
 let sevenResults=[];const sevenDrop=document.getElementById('sevenDrop');function secToText(s){let h=Math.floor(s/3600);let m=Math.floor((s%3600)/60);let sec=s%60;return(h>0?h+'시간 ':'')+m+'분 '+sec+'초';}
-function analyzeSeven(file,text){const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>0);let secs=[],single=0;lines.forEach(l=>{let d=l.replace(/\D/g,'');if(d.length>=45){let t=d.substring(18,24);let q=parseInt(d.substring(30,35));let hh=parseInt(t.substring(0,2));let mm=parseInt(t.substring(2,4));let ss=parseInt(t.substring(4,6));if(!isNaN(hh)&&!isNaN(mm)&&!isNaN(ss)){secs.push(hh*3600+mm*60+ss);}if(q===1)single++;}});secs.sort((a,b)=>a-b);let dur=secs.length?secs[secs.length-1]-secs[0]:0;return{id:Date.now()+Math.random(),file:file.name,count:lines.length,duration:dur,single:single};}
-function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!sevenResults.length){tbody.innerHTML='<tr><td colspan="6">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('sevenExcelBtn').disabled=true;return;}tbody.innerHTML='';sevenResults.forEach((r,i)=>{let tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${esc(r.file)}</td><td>${r.count.toLocaleString()}</td><td>${secToText(r.duration)}</td><td>${r.single.toLocaleString()}</td><td><button class="smallbtn" onclick="removeSevenItem('${r.id}')">삭제</button></td>`;tbody.appendChild(tr);});document.getElementById('sevenExcelBtn').disabled=false;}
+function analyzeSeven(file,text){
+  const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>0);
+  let secs=[],single=0,records=[];
+
+  lines.forEach(l=>{
+    let d=l.replace(/\D/g,'');
+    if(d.length>=45){
+      let t=d.substring(18,24);
+      let q=parseInt(d.substring(30,35),10);
+      let hh=parseInt(t.substring(0,2),10);
+      let mm=parseInt(t.substring(2,4),10);
+      let ss=parseInt(t.substring(4,6),10);
+      if(!isNaN(hh)&&!isNaN(mm)&&!isNaN(ss)&&hh>=0&&hh<24&&mm>=0&&mm<60&&ss>=0&&ss<60){
+        const sec=hh*3600+mm*60+ss;
+        secs.push(sec);
+        records.push({sec:sec,time:t});
+      }
+      if(q===1)single++;
+    }
+  });
+
+  let personCount=records.length?1:0;
+  let segments=[];
+  let segStart=records.length?records[0].sec:null;
+  let segEnd=segStart;
+  let prev=records.length?records[0].sec:null;
+  let segLineCount=records.length?1:0;
+
+  for(let i=1;i<records.length;i++){
+    const cur=records[i].sec;
+    if(cur<prev){
+      segments.push({start:segStart,end:segEnd,count:segLineCount});
+      personCount++;
+      segStart=cur;
+      segLineCount=1;
+    }else{
+      segLineCount++;
+    }
+    segEnd=cur;
+    prev=cur;
+  }
+  if(records.length){
+    segments.push({start:segStart,end:segEnd,count:segLineCount});
+  }
+
+  secs.sort((a,b)=>a-b);
+  let dur=secs.length?secs[secs.length-1]-secs[0]:0;
+  const segmentText=segments.map((s,i)=>`${i+1}인 ${secClock(s.start)}~${secClock(s.end)} (${secToText(Math.max(0,s.end-s.start))}, ${s.count.toLocaleString()}건)`).join(' / ');
+  return{id:Date.now()+Math.random(),file:file.name,count:lines.length,duration:dur,single:single,personCount:personCount,segments:segmentText};
+}
+function secClock(s){s=Math.max(0,Number(s)||0);let h=Math.floor(s/3600)%24;let m=Math.floor((s%3600)/60);let sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
+function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!sevenResults.length){tbody.innerHTML='<tr><td colspan="8">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('sevenExcelBtn').disabled=true;return;}tbody.innerHTML='';sevenResults.forEach((r,i)=>{let tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${esc(r.file)}</td><td>${r.count.toLocaleString()}</td><td>${secToText(r.duration)}</td><td>${r.single.toLocaleString()}</td><td>${(r.personCount||0).toLocaleString()}인</td><td>${esc(r.segments||'')}</td><td><button class="smallbtn" onclick="removeSevenItem('${r.id}')">삭제</button></td>`;tbody.appendChild(tr);});document.getElementById('sevenExcelBtn').disabled=false;}
 function removeSevenItem(id){sevenResults=sevenResults.filter(r=>r.id!=id);renderSeven();}
 function handleSevenFile(file){const reader=new FileReader();reader.onload=function(e){let res=analyzeSeven(file,e.target.result);sevenResults.push(res);renderSeven();};reader.readAsText(file);}
-document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
+document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single,'몇인실사':(r.personCount||0)+'인','구간':r.segments||''}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
 const GOOGLE_SCHEDULE_API_URL = "https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec";
 
 let latestGoogleScheduleSheetName = '주황색 탭';
