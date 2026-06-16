@@ -4819,3 +4819,87 @@ window.debugTeamScheduleDate = async function(dateStr){
   setTimeout(boot, 3000);
 })();
 </script>
+
+<script>
+/* RAVEBIC_RESTORE_ARCHIVE_ZIP_DOWNLOAD_20260616
+   아카이브 첨부파일 ZIP 다운로드 버튼 복구 전용 패치.
+   기존 레이아웃/페이지/일정/로그인 코드는 건드리지 않고 버튼만 보강합니다.
+*/
+(function(){
+  var ZIP_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
+
+  function findArchiveBox(){
+    return document.getElementById('rbcArchiveBox') ||
+      Array.from(document.querySelectorAll('div')).find(function(el){
+        return (el.innerText || '').indexOf('데이터 아카이브 관리') >= 0;
+      });
+  }
+
+  function findArchiveToolbar(box){
+    if(!box) return null;
+    var controls = box.querySelector('.rbc-archive-controls');
+    if(controls) return controls;
+
+    var divs = Array.from(box.querySelectorAll('div'));
+    for(var i=0;i<divs.length;i++){
+      var txt = divs[i].innerText || divs[i].textContent || '';
+      if(
+        txt.indexOf('아카이브 시뮬레이션') >= 0 ||
+        txt.indexOf('archive로 이동') >= 0 ||
+        txt.indexOf('영구삭제') >= 0 ||
+        txt.indexOf('로그 보기') >= 0
+      ){
+        return divs[i];
+      }
+    }
+    return box;
+  }
+
+  function restoreArchiveZipButton(){
+    var box = findArchiveBox();
+    if(!box) return;
+
+    var old = document.getElementById('rbcArchiveZipDownloadBtn');
+    if(old){
+      old.style.display = '';
+      return;
+    }
+
+    var btn = document.createElement('button');
+    btn.id = 'rbcArchiveZipDownloadBtn';
+    btn.type = 'button';
+    btn.className = 'rbc-archive-btn green';
+    btn.textContent = '아카이브 첨부파일 ZIP 다운로드';
+    btn.style.marginLeft = '6px';
+    btn.onclick = function(e){
+      if(e) e.preventDefault();
+      var log = document.getElementById('rbcArchiveLog');
+      if(log){
+        log.innerHTML = '서버에서 아카이브 첨부파일 ZIP 생성을 시작합니다.<br>다운로드가 바로 시작되지 않으면 새 창 로딩을 기다려주세요.';
+      }
+      window.open(ZIP_URL + '?t=' + Date.now(), '_blank');
+      return false;
+    };
+
+    var toolbar = findArchiveToolbar(box);
+    if(toolbar){
+      toolbar.appendChild(btn);
+    }else{
+      box.appendChild(btn);
+    }
+  }
+
+  window.rbcDownloadArchiveFilesZip = function(){
+    window.open(ZIP_URL + '?t=' + Date.now(), '_blank');
+  };
+
+  window.rbcEnsureArchiveZipButton = restoreArchiveZipButton;
+
+  document.addEventListener('DOMContentLoaded', restoreArchiveZipButton);
+  setTimeout(restoreArchiveZipButton, 200);
+  setTimeout(restoreArchiveZipButton, 800);
+  setTimeout(restoreArchiveZipButton, 2000);
+  setTimeout(restoreArchiveZipButton, 4000);
+})();
+</script>
+</body></html>
