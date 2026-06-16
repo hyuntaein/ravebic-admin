@@ -1011,7 +1011,7 @@ select.status-pending {
 <h2>이마트24 업로드파일 분석</h2>
 <div id="emartDrop" class="drop"><div><p><b>엑셀 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 파일을 한 번에 올리거나, 나중에 추가로 올려도 결과가 계속 누적됩니다.</p><input id="emartFileInput" type="file" multiple /></div></div>
 <div class="btns"><button id="emartDownloadBtn" class="green" disabled>결과 엑셀 다운로드</button><button id="emartCsvBtn" class="gray" disabled>CSV 다운로드</button><button id="emartResetBtn" class="red">전체 초기화</button></div>
-<div class="notice">기준: 점포명 = 파일명에서 확장자/괄호코드 제거 · 총건수 = 4번째 행부터의 데이터 행 수 · 총걸린시간 = 날짜시간값 중 최대값 - 최소값 · 실사수량1건수 = 실사수량 열에서 값이 1인 행 수 · 몇인실사 = 시간값이 이전 행보다 작아지는 지점마다 새 작업자 구간으로 계산</div>
+<div class="notice">기준: 점포명 = 파일명에서 확장자/괄호코드 제거 · 총건수 = 4번째 행부터의 데이터 행 수 · 총걸린시간 = 날짜시간값 중 최대값 - 최소값 · 실사수량1건수 = 실사수량 열에서 값이 1인 행 수</div>
 <div class="summary"><div class="box">파일 수<b id="emartSumFiles">0</b></div><div class="box">총건수 합계<b id="emartSumRows">0</b></div><div class="box">실사수량 1 합계<b id="emartSumOnes">0</b></div><div class="box">총걸린시간 합계<b id="emartSumTime">0초</b></div></div>
 <div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>점포명</th><th>총건수</th><th>총걸린시간</th><th>실사수량1건수</th><th>시작시간</th><th>종료시간</th><th>몇인실사</th><th>구간</th><th>비고</th><th>삭제</th></tr></thead><tbody id="emartTbody"><tr><td colspan="11">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
 </div>
@@ -1040,7 +1040,7 @@ select.status-pending {
 const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13",measurementId:"G-EEN6GM72JT"};
 firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const storage=firebase.storage();
 let allRows=[];let filtered=[];let currentPage=1;let pageSize=10;function dtOf(r){return r.submittedAt&&r.submittedAt.toDate?r.submittedAt.toDate():new Date(r.submittedAtText||r.date||0)}
-async function loadData(){document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr>';try{const snap=await db.collection('submissions').get();allRows=[];snap.forEach(d=>allRows.push({id:d.id,...d.data()}));allRows.sort((a,b)=>dtOf(b)-dtOf(a));document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';applyFilters();}catch(e){console.error(e);document.getElementById('conn').textContent='연결 실패';document.getElementById('tbody').innerHTML='<tr><td colspan="10">Firebase 연결 실패: '+e.message+'</td></tr>';}}
+async function loadData(){document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr>';try{const snap=await db.collection('submissions').get();allRows=[];snap.forEach(d=>{const row={id:d.id,...d.data()}; if(row.archived!==true) allRows.push(row);});allRows.sort((a,b)=>dtOf(b)-dtOf(a));document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';applyFilters();}catch(e){console.error(e);document.getElementById('conn').textContent='연결 실패';document.getElementById('tbody').innerHTML='<tr><td colspan="10">Firebase 연결 실패: '+e.message+'</td></tr>';}}
 function applyFilters(){currentPage=1;const q=document.getElementById('q').value.trim().toLowerCase();const from=document.getElementById('from').value;const to=document.getElementById('to').value;const region=document.getElementById('region').value;const brand=document.getElementById('brand').value;const work=document.getElementById('workType').value;filtered=allRows.filter(r=>{const text=((r.name||'')+' '+(r.store||'')+' '+(r.note||'')).toLowerCase();const d=dtOf(r);if(q&&!text.includes(q))return false;if(from&&d<new Date(from+'T00:00:00'))return false;if(to&&d>new Date(to+'T23:59:59'))return false;if(region&&r.region!==region)return false;if(brand&&r.brand!==brand)return false;if(work&&r.workType!==work)return false;return true;});render();}
 
 function safeJsonForAttr(obj){return encodeURIComponent(JSON.stringify(obj||{}));}
@@ -1360,19 +1360,18 @@ function showAnalyzer(which){document.getElementById('emartTool').classList.togg
 const emartResults=[];const emartDrop=document.getElementById('emartDrop'),emartInput=document.getElementById('emartFileInput'),emartTbody=document.getElementById('emartTbody');
 function cleanStoreName(name){return name.replace(/\.[^/.]+$/,'').replace(/\s*\(\s*\d+\s*\)\s*/g,' ').replace(/\s+/g,' ').trim();}function isEmpty(v){return v===undefined||v===null||String(v).trim()===''}function onlyDigits(v){return String(v??'').replace(/[^0-9]/g,'')}function parseDate14(v){const s=onlyDigits(v);if(!/^20\d{12}$/.test(s))return null;const y=+s.slice(0,4),m=+s.slice(4,6),d=+s.slice(6,8),h=+s.slice(8,10),mi=+s.slice(10,12),se=+s.slice(12,14);if(m<1||m>12||d<1||d>31||h>23||mi>59||se>59)return null;const dt=new Date(y,m-1,d,h,mi,se);if(dt.getFullYear()!==y||dt.getMonth()!==m-1||dt.getDate()!==d)return null;return dt;}function fmtDate(dt){if(!dt)return'';const p=n=>String(n).padStart(2,'0');return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;}function fmtDuration(ms){if(!isFinite(ms)||ms<0)return'0초';let sec=Math.floor(ms/1000),h=Math.floor(sec/3600);sec%=3600;let m=Math.floor(sec/60);sec%=60;const arr=[];if(h)arr.push(`${h}시간`);if(m)arr.push(`${m}분`);arr.push(`${sec}초`);return arr.join(' ');}function findHeaderCol(rows,keywords){const limit=Math.min(rows.length,12);for(let r=0;r<limit;r++)for(let c=0;c<(rows[r]||[]).length;c++){const text=String(rows[r][c]??'').replace(/\s/g,'');if(keywords.some(k=>text.includes(k)))return c;}return-1;}function guessTimeCol(dataRows){const scores={};dataRows.forEach(row=>row.forEach((v,c)=>{if(parseDate14(v))scores[c]=(scores[c]||0)+1;}));let best=-1,score=0;Object.keys(scores).forEach(c=>{if(scores[c]>score){score=scores[c];best=+c;}});return best;}function guessQtyCol(rows,dataRows){let col=findHeaderCol(rows,['실사수량','실사 수량']);if(col>=0)return col;col=findHeaderCol(rows,['수량']);if(col>=0)return col;let best=-1,bestScore=-1;const maxCols=Math.max(...dataRows.map(r=>r.length),0);for(let c=0;c<maxCols;c++){let ones=0,nums=0;for(const row of dataRows){const n=Number(String(row[c]??'').replace(/,/g,'').trim());if(!isNaN(n)){nums++;if(n===1)ones++;}}const score=ones*3+nums*0.05;if(ones>0&&score>bestScore){bestScore=score;best=c;}}return best;}
 function fmtDateShort(dt){if(!dt)return'';const p=n=>String(n).padStart(2,'0');return `${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;}function analyzeTimeSegments(records){if(!records||!records.length)return{personCount:0,segmentText:''};let personCount=1;let segments=[];let segStart=records[0].dt;let segEnd=records[0].dt;let prev=records[0].ms;let segCount=1;for(let i=1;i<records.length;i++){const cur=records[i].ms;if(cur<prev){segments.push({start:segStart,end:segEnd,count:segCount});personCount++;segStart=records[i].dt;segCount=1;}else{segCount++;}segEnd=records[i].dt;prev=cur;}segments.push({start:segStart,end:segEnd,count:segCount});const segmentText=segments.map((s,i)=>`${i+1}인 ${fmtDateShort(s.start)}~${fmtDateShort(s.end)} (${fmtDuration(Math.max(0,s.end-s.start))}, ${s.count.toLocaleString()}건)`).join(' / ');return{personCount:personCount,segmentText:segmentText};}
-async function analyzeEmartFile(file){const buffer=await file.arrayBuffer();let wb;try{wb=XLSX.read(buffer,{type:'array',cellDates:false});}catch(e){return{store:cleanStoreName(file.name),total:0,ones:0,durationMs:0,start:null,end:null,personCount:0,segments:'',note:'엑셀 파일을 읽지 못했습니다.'};}const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});const dataRows=rows.slice(3).filter(r=>r.some(v=>!isEmpty(v)));const timeCol=guessTimeCol(dataRows);const qtyCol=guessQtyCol(rows,dataRows);const times=[];const records=[];if(timeCol>=0)dataRows.forEach(r=>{const dt=parseDate14(r[timeCol]);if(dt){times.push(dt);records.push({dt:dt,ms:dt.getTime()});}});let start=null,end=null,durationMs=0;if(times.length){start=new Date(Math.min(...times));end=new Date(Math.max(...times));durationMs=end-start;}let ones=0;if(qtyCol>=0)dataRows.forEach(r=>{const n=Number(String(r[qtyCol]??'').replace(/,/g,'').trim());if(n===1)ones++;});const people=analyzeTimeSegments(records);const notes=[];if(timeCol<0)notes.push('날짜시간 열 자동 인식 실패');if(qtyCol<0)notes.push('실사수량 열 자동 인식 실패');return{store:cleanStoreName(file.name),total:dataRows.length,ones,durationMs,start,end,personCount:people.personCount,segments:people.segmentText,note:notes.join(' / ')};}
+async function analyzeEmartFile(file){const buffer=await file.arrayBuffer();let wb;try{wb=XLSX.read(buffer,{type:'array',cellDates:false});}catch(e){return{store:cleanStoreName(file.name),total:0,ones:0,durationMs:0,start:null,end:null,personCount:0,segments:'',note:'엑셀 파일을 읽지 못했습니다.'};}const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});const dataRows=rows.slice(3).filter(r=>r.some(v=>!isEmpty(v)));const timeCol=guessTimeCol(dataRows);const qtyCol=guessQtyCol(rows,dataRows);const times=[];const records=[];if(timeCol>=0)dataRows.forEach(r=>{const dt=parseDate14(r[timeCol]);if(dt){times.push(dt);records.push({dt:dt,ms:dt.getTime()});}});let start=null,end=null,durationMs=0;if(times.length){start=new Date(Math.min(...times));end=new Date(Math.max(...times));durationMs=end-start;}let ones=0;if(qtyCol>=0)dataRows.forEach(r=>{const n=Number(String(r[qtyCol]??'').replace(/,/g,'').trim());if(n===1)ones++;});const people=analyzeTimeSegments(records);const notes=[];if(timeCol<0)notes.push('날짜시간 열 자동 인식 실패');if(qtyCol<0)notes.push('실사수량 열 자동 인식 실패');return{store:cleanStoreName(file.name),total:dataRows.length,ones,durationMs,start,end,personCount:people.personCount,segments:people.segmentText,note:notes.join(' / ')}};
 async function handleEmartFiles(files){for(const file of files){const r=await analyzeEmartFile(file);emartResults.push(r);}renderEmart();}
 function renderEmart(){if(!emartResults.length){emartTbody.innerHTML='<tr><td colspan="11">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=true;}else{emartTbody.innerHTML=emartResults.map((r,i)=>`<tr><td>${i+1}</td><td class="store">${esc(r.store)}</td><td>${r.total.toLocaleString()}</td><td>${fmtDuration(r.durationMs)}</td><td>${r.ones.toLocaleString()}</td><td>${fmtDate(r.start)}</td><td>${fmtDate(r.end)}</td><td>${(r.personCount||0).toLocaleString()}인</td><td>${esc(r.segments||'')}</td><td class="err">${esc(r.note||'')}</td><td><button class="smallbtn" onclick="delEmartRow(${i})">삭제</button></td></tr>`).join('');document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=false;}document.getElementById('emartSumFiles').textContent=emartResults.length.toLocaleString();document.getElementById('emartSumRows').textContent=emartResults.reduce((a,b)=>a+b.total,0).toLocaleString();document.getElementById('emartSumOnes').textContent=emartResults.reduce((a,b)=>a+b.ones,0).toLocaleString();document.getElementById('emartSumTime').textContent=fmtDuration(emartResults.reduce((a,b)=>a+b.durationMs,0));}
 function delEmartRow(i){emartResults.splice(i,1);renderEmart();}
 function exportEmartXlsx(){const aoa=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','몇인실사','구간','비고']];emartResults.forEach((r,i)=>aoa.push([i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),(r.personCount||0)+'인',r.segments||'',r.note]));const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:6},{wch:28},{wch:12},{wch:18},{wch:16},{wch:22},{wch:22},{wch:10},{wch:60},{wch:28}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'재고조사요약');XLSX.writeFile(wb,'이마트24_재고조사_요약결과.xlsx');}
-function exportEmartCsv(){const lines=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','몇인실사','구간','비고'],...emartResults.map((r,i)=>[i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),(r.personCount||0)+'인',r.segments||'',r.note])];const csv='\uFEFF'+lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='이마트24_재고조사_요약결과.csv';a.click();URL.revokeObjectURL(a.href);}
+function exportEmartCsv(){const lines=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','몇인실사','구간','비고'],...emartResults.map((r,i)=>[i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),(r.personCount||0)+'인',r.segments||'',r.note])];const csv='﻿'+lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='이마트24_재고조사_요약결과.csv';a.click();URL.revokeObjectURL(a.href);}
 emartDrop.addEventListener('dragover',e=>{e.preventDefault();emartDrop.classList.add('drag')});emartDrop.addEventListener('dragleave',()=>emartDrop.classList.remove('drag'));emartDrop.addEventListener('drop',e=>{e.preventDefault();emartDrop.classList.remove('drag');handleEmartFiles(e.dataTransfer.files)});emartInput.addEventListener('change',e=>handleEmartFiles(e.target.files));document.getElementById('emartDownloadBtn').addEventListener('click',exportEmartXlsx);document.getElementById('emartCsvBtn').addEventListener('click',exportEmartCsv);document.getElementById('emartResetBtn').addEventListener('click',()=>{if(confirm('전체 결과를 초기화할까요?')){emartResults.length=0;emartInput.value='';renderEmart();}});
 
 let sevenResults=[];const sevenDrop=document.getElementById('sevenDrop');function secToText(s){let h=Math.floor(s/3600);let m=Math.floor((s%3600)/60);let sec=s%60;return(h>0?h+'시간 ':'')+m+'분 '+sec+'초';}
 function analyzeSeven(file,text){
-  const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>0);
+  const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>0);
   let secs=[],single=0,records=[];
-
   lines.forEach(l=>{
     let d=l.replace(/\D/g,'');
     if(d.length>=45){
@@ -1389,14 +1388,12 @@ function analyzeSeven(file,text){
       if(q===1)single++;
     }
   });
-
   let personCount=records.length?1:0;
   let segments=[];
   let segStart=records.length?records[0].sec:null;
   let segEnd=segStart;
   let prev=records.length?records[0].sec:null;
   let segLineCount=records.length?1:0;
-
   for(let i=1;i<records.length;i++){
     const cur=records[i].sec;
     if(cur<prev){
@@ -1413,14 +1410,13 @@ function analyzeSeven(file,text){
   if(records.length){
     segments.push({start:segStart,end:segEnd,count:segLineCount});
   }
-
   secs.sort((a,b)=>a-b);
   let dur=secs.length?secs[secs.length-1]-secs[0]:0;
   const segmentText=segments.map((s,i)=>`${i+1}인 ${secClock(s.start)}~${secClock(s.end)} (${secToText(Math.max(0,s.end-s.start))}, ${s.count.toLocaleString()}건)`).join(' / ');
   return{id:Date.now()+Math.random(),file:file.name,count:lines.length,duration:dur,single:single,personCount:personCount,segments:segmentText};
 }
-function secClock(s){s=Math.max(0,Number(s)||0);let h=Math.floor(s/3600)%24;let m=Math.floor((s%3600)/60);let sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
 function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!sevenResults.length){tbody.innerHTML='<tr><td colspan="8">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('sevenExcelBtn').disabled=true;return;}tbody.innerHTML='';sevenResults.forEach((r,i)=>{let tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${esc(r.file)}</td><td>${r.count.toLocaleString()}</td><td>${secToText(r.duration)}</td><td>${r.single.toLocaleString()}</td><td>${(r.personCount||0).toLocaleString()}인</td><td>${esc(r.segments||'')}</td><td><button class="smallbtn" onclick="removeSevenItem('${r.id}')">삭제</button></td>`;tbody.appendChild(tr);});document.getElementById('sevenExcelBtn').disabled=false;}
+function secClock(s){s=Math.max(0,Number(s)||0);let h=Math.floor(s/3600)%24;let m=Math.floor((s%3600)/60);let sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
 function removeSevenItem(id){sevenResults=sevenResults.filter(r=>r.id!=id);renderSeven();}
 function handleSevenFile(file){const reader=new FileReader();reader.onload=function(e){let res=analyzeSeven(file,e.target.result);sevenResults.push(res);renderSeven();};reader.readAsText(file);}
 document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single,'몇인실사':(r.personCount||0)+'인','구간':r.segments||''}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
@@ -3763,127 +3759,397 @@ window.debugTeamScheduleDate = async function(dateStr){
 
 
 
-<!-- RAVEBIC_FINAL_MERGE_PATCH_20260616_ANALYZER_PAGINATION_SERVERNOTICE -->
+<style>
+/* RAVEBIC_ARCHIVE_MANAGER_V1 */
+.rbc-archive-box{
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #bfdbfe;
+  background:#f8fbff;
+  border-radius:18px;
+}
+.rbc-archive-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.rbc-archive-head h2{margin:0;color:#123f7a;font-size:22px}
+.rbc-archive-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.rbc-archive-controls input{width:95px;max-width:100%}
+.rbc-archive-btn{background:#2563eb!important;color:#fff!important;border:0!important;border-radius:13px!important;padding:12px 15px!important;font-weight:900!important;cursor:pointer!important}
+.rbc-archive-btn.gray{background:#64748b!important}
+.rbc-archive-btn.green{background:#16a34a!important}
+.rbc-archive-btn.red{background:#b91c1c!important}
+.rbc-archive-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin:12px 0}
+.rbc-archive-card{background:#fff;border:1px solid #dbeafe;border-radius:14px;padding:12px;line-height:1.45}
+.rbc-archive-card b{display:block;color:#0b3b77;font-size:22px;margin-top:4px}
+.rbc-archive-log{margin-top:12px;max-height:230px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;font-size:13px;line-height:1.55}
+.rbc-archive-warn{margin-top:10px;padding:12px;border-radius:14px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-weight:800;line-height:1.5}
+@media(max-width:768px){.rbc-archive-controls{display:grid;grid-template-columns:1fr}.rbc-archive-controls input{width:100%}}
+</style>
+
+<div class="rbc-archive-box" id="rbcArchiveBox">
+  <div class="rbc-archive-head">
+    <h2>데이터 아카이브 관리</h2>
+    <button class="rbc-archive-btn gray" type="button" onclick="rbcToggleArchiveBox()">접기/펼치기</button>
+  </div>
+  <div id="rbcArchiveBody">
+    <div class="small" style="margin-top:8px;color:#64748b">
+      기준: submissions의 submittedAt 날짜가 지정 개월보다 오래된 자료를 archiveSubmissions로 복사하고, 원본은 archived:true로 표시해 제출목록에서 숨깁니다.
+    </div>
+    <div class="rbc-archive-controls">
+      <label style="font-weight:900">보관 기준</label>
+      <input id="rbcArchiveMonths" type="number" min="1" value="13">
+      <span class="small">개월 이전 자료</span>
+      <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
+      <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
+      <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
+      <button class="rbc-archive-btn gray" type="button" onclick="rbcLoadArchiveLogs()">로그 보기</button>
+    </div>
+    <div class="rbc-archive-warn">
+      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
+    </div>
+    <div id="rbcArchiveSummary" class="rbc-archive-summary">
+      <div class="rbc-archive-card">상태<b>대기</b></div>
+    </div>
+    <div id="rbcArchiveLog" class="rbc-archive-log">아직 실행 기록이 없습니다.</div>
+  </div>
+</div>
+
 <script>
+/* RAVEBIC_ARCHIVE_MANAGER_V1 */
 (function(){
-  if(window.__RAVEBIC_FINAL_MERGE_PATCH_20260616__) return;
-  window.__RAVEBIC_FINAL_MERGE_PATCH_20260616__ = true;
-
-  function rbcEsc(v){
-    if(typeof esc === 'function') return esc(v);
-    return String(v||'').replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});
-  }
-  function rbcDt(r){
-    if(typeof dtOf === 'function') return dtOf(r);
-    return r && r.submittedAt && r.submittedAt.toDate ? r.submittedAt.toDate() : new Date((r && (r.submittedAtText || r.date)) || 0);
-  }
-  function rbcSafeStoreKey(v){ return String(v||'미지정점포').trim() || '미지정점포'; }
-
-  window.render = function(){
-    var todayStr = new Date().toDateString();
-    var list = Array.isArray(filtered) ? filtered : [];
-
-    var totalEl=document.getElementById('total'); if(totalEl) totalEl.textContent=list.length;
-    var todayEl=document.getElementById('today'); if(todayEl) todayEl.textContent=list.filter(function(r){return rbcDt(r).toDateString()===todayStr;}).length;
-    var s0=document.getElementById('s0'); if(s0) s0.textContent=list.filter(function(r){return (r.status||'미확인')==='미확인';}).length;
-    var s1=document.getElementById('s1'); if(s1) s1.textContent=list.filter(function(r){return r.status==='확인완료';}).length;
-    var s2=document.getElementById('s2'); if(s2) s2.textContent=list.filter(function(r){return r.status==='보완요청';}).length;
-
-    var tb=document.getElementById('tbody');
-    if(!tb) return;
-
-    if(!list.length){
-      tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';
-      if(typeof updatePaginationControls==='function') updatePaginationControls(1,0);
-      return;
-    }
-
-    var groups={};
-    list.forEach(function(r){
-      var key=rbcSafeStoreKey(r.store);
-      if(!groups[key]) groups[key]=[];
-      groups[key].push(r);
+  function archiveEsc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
     });
+  }
 
-    var stores=Object.keys(groups).sort(function(a,b){
-      var aa=Math.max.apply(null, groups[a].map(function(x){return rbcDt(x).getTime();}));
-      var bb=Math.max.apply(null, groups[b].map(function(x){return rbcDt(x).getTime();}));
-      return bb-aa;
-    });
+  function archiveDt(r){
+    return r && r.submittedAt && r.submittedAt.toDate
+      ? r.submittedAt.toDate()
+      : new Date((r && (r.submittedAtText || r.date)) || 0);
+  }
 
-    pageSize = parseInt(pageSize,10) || 10;
-    var totalPages=Math.max(1, Math.ceil(stores.length / pageSize));
-    currentPage=Math.min(Math.max(1, parseInt(currentPage,10)||1), totalPages);
-    var pageStores=stores.slice((currentPage-1)*pageSize, currentPage*pageSize);
-    var html='';
-    window.__mergedFiles = {};
+  function archiveCutoffDate(){
+    const monthsEl=document.getElementById('rbcArchiveMonths');
+    const months=Math.max(1, parseInt(monthsEl && monthsEl.value, 10) || 13);
+    const d=new Date();
+    d.setMonth(d.getMonth()-months);
+    d.setHours(23,59,59,999);
+    return {months:months, cutoff:d};
+  }
 
-    pageStores.forEach(function(store,idx){
-      var globalIdx=(currentPage-1)*pageSize+idx;
-      var rows=groups[store].sort(function(a,b){return rbcDt(b)-rbcDt(a);});
-      var latestRow=rows[0] || {};
-      var latestTime=rbcDt(latestRow).toLocaleString();
-      var mergedFiles=[];
-      rows.forEach(function(r){
-        (r.files||[]).forEach(function(f){ mergedFiles.push({rowId:r.id,file:f}); });
+  function archiveYmd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+
+  function archiveFileStats(rows){
+    let fileCount=0;
+    let totalSize=0;
+    rows.forEach(function(r){
+      (r.files||[]).forEach(function(f){
+        fileCount++;
+        totalSize += Number(f.size || 0) || 0;
       });
-      window.__mergedFiles[globalIdx]=mergedFiles;
-      var status=latestRow.status || '미확인';
-      html += '<tr>'+
-        '<td>'+rbcEsc(latestTime)+'</td>'+
-        '<td>'+rbcEsc(latestRow.name)+'</td>'+
-        '<td><button onclick="if(typeof openStoreHistory===\'function\'){openStoreHistory(\''+rbcEsc(store)+'\')}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ '+rbcEsc(store)+'</button></td>'+
-        '<td>'+rbcEsc(latestRow.region)+'</td>'+
-        '<td>'+rbcEsc(latestRow.brand)+'</td>'+
-        '<td>'+rbcEsc(latestRow.workType)+'</td>'+
-        '<td><span class="rbc-merged-note">총 '+rows.length+'회 제출</span>'+(latestRow.note?'<div class="small">'+rbcEsc(latestRow.note)+'</div>':'')+'</td>'+
-        '<td><button class="file-view-btn" type="button" onclick="showMergedFiles('+globalIdx+')">📎 첨부파일 '+mergedFiles.length+'개</button></td>'+
-        '<td><select onchange="changeStatus(\''+rbcEsc(latestRow.id)+'\',this.value)">'+
-          '<option '+(status==='미확인'?'selected':'')+'>미확인</option>'+
-          '<option '+(status==='확인완료'?'selected':'')+'>확인완료</option>'+
-          '<option '+(status==='보완요청'?'selected':'')+'>보완요청</option>'+
-        '</select></td>'+
-        '<td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(\''+rbcEsc(latestRow.id)+'\')">제출삭제</button></td>'+
-      '</tr>';
     });
-
-    tb.innerHTML=html;
-    if(typeof updatePaginationControls==='function') updatePaginationControls(totalPages, stores.length);
-    if(typeof applyRavebicStatusColors==='function') setTimeout(applyRavebicStatusColors,30);
-  };
-
-  window.updatePaginationControls=function(totalPages,totalGroups){
-    totalPages=Math.max(1, Number(totalPages)||1);
-    var info=document.getElementById('pageInfo');
-    var prev=document.getElementById('prevPageBtn');
-    var next=document.getElementById('nextPageBtn');
-    if(info) info.textContent=currentPage+' / '+totalPages+' 페이지 · 총 '+(totalGroups==null?(filtered||[]).length:totalGroups)+'건 점포그룹';
-    if(prev) prev.disabled=currentPage<=1;
-    if(next) next.disabled=currentPage>=totalPages;
-  };
-  window.prevPage=function(){ if(currentPage>1){ currentPage--; render(); } };
-  window.nextPage=function(){
-    var groups={};
-    (filtered||[]).forEach(function(r){groups[rbcSafeStoreKey(r.store)]=1;});
-    var totalPages=Math.max(1, Math.ceil(Object.keys(groups).length/(parseInt(pageSize,10)||10)));
-    if(currentPage<totalPages){ currentPage++; render(); }
-  };
-  window.changePageSize=function(v){ pageSize=parseInt(v,10)||10; currentPage=1; render(); };
-
-  function addServerAutoNotice(){
-    var risk=document.getElementById('rbcRiskBox');
-    if(!risk || document.getElementById('rbcServerAutoCorrectionNotice')) return;
-    var div=document.createElement('div');
-    div.id='rbcServerAutoCorrectionNotice';
-    div.style.cssText='margin-top:10px;padding:12px;border:1px solid #93c5fd;background:#eff6ff;border-radius:14px;color:#1e3a8a;font-weight:800;line-height:1.5;';
-    div.innerHTML='서버 자동 보완요청은 Firebase Functions 예약작업으로 처리합니다. 관리자앱을 열어두지 않아도 매일 오후 9시 5분에 실행되도록 functions/index.js 배포가 필요합니다.';
-    risk.appendChild(div);
+    return {fileCount:fileCount,totalSize:totalSize};
   }
-  document.addEventListener('DOMContentLoaded',addServerAutoNotice);
-  setTimeout(addServerAutoNotice,500);
-  setTimeout(addServerAutoNotice,1500);
+
+  function archiveSizeText(bytes){
+    bytes=Number(bytes||0);
+    if(bytes>=1024*1024*1024) return (bytes/1024/1024/1024).toFixed(2)+' GB';
+    if(bytes>=1024*1024) return (bytes/1024/1024).toFixed(2)+' MB';
+    if(bytes>=1024) return (bytes/1024).toFixed(1)+' KB';
+    return bytes+' B';
+  }
+
+  async function archiveGetTargetRows(){
+    const c=archiveCutoffDate();
+    const snap=await db.collection('submissions').get();
+    const rows=[];
+    snap.forEach(function(doc){
+      const d=doc.data()||{};
+      const t=archiveDt(d);
+      if(d.archived === true) return;
+      if(!t || isNaN(t.getTime())) return;
+      if(t <= c.cutoff){
+        rows.push({id:doc.id,...d,__archiveDate:t});
+      }
+    });
+    rows.sort(function(a,b){return a.__archiveDate-b.__archiveDate;});
+    return {rows:rows, months:c.months, cutoff:c.cutoff};
+  }
+
+  function archiveRenderSummary(title, rows, cutoff){
+    const stats=archiveFileStats(rows);
+    const oldest=rows.length ? archiveYmd(rows[0].__archiveDate) : '-';
+    const newest=rows.length ? archiveYmd(rows[rows.length-1].__archiveDate) : '-';
+    const el=document.getElementById('rbcArchiveSummary');
+    if(!el) return;
+    el.innerHTML =
+      '<div class="rbc-archive-card">상태<b>'+archiveEsc(title)+'</b></div>'+ 
+      '<div class="rbc-archive-card">대상 제출자료<b>'+rows.length.toLocaleString()+'건</b></div>'+ 
+      '<div class="rbc-archive-card">첨부파일<b>'+stats.fileCount.toLocaleString()+'개</b></div>'+ 
+      '<div class="rbc-archive-card">예상 파일용량<b>'+archiveEsc(archiveSizeText(stats.totalSize))+'</b></div>'+ 
+      '<div class="rbc-archive-card">기준일<b>'+archiveEsc(archiveYmd(cutoff))+'</b></div>'+ 
+      '<div class="rbc-archive-card">대상 기간<b>'+archiveEsc(oldest+' ~ '+newest)+'</b></div>';
+  }
+
+  function archiveSetLog(html){
+    const el=document.getElementById('rbcArchiveLog');
+    if(el) el.innerHTML=html;
+  }
+
+  window.rbcToggleArchiveBox=function(){
+    const body=document.getElementById('rbcArchiveBody');
+    if(body) body.style.display = body.style.display==='none' ? 'block' : 'none';
+  };
+
+  window.rbcArchiveSimulation=async function(){
+    try{
+      archiveSetLog('시뮬레이션 계산 중...');
+      const res=await archiveGetTargetRows();
+      archiveRenderSummary('시뮬레이션 완료', res.rows, res.cutoff);
+      const sample=res.rows.slice(0,10).map(function(r){
+        return '- '+archiveEsc(archiveYmd(r.__archiveDate)+' / '+(r.name||'')+' / '+(r.store||'')+' / 첨부 '+((r.files||[]).length)+'개');
+      }).join('<br>');
+      archiveSetLog(
+        '<b>삭제/이동 없이 조회만 완료했습니다.</b><br>'+ 
+        '기준: '+res.months+'개월 이전 · '+archiveEsc(archiveYmd(res.cutoff))+' 이전 자료<br><br>'+ 
+        (sample || '대상 자료가 없습니다.')
+      );
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">시뮬레이션 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  window.rbcArchiveRun=async function(){
+    try{
+      const res=await archiveGetTargetRows();
+      archiveRenderSummary('이동 준비', res.rows, res.cutoff);
+      if(!res.rows.length){
+        archiveSetLog('아카이브 대상 자료가 없습니다.');
+        return;
+      }
+      if(!confirm(res.rows.length+'건을 archiveSubmissions로 복사하고 원본은 제출목록에서 숨길까요?\n\n파일 자체는 삭제하지 않습니다.')) return;
+
+      archiveSetLog('아카이브 실행 중... 창을 닫지 마세요.');
+      const runId='archive_'+new Date().toISOString().replace(/[:.]/g,'-');
+      let done=0;
+      let fail=0;
+      const errors=[];
+
+      for(const r of res.rows){
+        try{
+          const clean={...r};
+          delete clean.__archiveDate;
+          clean.originalSubmissionId=r.id;
+          clean.archivedAt=firebase.firestore.FieldValue.serverTimestamp();
+          clean.archivedAtText=new Date().toISOString();
+          clean.archiveRunId=runId;
+          clean.archiveCutoffText=res.cutoff.toISOString();
+          clean.archiveMonths=res.months;
+
+          await db.collection('archiveSubmissions').doc(r.id).set(clean,{merge:true});
+          await db.collection('submissions').doc(r.id).update({
+            archived:true,
+            archivedAt:firebase.firestore.FieldValue.serverTimestamp(),
+            archivedAtText:new Date().toISOString(),
+            archiveRunId:runId
+          });
+          done++;
+        }catch(err){
+          fail++;
+          errors.push(r.id+': '+(err.message||err));
+        }
+      }
+
+      const stats=archiveFileStats(res.rows);
+      await db.collection('archiveLogs').doc(runId).set({
+        runId:runId,
+        type:'archive_hide',
+        months:res.months,
+        cutoffText:res.cutoff.toISOString(),
+        targetCount:res.rows.length,
+        successCount:done,
+        failCount:fail,
+        fileCount:stats.fileCount,
+        totalFileSize:stats.totalSize,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText:new Date().toISOString(),
+        errors:errors.slice(0,20)
+      });
+
+      archiveRenderSummary('아카이브 완료', res.rows, res.cutoff);
+      archiveSetLog('완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      if(typeof loadData==='function') await loadData();
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">아카이브 실행 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  window.rbcArchivePermanentDelete=async function(){
+    try{
+      const c=archiveCutoffDate();
+      const snap=await db.collection('submissions').get();
+      const rows=[];
+      snap.forEach(function(doc){
+        const d=doc.data()||{};
+        const t=archiveDt(d);
+        if(d.archived === true && t && !isNaN(t.getTime()) && t <= c.cutoff){
+          rows.push({id:doc.id,...d,__archiveDate:t});
+        }
+      });
+
+      archiveRenderSummary('영구삭제 대상', rows, c.cutoff);
+      if(!rows.length){archiveSetLog('영구삭제 대상 원본이 없습니다.');return;}
+
+      const msg='숨김 처리된 원본 '+rows.length+'건을 영구삭제합니다.\n\n주의: submissions 원본 문서와 연결된 Storage 파일도 삭제됩니다. archiveSubmissions에는 기록만 남습니다.\n\n진행하려면 아래 문구를 정확히 입력하세요.\n\n영구삭제';
+      const typed=prompt(msg,'');
+      if(typed!=='영구삭제'){
+        archiveSetLog('영구삭제가 취소되었습니다.');
+        return;
+      }
+
+      archiveSetLog('영구삭제 실행 중... 창을 닫지 마세요.');
+      const runId='delete_archived_'+new Date().toISOString().replace(/[:.]/g,'-');
+      let docDeleted=0;
+      let fileDeleted=0;
+      let fail=0;
+      const errors=[];
+
+      for(const r of rows){
+        try{
+          for(const f of (r.files||[])){
+            try{
+              if(f && f.url){ await storage.refFromURL(f.url).delete(); fileDeleted++; }
+              else if(f && f.path){ await storage.ref(f.path).delete(); fileDeleted++; }
+            }catch(fe){
+              errors.push('file '+(f.path||f.name||'')+': '+(fe.message||fe));
+            }
+          }
+          await db.collection('submissions').doc(r.id).delete();
+          docDeleted++;
+        }catch(err){
+          fail++;
+          errors.push(r.id+': '+(err.message||err));
+        }
+      }
+
+      await db.collection('archiveLogs').doc(runId).set({
+        runId:runId,
+        type:'delete_archived_originals',
+        months:c.months,
+        cutoffText:c.cutoff.toISOString(),
+        targetCount:rows.length,
+        deletedDocumentCount:docDeleted,
+        deletedFileCount:fileDeleted,
+        failCount:fail,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText:new Date().toISOString(),
+        errors:errors.slice(0,30)
+      });
+
+      archiveSetLog('영구삭제 완료: 원본 문서 '+docDeleted+'건 · 파일 '+fileDeleted+'개 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      if(typeof loadData==='function') await loadData();
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">영구삭제 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  window.rbcLoadArchiveLogs=async function(){
+    try{
+      archiveSetLog('로그 불러오는 중...');
+      const snap=await db.collection('archiveLogs').get();
+      const rows=[];
+      snap.forEach(function(doc){rows.push({id:doc.id,...(doc.data()||{})});});
+      rows.sort(function(a,b){return new Date(b.createdAtText||0)-new Date(a.createdAtText||0);});
+      if(!rows.length){archiveSetLog('저장된 아카이브 로그가 없습니다.');return;}
+      archiveSetLog(rows.slice(0,20).map(function(r){
+        return '<div style="border-bottom:1px solid #e2e8f0;padding:8px 0">'+
+          '<b>'+archiveEsc(r.type||'-')+'</b> · '+archiveEsc(r.createdAtText||'-')+'<br>'+ 
+          '대상 '+Number(r.targetCount||0).toLocaleString()+'건 / 성공 '+Number(r.successCount||r.deletedDocumentCount||0).toLocaleString()+'건 / 실패 '+Number(r.failCount||0).toLocaleString()+'건 / 파일 '+Number(r.fileCount||r.deletedFileCount||0).toLocaleString()+'개<br>'+ 
+          '<span class="small">'+archiveEsc(r.runId||r.id)+'</span>'+ 
+        '</div>';
+      }).join(''));
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">로그 불러오기 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+  function placeArchiveBox(){
+    const wrap=document.querySelector('.wrap');
+    const box=document.getElementById('rbcArchiveBox');
+    const pin=document.querySelector('.pin-manager');
+    const monthly=document.getElementById('rbcMonthlyBox');
+    if(!wrap || !box) return;
+    if(pin && box.parentElement!==wrap){ wrap.insertBefore(box,pin); }
+    else if(monthly && box.parentElement!==wrap){ wrap.insertBefore(box,monthly.nextSibling); }
+    else if(box.parentElement!==wrap){ wrap.appendChild(box); }
+  }
+
+  const oldLoadData=window.loadData || loadData;
+  if(typeof oldLoadData==='function' && !window.rbcArchiveLoadDataWrapped){
+    window.rbcArchiveLoadDataWrapped=true;
+    window.loadData=async function(){
+      await oldLoadData.apply(this, arguments);
+      if(Array.isArray(window.allRows)){
+        window.allRows=window.allRows.filter(function(r){return r.archived!==true;});
+      }
+    };
+  }
+
+  if(typeof loadData==='function' && !window.rbcArchiveLocalLoadDataWrapped){
+    const originalLoadData=loadData;
+    loadData=async function(){
+      document.getElementById('tbody').innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr>';
+      try{
+        const snap=await db.collection('submissions').get();
+        allRows=[];
+        snap.forEach(function(d){
+          const row={id:d.id,...d.data()};
+          if(row.archived!==true) allRows.push(row);
+        });
+        allRows.sort(function(a,b){return dtOf(b)-dtOf(a);});
+        document.getElementById('conn').textContent='연결 성공 · '+allRows.length+'건';
+        applyFilters();
+      }catch(e){
+        console.error(e);
+        document.getElementById('conn').textContent='연결 실패';
+        document.getElementById('tbody').innerHTML='<tr><td colspan="10">Firebase 연결 실패: '+(e.message||e)+'</td></tr>';
+      }
+    };
+  }
+
+  const prevIsPage2Item=window.isPage2Item;
+  window.isPage2Item=function(el){
+    if(el && el.id==='rbcArchiveBox') return true;
+    if(typeof prevIsPage2Item==='function') return prevIsPage2Item(el);
+    return el && (el.id==='rbcAlertCenterBox'||el.id==='rbcRiskBox'||el.id==='rbcMonthlyBox'||el.id==='rbcScoreBox'||el.classList.contains('pin-manager'));
+  };
+
+  const prevShow=window.showRbcPage;
+  if(typeof prevShow==='function' && !window.rbcArchiveShowPageWrapped){
+    window.rbcArchiveShowPageWrapped=true;
+    window.showRbcPage=function(page){
+      placeArchiveBox();
+      prevShow(page);
+      const box=document.getElementById('rbcArchiveBox');
+      if(box) box.style.display=page===2?'':'none';
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){placeArchiveBox(); setTimeout(function(){if(typeof showRbcPage==='function') showRbcPage(1);},200);});
+  setTimeout(placeArchiveBox,500);
+  setTimeout(placeArchiveBox,1500);
 })();
 </script>
+
+
+
 <!-- RAVEBIC_RESTORE_OFFICE_LOGIN_AND_SCHEDULE_FINAL_V2 -->
 <style>
 /* RAVEBIC_RESTORE_OFFICE_LOGIN_AND_SCHEDULE_FINAL_V2 */
@@ -4206,4 +4472,718 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 
 </body></html>
+
+<!-- RAVEBIC_ULTRA_STABLE_FIX_20260616_PAGINATION_PAGE_SCHEDULE -->
+<script>
+(function(){
+  if(window.__RAVEBIC_ULTRA_STABLE_FIX_20260616__) return;
+  window.__RAVEBIC_ULTRA_STABLE_FIX_20260616__ = true;
+
+  function rbcEsc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+
+  function rbcDtOf(r){
+    if(typeof dtOf === 'function') return dtOf(r);
+    return r && r.submittedAt && r.submittedAt.toDate ? r.submittedAt.toDate() : new Date((r && (r.submittedAtText || r.date)) || 0);
+  }
+
+  function rbcFindSectionByTitle(title){
+    var sections = Array.from(document.querySelectorAll('.section'));
+    return sections.find(function(s){
+      var h = s.querySelector('h2');
+      return h && (h.textContent || '').indexOf(title) >= 0;
+    }) || null;
+  }
+
+  function rbcAlwaysVisible(el){
+    if(!el) return false;
+    return el.id === 'rbcPageTabs' ||
+      (el.classList && el.classList.contains('admin-main-title')) ||
+      (el.classList && el.classList.contains('admin-logout-btn')) ||
+      (el.classList && el.classList.contains('sub')) ||
+      el.id === 'conn' ||
+      (el.classList && el.classList.contains('cards'));
+  }
+
+  function rbcPage2Item(el){
+    if(!el) return false;
+    return el.id === 'rbcRiskBox' ||
+      el.id === 'rbcMonthlyBox' ||
+      el.id === 'rbcScoreBox' ||
+      el.id === 'rbcArchiveBox' ||
+      (el.classList && el.classList.contains('pin-manager'));
+  }
+
+  function rbcEnsureTabs(){
+    var wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+    var tabs = document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs = document.createElement('div');
+      tabs.id = 'rbcPageTabs';
+      tabs.className = 'rbc-page-tabs';
+      tabs.innerHTML =
+        '<button id="rbcPage1Btn" class="rbc-page-tab" type="button">페이지1 제출관리</button>' +
+        '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+      var title = wrap.querySelector('.admin-main-title');
+      var logout = wrap.querySelector('.admin-logout-btn');
+      if(logout && logout.nextSibling) wrap.insertBefore(tabs, logout.nextSibling);
+      else if(title && title.nextSibling) wrap.insertBefore(tabs, title.nextSibling);
+      else wrap.insertBefore(tabs, wrap.firstChild);
+    }
+
+    var p1 = document.getElementById('rbcPage1Btn');
+    var p2 = document.getElementById('rbcPage2Btn');
+
+    if(p1){
+      p1.onclick = function(e){
+        if(e) e.preventDefault();
+        window.__rbcCurrentPage = 1;
+        window.__rbcPage2LockUntil = 0;
+        window.showRbcPage(1, {manual:true});
+        return false;
+      };
+    }
+    if(p2){
+      p2.onclick = function(e){
+        if(e) e.preventDefault();
+        window.__rbcCurrentPage = 2;
+        window.__rbcPage2LockUntil = Date.now() + 60*60*1000;
+        window.showRbcPage(2, {manual:true});
+        return false;
+      };
+    }
+  }
+
+  function rbcStableOrder(){
+    var wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+
+    rbcEnsureTabs();
+
+    var tabs = document.getElementById('rbcPageTabs');
+    var alert = document.getElementById('rbcAlertCenterBox');
+    var team = document.getElementById('teamAnalysisBox');
+    var filters = document.querySelector('.filters');
+    var btns = Array.from(document.querySelectorAll('.btns')).find(function(b){
+      return b.querySelector('button[onclick*="applyFilters"]');
+    }) || document.querySelector('.filters + .btns');
+    var tbody = document.getElementById('tbody');
+    var tableWrap = tbody && tbody.closest('table') ? tbody.closest('table').parentElement : null;
+    var pagination = document.querySelector('.pagination-bar');
+    var schedule = rbcFindSectionByTitle('구글 일정 승인 시스템');
+    var upload = rbcFindSectionByTitle('업로드 파일 분석 도구');
+
+    if(tabs && alert) wrap.insertBefore(alert, tabs.nextSibling);
+    [team, filters, btns, tableWrap, pagination, schedule, upload].forEach(function(el){
+      if(el) wrap.appendChild(el);
+    });
+
+    ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox','rbcArchiveBox'].forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) wrap.appendChild(el);
+    });
+    var pin = document.querySelector('.pin-manager');
+    if(pin) wrap.appendChild(pin);
+  }
+
+  window.isPage2Item = rbcPage2Item;
+
+  window.showRbcPage = function(page, opts){
+    opts = opts || {};
+    page = Number(page) === 2 ? 2 : 1;
+
+    if(page === 1 && !opts.manual && window.__rbcCurrentPage === 2 && Date.now() < (window.__rbcPage2LockUntil || 0)){
+      page = 2;
+    }
+
+    window.__rbcCurrentPage = page;
+    if(page === 2 && opts.manual){
+      window.__rbcPage2LockUntil = Date.now() + 60*60*1000;
+    }
+
+    document.body.style.overflow = 'auto';
+    document.documentElement.style.overflow = 'auto';
+
+    rbcStableOrder();
+
+    var p1 = document.getElementById('rbcPage1Btn');
+    var p2 = document.getElementById('rbcPage2Btn');
+    if(p1) p1.classList.toggle('active', page === 1);
+    if(p2) p2.classList.toggle('active', page === 2);
+
+    var wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+
+    Array.from(wrap.children).forEach(function(el){
+      if(rbcAlwaysVisible(el)) return;
+      if(rbcPage2Item(el)){
+        el.style.display = page === 2 ? '' : 'none';
+      }else{
+        el.style.display = page === 1 ? '' : 'none';
+      }
+    });
+
+    var alert = document.getElementById('rbcAlertCenterBox');
+    if(alert) alert.style.display = page === 1 ? '' : 'none';
+
+    var schedule = rbcFindSectionByTitle('구글 일정 승인 시스템');
+    if(schedule) schedule.style.display = page === 1 ? '' : 'none';
+
+    var upload = rbcFindSectionByTitle('업로드 파일 분석 도구');
+    if(upload) upload.style.display = page === 1 ? '' : 'none';
+  };
+
+  window.updatePaginationControls = function(totalPages, totalGroups){
+    totalPages = Math.max(1, Number(totalPages || 1));
+    totalGroups = Number(totalGroups || (Array.isArray(window.filtered) ? window.filtered.length : 0));
+
+    var info = document.getElementById('pageInfo');
+    var prev = document.getElementById('prevPageBtn');
+    var next = document.getElementById('nextPageBtn');
+
+    if(currentPage > totalPages) currentPage = totalPages;
+    if(currentPage < 1) currentPage = 1;
+
+    if(info) info.textContent = currentPage + ' / ' + totalPages + ' 페이지 · 총 ' + totalGroups + '개 점포그룹';
+    if(prev) prev.disabled = currentPage <= 1;
+    if(next) next.disabled = currentPage >= totalPages;
+  };
+
+  window.prevPage = function(){
+    if(currentPage > 1){
+      currentPage--;
+      render();
+    }
+  };
+
+  window.nextPage = function(){
+    var groups = {};
+    (filtered || []).forEach(function(r){
+      var key = String(r.store || '미지정점포').trim();
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    });
+    var totalPages = Math.max(1, Math.ceil(Object.keys(groups).length / pageSize));
+    if(currentPage < totalPages){
+      currentPage++;
+      render();
+    }
+  };
+
+  window.changePageSize = function(v){
+    pageSize = parseInt(v, 10) || 10;
+    currentPage = 1;
+    var sel = document.getElementById('pageSizeSelect');
+    if(sel) sel.value = String(pageSize);
+    render();
+  };
+
+  window.render = function(){
+    var tb = document.getElementById('tbody');
+    if(!tb) return;
+
+    var todayStr = new Date().toDateString();
+    var totalEl = document.getElementById('total');
+    var todayEl = document.getElementById('today');
+    var s0 = document.getElementById('s0');
+    var s1 = document.getElementById('s1');
+    var s2 = document.getElementById('s2');
+
+    if(totalEl) totalEl.textContent = (filtered || []).length;
+    if(todayEl) todayEl.textContent = (filtered || []).filter(function(r){ return rbcDtOf(r).toDateString() === todayStr; }).length;
+    if(s0) s0.textContent = (filtered || []).filter(function(r){ return (r.status || '미확인') === '미확인'; }).length;
+    if(s1) s1.textContent = (filtered || []).filter(function(r){ return r.status === '확인완료'; }).length;
+    if(s2) s2.textContent = (filtered || []).filter(function(r){ return r.status === '보완요청'; }).length;
+
+    if(!(filtered || []).length){
+      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';
+      window.updatePaginationControls(1, 0);
+      return;
+    }
+
+    var groups = {};
+    (filtered || []).forEach(function(r){
+      var key = String(r.store || '미지정점포').trim();
+      if(!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    });
+
+    var stores = Object.keys(groups).sort(function(a,b){
+      var aa = Math.max.apply(null, groups[a].map(function(x){ return rbcDtOf(x).getTime(); }));
+      var bb = Math.max.apply(null, groups[b].map(function(x){ return rbcDtOf(x).getTime(); }));
+      return bb - aa;
+    });
+
+    pageSize = parseInt(pageSize, 10) || 10;
+    var totalPages = Math.max(1, Math.ceil(stores.length / pageSize));
+    if(currentPage > totalPages) currentPage = totalPages;
+    if(currentPage < 1) currentPage = 1;
+
+    var start = (currentPage - 1) * pageSize;
+    var pageStores = stores.slice(start, start + pageSize);
+    var html = '';
+    window.__mergedFiles = {};
+
+    pageStores.forEach(function(store, localIdx){
+      var globalIdx = start + localIdx;
+      var rows = groups[store].sort(function(a,b){ return rbcDtOf(b) - rbcDtOf(a); });
+      var latestRow = rows[0] || {};
+      var latestTime = rbcDtOf(latestRow).toLocaleString();
+      var mergedFiles = [];
+
+      rows.forEach(function(r){
+        (r.files || []).forEach(function(f){
+          mergedFiles.push({rowId:r.id, file:f});
+        });
+      });
+
+      window.__mergedFiles[globalIdx] = mergedFiles;
+
+      html +=
+        '<tr>' +
+          '<td>' + rbcEsc(latestTime) + '</td>' +
+          '<td>' + rbcEsc(latestRow.name) + '</td>' +
+          '<td><button type="button" onclick="if(typeof openStoreHistory===\'function\'){openStoreHistory(\'' + rbcEsc(store).replace(/'/g,'&#39;') + '\')}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ ' + rbcEsc(store) + '</button></td>' +
+          '<td>' + rbcEsc(latestRow.region) + '</td>' +
+          '<td>' + rbcEsc(latestRow.brand) + '</td>' +
+          '<td>' + rbcEsc(latestRow.workType) + '</td>' +
+          '<td><span class="rbc-merged-note">총 ' + rows.length + '회 제출</span>' + (latestRow.note ? '<div class="small">' + rbcEsc(latestRow.note) + '</div>' : '') + '</td>' +
+          '<td><button class="file-view-btn" type="button" onclick="showMergedFiles(' + globalIdx + ')">📎 첨부파일 ' + mergedFiles.length + '개</button></td>' +
+          '<td><select onchange="changeStatus(\'' + rbcEsc(latestRow.id) + '\',this.value)">' +
+            '<option ' + ((latestRow.status || '미확인') === '미확인' ? 'selected' : '') + '>미확인</option>' +
+            '<option ' + (latestRow.status === '확인완료' ? 'selected' : '') + '>확인완료</option>' +
+            '<option ' + (latestRow.status === '보완요청' ? 'selected' : '') + '>보완요청</option>' +
+          '</select></td>' +
+          '<td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(\'' + rbcEsc(latestRow.id) + '\')">제출삭제</button></td>' +
+        '</tr>';
+    });
+
+    tb.innerHTML = html;
+    window.updatePaginationControls(totalPages, stores.length);
+
+    if(typeof applyRavebicStatusColors === 'function'){
+      setTimeout(applyRavebicStatusColors, 30);
+      setTimeout(applyRavebicStatusColors, 250);
+      setTimeout(applyRavebicStatusColors, 700);
+    }
+    if(typeof bindStoreHistoryClick === 'function'){
+      setTimeout(bindStoreHistoryClick, 80);
+    }
+  };
+
+  async function rbcTodayScheduleCount(){
+    try{
+      if(typeof db === 'undefined') return 0;
+      var d = new Date();
+      var ymd = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+      var snap = await db.collection('teamSchedules').where('scheduleDate','==',ymd).get();
+      return snap.size || 0;
+    }catch(e){
+      return 0;
+    }
+  }
+
+  var oldImport = window.rbcImportGoogleScheduleRowsFromAppsScript;
+  window.rbcImportGoogleScheduleRowsFromAppsScript = async function(){
+    var result = null;
+    if(typeof oldImport === 'function'){
+      result = await oldImport();
+      if(result && result.ok) return result;
+    }
+
+    var existing = await rbcTodayScheduleCount();
+    if(existing > 0){
+      return {ok:true, count:existing, message:'이미 오늘 일정이 Firestore에 반영되어 있어 기존 일정으로 계속 진행합니다.'};
+    }
+
+    return result || {ok:false, count:0, message:'Firebase Function 호출 실패'};
+  };
+
+  var oldApprove = window.approveGoogleSchedule;
+  window.approveGoogleSchedule = async function(){
+    var status = document.getElementById('googleScheduleStatus');
+    var info = document.getElementById('lastApprovedInfo');
+    var approver = window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '관리자';
+
+    try{
+      if(status) status.textContent = '일정 승인 저장 및 서버 자동반영 확인 중...';
+
+      if(typeof db !== 'undefined'){
+        await db.collection('settings').doc('approvedSchedule').set({
+          approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          approvedAtText: new Date().toISOString(),
+          approvedBy: approver,
+          source: 'admin_ultra_stable_fix_20260616'
+        }, {merge:true});
+      }
+
+      var result = await window.rbcImportGoogleScheduleRowsFromAppsScript();
+      if(!result || !result.ok) throw new Error((result && result.message) || '자동반영 실패');
+
+      if(info) info.innerHTML = '마지막 승인: ' + new Date().toLocaleString() + '<br>승인자: ' + rbcEsc(approver) + '<br>분석 일정 반영: ' + Number(result.count || 0) + '건';
+      if(status) status.textContent = '승인 완료 · 분석 일정 ' + Number(result.count || 0) + '건 확인';
+
+      if(typeof loadApprovedInfo === 'function') loadApprovedInfo();
+      if(typeof loadTeamScheduleAnalysis === 'function') await loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+      if(typeof rbcLoadScore === 'function') rbcLoadScore();
+
+      alert('직원용 일정 승인 저장 및 분석표 반영 확인 완료\n\nteamSchedules ' + Number(result.count || 0) + '건 확인했습니다.');
+    }catch(e){
+      var existing = await rbcTodayScheduleCount();
+      if(existing > 0){
+        if(info) info.innerHTML = '마지막 승인: ' + new Date().toLocaleString() + '<br>승인자: ' + rbcEsc(approver) + '<br>기존 반영 일정: ' + existing + '건';
+        if(status) status.textContent = '새로 불러오기는 실패했지만 기존 반영 일정 ' + existing + '건 사용 중';
+        if(typeof loadTeamScheduleAnalysis === 'function') await loadTeamScheduleAnalysis();
+        alert('새로 불러오기는 실패했지만, 오늘 일정은 이미 반영되어 있습니다.\n\n기존 teamSchedules ' + existing + '건으로 계속 사용합니다.');
+        return;
+      }
+
+      if(typeof oldApprove === 'function'){
+        return oldApprove();
+      }
+
+      alert('일정 자동반영 실패:\n\n' + (e.message || e) + '\n\n다음 확인: Functions > importGoogleScheduleToFirestore > 로그');
+    }
+  };
+
+  function boot(){
+    rbcStableOrder();
+    var sel = document.getElementById('pageSizeSelect');
+    if(sel) sel.value = String(pageSize || 10);
+    window.showRbcPage(window.__rbcCurrentPage || 1);
+    if(typeof render === 'function') render();
+    if(typeof window.rbcEnsureArchiveZipButton === 'function') window.rbcEnsureArchiveZipButton();
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 50); });
+  setTimeout(boot, 300);
+  setTimeout(boot, 1200);
+  setTimeout(boot, 3000);
+})();
+</script>
+
+<script>
+/* RAVEBIC_RESTORE_ARCHIVE_ZIP_DOWNLOAD_20260616
+   아카이브 첨부파일 ZIP 다운로드 버튼 복구 전용 패치.
+   기존 레이아웃/페이지/일정/로그인 코드는 건드리지 않고 버튼만 보강합니다.
+*/
+(function(){
+  var ZIP_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
+
+  function findArchiveBox(){
+    return document.getElementById('rbcArchiveBox') ||
+      Array.from(document.querySelectorAll('div')).find(function(el){
+        return (el.innerText || '').indexOf('데이터 아카이브 관리') >= 0;
+      });
+  }
+
+  function findArchiveToolbar(box){
+    if(!box) return null;
+    var controls = box.querySelector('.rbc-archive-controls');
+    if(controls) return controls;
+
+    var divs = Array.from(box.querySelectorAll('div'));
+    for(var i=0;i<divs.length;i++){
+      var txt = divs[i].innerText || divs[i].textContent || '';
+      if(
+        txt.indexOf('아카이브 시뮬레이션') >= 0 ||
+        txt.indexOf('archive로 이동') >= 0 ||
+        txt.indexOf('영구삭제') >= 0 ||
+        txt.indexOf('로그 보기') >= 0
+      ){
+        return divs[i];
+      }
+    }
+    return box;
+  }
+
+  function restoreArchiveZipButton(){
+    var box = findArchiveBox();
+    if(!box) return;
+
+    var old = document.getElementById('rbcArchiveZipDownloadBtn');
+    if(old){
+      old.style.display = '';
+      return;
+    }
+
+    var btn = document.createElement('button');
+    btn.id = 'rbcArchiveZipDownloadBtn';
+    btn.type = 'button';
+    btn.className = 'rbc-archive-btn green';
+    btn.textContent = '아카이브 첨부파일 ZIP 다운로드';
+    btn.style.marginLeft = '6px';
+    btn.onclick = function(e){
+      if(e) e.preventDefault();
+      var log = document.getElementById('rbcArchiveLog');
+      if(log){
+        log.innerHTML = '서버에서 아카이브 첨부파일 ZIP 생성을 시작합니다.<br>다운로드가 바로 시작되지 않으면 새 창 로딩을 기다려주세요.';
+      }
+      window.open(ZIP_URL + '?t=' + Date.now(), '_blank');
+      return false;
+    };
+
+    var toolbar = findArchiveToolbar(box);
+    if(toolbar){
+      toolbar.appendChild(btn);
+    }else{
+      box.appendChild(btn);
+    }
+  }
+
+  window.rbcDownloadArchiveFilesZip = function(){
+    window.open(ZIP_URL + '?t=' + Date.now(), '_blank');
+  };
+
+  window.rbcEnsureArchiveZipButton = restoreArchiveZipButton;
+
+  document.addEventListener('DOMContentLoaded', restoreArchiveZipButton);
+  setTimeout(restoreArchiveZipButton, 200);
+  setTimeout(restoreArchiveZipButton, 800);
+  setTimeout(restoreArchiveZipButton, 2000);
+  setTimeout(restoreArchiveZipButton, 4000);
+})();
+</script>
+
+<!-- RAVEBIC_FINAL_PAGE1_ALERT_PAGE2_ARCHIVE_RESTORE_20260616 -->
+<style>
+/* 관리자 알림센터는 페이지1 상단 고정, 백업기능은 페이지2 복구 */
+#rbcArchiveBackupBox{
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #d7e6fb;
+  background:#f8fbff;
+  border-radius:18px;
+}
+#rbcArchiveBackupBox h2{
+  margin:0 0 8px;
+  color:#123f7a;
+  font-size:21px;
+}
+.rbc-archive-row{
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  margin:14px 0;
+}
+.rbc-archive-status{
+  margin-top:10px;
+  padding:11px 13px;
+  border:1px solid #cfe0f8;
+  background:#fff;
+  border-radius:13px;
+  color:#0b3b77;
+  font-weight:800;
+  line-height:1.5;
+}
+</style>
+
+<script>
+(function(){
+  if(window.__RAVEBIC_FINAL_PAGE1_ALERT_PAGE2_ARCHIVE_RESTORE_20260616__) return;
+  window.__RAVEBIC_FINAL_PAGE1_ALERT_PAGE2_ARCHIVE_RESTORE_20260616__ = true;
+
+  const ARCHIVE_ZIP_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
+
+  function createArchiveBackupBox(){
+    if(document.getElementById('rbcArchiveBackupBox')) return document.getElementById('rbcArchiveBackupBox');
+
+    const box = document.createElement('div');
+    box.id = 'rbcArchiveBackupBox';
+    box.className = 'rbc-page2-only';
+    box.innerHTML =
+      '<h2>데이터 아카이브 관리</h2>' +
+      '<div class="notice">' +
+        '서버에 보관된 ARCHIVE 제출자료의 첨부파일을 ZIP으로 묶어 내 컴퓨터로 다운로드합니다. ' +
+        '관리자앱을 열지 않아도 밤 9시 자동 보완요청은 Firebase Functions에서 별도로 실행됩니다.' +
+      '</div>' +
+      '<div class="rbc-archive-row">' +
+        '<button class="green" type="button" onclick="rbcDownloadArchiveZip()">ARCHIVE 첨부파일 ZIP 다운로드</button>' +
+        '<button class="gray" type="button" onclick="rbcOpenFirebaseFunctionsHelp()">Functions 확인 안내</button>' +
+      '</div>' +
+      '<div id="rbcArchiveBackupStatus" class="rbc-archive-status">' +
+        'ZIP 다운로드 버튼을 누르면 새 창에서 다운로드가 시작됩니다.' +
+      '</div>';
+
+    return box;
+  }
+
+  window.rbcDownloadArchiveZip = function(){
+    const status = document.getElementById('rbcArchiveBackupStatus');
+    if(status){
+      status.innerHTML = 'ARCHIVE 첨부파일 ZIP 다운로드를 시작했습니다.<br>브라우저가 팝업을 막으면 새 창 허용 후 다시 눌러주세요.';
+    }
+    window.open(ARCHIVE_ZIP_URL, '_blank');
+  };
+
+  window.rbcOpenFirebaseFunctionsHelp = function(){
+    const status = document.getElementById('rbcArchiveBackupStatus');
+    if(status){
+      status.innerHTML =
+        'Firebase Console → Functions에서 아래 함수가 보이면 정상입니다.<br>' +
+        '1) downloadArchiveFilesZip<br>' +
+        '2) autoSendCorrectionRequestsAtNight<br>' +
+        '3) importGoogleScheduleToFirestore';
+    }
+  };
+
+  function placeArchiveBox(){
+    const wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+
+    const box = createArchiveBackupBox();
+    if(!box.parentNode){
+      const pin = document.querySelector('.pin-manager');
+      const score = document.getElementById('rbcScoreBox');
+      const monthly = document.getElementById('rbcMonthlyBox');
+
+      if(pin && pin.parentNode){
+        pin.parentNode.insertBefore(box, pin);
+      }else if(score && score.parentNode){
+        score.parentNode.insertBefore(box, score);
+      }else if(monthly && monthly.parentNode){
+        monthly.parentNode.insertBefore(box, monthly.nextSibling);
+      }else{
+        wrap.appendChild(box);
+      }
+    }
+  }
+
+  function moveAlertCenterToPage1Top(){
+    const wrap = document.querySelector('.wrap');
+    const alert = document.getElementById('rbcAlertCenterBox');
+    if(!wrap || !alert) return;
+
+    const tabs = document.getElementById('rbcPageTabs');
+    const logout = wrap.querySelector('.admin-logout-btn');
+    const title = wrap.querySelector('.admin-main-title');
+
+    if(tabs && tabs.nextSibling){
+      wrap.insertBefore(alert, tabs.nextSibling);
+    }else if(logout && logout.nextSibling){
+      wrap.insertBefore(alert, logout.nextSibling);
+    }else if(title && title.nextSibling){
+      wrap.insertBefore(alert, title.nextSibling);
+    }else{
+      wrap.insertBefore(alert, wrap.firstChild);
+    }
+
+    alert.style.display = '';
+  }
+
+  function makeTabs(){
+    let tabs = document.getElementById('rbcPageTabs');
+    const cards = document.querySelector('.cards');
+    const wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+
+    if(!tabs){
+      tabs = document.createElement('div');
+      tabs.id = 'rbcPageTabs';
+      tabs.className = 'rbc-page-tabs';
+      tabs.innerHTML =
+        '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>' +
+        '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+      if(cards && cards.nextSibling) cards.parentNode.insertBefore(tabs, cards.nextSibling);
+      else wrap.insertBefore(tabs, wrap.firstChild);
+    }
+
+    const b1 = document.getElementById('rbcPage1Btn');
+    const b2 = document.getElementById('rbcPage2Btn');
+    if(b1) b1.onclick = function(){ window.showRbcPage(1); };
+    if(b2) b2.onclick = function(){ window.showRbcPage(2); };
+  }
+
+  function isAlwaysVisible(el){
+    return !!(
+      el &&
+      (
+        el.id === 'rbcPageTabs' ||
+        el.classList.contains('admin-main-title') ||
+        el.classList.contains('admin-logout-btn') ||
+        el.classList.contains('sub') ||
+        el.id === 'conn' ||
+        el.classList.contains('cards')
+      )
+    );
+  }
+
+  function isPage2Only(el){
+    return !!(
+      el &&
+      (
+        el.id === 'rbcArchiveBackupBox' ||
+        el.id === 'rbcRiskBox' ||
+        el.id === 'rbcMonthlyBox' ||
+        el.id === 'rbcScoreBox' ||
+        el.classList.contains('pin-manager')
+      )
+    );
+  }
+
+  window.showRbcPage = function(page){
+    const wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+
+    makeTabs();
+    placeArchiveBox();
+    moveAlertCenterToPage1Top();
+
+    const p1 = document.getElementById('rbcPage1Btn');
+    const p2 = document.getElementById('rbcPage2Btn');
+
+    if(p1) p1.classList.toggle('active', page === 1);
+    if(p2) p2.classList.toggle('active', page === 2);
+
+    Array.from(wrap.children).forEach(function(el){
+      if(isAlwaysVisible(el)) return;
+
+      if(el.id === 'rbcAlertCenterBox'){
+        el.style.display = page === 1 ? '' : 'none';
+        return;
+      }
+
+      if(isPage2Only(el)){
+        el.style.display = page === 2 ? '' : 'none';
+      }else{
+        el.style.display = page === 1 ? '' : 'none';
+      }
+    });
+
+    if(page === 1){
+      moveAlertCenterToPage1Top();
+      if(typeof rbcLoadAlertCenter === 'function'){
+        setTimeout(rbcLoadAlertCenter, 200);
+      }
+    }
+
+    try{ sessionStorage.setItem('ravebicAdminCurrentPage', String(page)); }catch(e){}
+  };
+
+  function initFinalPageFix(){
+    makeTabs();
+    placeArchiveBox();
+    moveAlertCenterToPage1Top();
+
+    let page = 1;
+    try{
+      page = Number(sessionStorage.getItem('ravebicAdminCurrentPage') || '1') || 1;
+    }catch(e){}
+
+    window.showRbcPage(page === 2 ? 2 : 1);
+  }
+
+  document.addEventListener('DOMContentLoaded', initFinalPageFix);
+  setTimeout(initFinalPageFix, 200);
+  setTimeout(initFinalPageFix, 700);
+  setTimeout(initFinalPageFix, 1500);
+  setTimeout(initFinalPageFix, 3000);
+})();
+</script>
+
 </body></html>
