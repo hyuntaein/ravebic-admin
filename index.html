@@ -5309,7 +5309,6 @@ window.debugTeamScheduleDate = async function(dateStr){
     ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox','rbcArchiveBox'].forEach(function(id){var el=document.getElementById(id); if(el) arr.push(el);});
     var schedule=byText('구글 일정 승인 시스템'); if(schedule) arr.push(schedule);
     var pin=document.querySelector('.pin-manager'); if(pin) arr.push(pin);
-    var upload=byText('업로드 파일 분석 도구'); if(upload) arr.push(upload);
     return Array.from(new Set(arr)).filter(Boolean);
   }
   function isAlways(el){
@@ -5346,7 +5345,6 @@ window.debugTeamScheduleDate = async function(dateStr){
     ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox'].forEach(function(id){var el=document.getElementById(id); if(el) w.appendChild(el);});
     var schedule=byText('구글 일정 승인 시스템'); if(schedule) w.appendChild(schedule);
     var pin=document.querySelector('.pin-manager'); if(pin) w.appendChild(pin);
-    var upload=byText('업로드 파일 분석 도구'); if(upload) w.appendChild(upload);
     var archive=document.getElementById('rbcArchiveBox'); if(archive) w.appendChild(archive);
     removeArchiveDupes();
   }
@@ -5492,12 +5490,56 @@ window.debugTeamScheduleDate = async function(dateStr){
   setTimeout(init,100);
   setTimeout(init,800);
   setTimeout(init,2000);
+  // 페이지2 스크롤 중 레이아웃을 계속 재배치하면 화면이 위로 튀므로 반복 재배치는 하지 않습니다.
+  // 필요한 경우 탭 클릭/초기 로딩 때만 setPage가 실행됩니다.
   setInterval(function(){
-    currentPage=(sessionStorage.getItem(RBC_PAGE_KEY)==='2'||window.__rbcCurrentPage===2)?2:1;
-    orderLayout();
-    setPage(currentPage,false);
-  },1500);
+    var wanted=(sessionStorage.getItem(RBC_PAGE_KEY)==='2'||window.__rbcCurrentPage===2)?2:1;
+    if(wanted!==currentPage){
+      setPage(wanted,false);
+    }
+  },5000);
 })();
 </script>
 
+
+
+<!-- RAVEBIC_PAGE1_UPLOAD_AND_PAGE2_SCROLL_FIX_20260616 -->
+<script>
+(function(){
+  function byText(txt){
+    return Array.from(document.querySelectorAll('.section')).find(function(el){
+      return (el.innerText||'').indexOf(txt)>=0;
+    });
+  }
+  function ensureUploadIsPage1(){
+    var wrap=document.querySelector('.wrap');
+    var upload=byText('업로드 파일 분석 도구');
+    var schedule=byText('구글 일정 승인 시스템');
+    if(wrap && upload && schedule && upload.parentElement===wrap){
+      // 구글 일정 승인 시스템 바로 뒤, 페이지1 맨 아래 쪽에 고정
+      if(schedule.nextSibling!==upload){
+        wrap.insertBefore(upload, schedule.nextSibling);
+      }
+    }
+  }
+  var prevShow=window.showRbcPage;
+  window.showRbcPage=function(page){
+    var x=window.scrollX, y=window.scrollY;
+    if(typeof prevShow==='function') prevShow(page);
+    ensureUploadIsPage1();
+    var upload=byText('업로드 파일 분석 도구');
+    if(upload) upload.style.display = (Number(page)===2) ? 'none' : '';
+    // 페이지2에서 내부 패치가 재실행되어도 스크롤 위치를 보존
+    if(Number(page)===2){
+      setTimeout(function(){ try{ window.scrollTo(x,y); }catch(e){} },0);
+    }
+  };
+  document.addEventListener('DOMContentLoaded', function(){
+    ensureUploadIsPage1();
+    if(typeof window.showRbcPage==='function') window.showRbcPage(window.__rbcCurrentPage||1);
+  });
+  setTimeout(ensureUploadIsPage1,500);
+  setTimeout(ensureUploadIsPage1,1500);
+})();
+</script>
 </body></html>
