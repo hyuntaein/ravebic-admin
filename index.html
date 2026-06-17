@@ -5041,7 +5041,7 @@ window.debugTeamScheduleDate = async function(dateStr){
   setTimeout(init,200);
   setTimeout(init,800);
   setTimeout(init,1800);
-  setInterval(function(){forceOrder(); window.showRbcPage(RBC_PAGE);},2500);
+  /* disabled: old interval caused page/scroll jumping */
 })();
 </script>
 
@@ -5274,6 +5274,78 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+
+<!-- RAVEBIC_FINAL_SCROLL_STABILITY_PATCH_20260617 -->
+<style>
+/* 최종 스크롤 안정화: 로그인 해제 후 페이지1/페이지2 모두 세로 스크롤 허용 */
+html, body{
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  height:auto !important;
+  min-height:100% !important;
+  position:static !important;
+}
+.wrap{
+  overflow:visible !important;
+  height:auto !important;
+  min-height:auto !important;
+}
+#adminLockScreen{
+  overflow:auto !important;
+}
+</style>
+<script>
+(function(){
+  if(window.__RAVEBIC_FINAL_SCROLL_STABILITY_PATCH_20260617__) return;
+  window.__RAVEBIC_FINAL_SCROLL_STABILITY_PATCH_20260617__ = true;
+
+  function unlockScroll(){
+    document.documentElement.style.overflowY = 'auto';
+    document.documentElement.style.overflowX = 'hidden';
+    document.documentElement.style.height = 'auto';
+    document.body.style.overflowY = 'auto';
+    document.body.style.overflowX = 'hidden';
+    document.body.style.height = 'auto';
+    document.body.style.position = 'static';
+    var w = document.querySelector('.wrap');
+    if(w){
+      w.style.overflow = 'visible';
+      w.style.height = 'auto';
+      w.style.minHeight = 'auto';
+    }
+  }
+
+  var prevShow = window.showRbcPage;
+  if(typeof prevShow === 'function'){
+    window.showRbcPage = function(page, opts){
+      unlockScroll();
+      var result = prevShow.apply(this, arguments);
+      unlockScroll();
+      setTimeout(unlockScroll, 50);
+      setTimeout(unlockScroll, 300);
+      return result;
+    };
+  }
+
+  var prevUnlock = window.unlockAdminPage;
+  if(typeof prevUnlock === 'function'){
+    window.unlockAdminPage = function(){
+      var result = prevUnlock.apply(this, arguments);
+      unlockScroll();
+      setTimeout(unlockScroll, 100);
+      return result;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', unlockScroll);
+  document.addEventListener('click', function(){ setTimeout(unlockScroll, 80); });
+  setTimeout(unlockScroll, 100);
+  setTimeout(unlockScroll, 500);
+  setTimeout(unlockScroll, 1500);
+  setInterval(unlockScroll, 3000);
+})();
+</script>
 </body></html>
 
 <!-- RAVEBIC_FINAL_OFFICE_LOGIN_LAYOUT_LOCK_20260617_V3 -->
