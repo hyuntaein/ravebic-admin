@@ -1013,14 +1013,14 @@ select.status-pending {
 <div class="btns"><button id="emartDownloadBtn" class="green" disabled>결과 엑셀 다운로드</button><button id="emartCsvBtn" class="gray" disabled>CSV 다운로드</button><button id="emartResetBtn" class="red">전체 초기화</button></div>
 <div class="notice">기준: 점포명 = 파일명에서 확장자/괄호코드 제거 · 총건수 = 4번째 행부터의 데이터 행 수 · 총걸린시간 = 날짜시간값 중 최대값 - 최소값 · 실사수량1건수 = 실사수량 열에서 값이 1인 행 수</div>
 <div class="summary"><div class="box">파일 수<b id="emartSumFiles">0</b></div><div class="box">총건수 합계<b id="emartSumRows">0</b></div><div class="box">실사수량 1 합계<b id="emartSumOnes">0</b></div><div class="box">총걸린시간 합계<b id="emartSumTime">0초</b></div></div>
-<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>점포명</th><th>총건수</th><th>총걸린시간</th><th>실사수량1건수</th><th>시작시간</th><th>종료시간</th><th>몇인실사</th><th>구간</th><th>비고</th><th>삭제</th></tr></thead><tbody id="emartTbody"><tr><td colspan="11">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
+<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>점포명</th><th>총건수</th><th>총걸린시간</th><th>실사수량1건수</th><th>시작시간</th><th>종료시간</th><th>비고</th><th>삭제</th></tr></thead><tbody id="emartTbody"><tr><td colspan="9">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
 </div>
 
 <div id="sevenTool" class="tool-card hidden">
 <h2>세븐일레븐 J파일 분석</h2>
 <div id="sevenDrop" class="drop"><div><p><b>J파일/텍스트 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 번 끌어다 놓으면 계속 누적됩니다.</p><input type="file" id="sevenFileInput" multiple></div></div>
 <div class="btns"><button id="sevenExcelBtn" class="green" disabled>엑셀 다운로드</button><button id="sevenClearBtn" class="red">전체 초기화</button></div>
-<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>파일명</th><th>건수</th><th>작업시간</th><th>1개건수</th><th>몇인실사</th><th>구간</th><th>삭제</th></tr></thead><tbody id="sevenTbody"><tr><td colspan="8">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
+<div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>파일명</th><th>건수</th><th>작업시간</th><th>1개건수</th><th>삭제</th></tr></thead><tbody id="sevenTbody"><tr><td colspan="6">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
 </div>
 </div>
 </div>
@@ -1359,67 +1359,20 @@ function showAnalyzer(which){document.getElementById('emartTool').classList.togg
 
 const emartResults=[];const emartDrop=document.getElementById('emartDrop'),emartInput=document.getElementById('emartFileInput'),emartTbody=document.getElementById('emartTbody');
 function cleanStoreName(name){return name.replace(/\.[^/.]+$/,'').replace(/\s*\(\s*\d+\s*\)\s*/g,' ').replace(/\s+/g,' ').trim();}function isEmpty(v){return v===undefined||v===null||String(v).trim()===''}function onlyDigits(v){return String(v??'').replace(/[^0-9]/g,'')}function parseDate14(v){const s=onlyDigits(v);if(!/^20\d{12}$/.test(s))return null;const y=+s.slice(0,4),m=+s.slice(4,6),d=+s.slice(6,8),h=+s.slice(8,10),mi=+s.slice(10,12),se=+s.slice(12,14);if(m<1||m>12||d<1||d>31||h>23||mi>59||se>59)return null;const dt=new Date(y,m-1,d,h,mi,se);if(dt.getFullYear()!==y||dt.getMonth()!==m-1||dt.getDate()!==d)return null;return dt;}function fmtDate(dt){if(!dt)return'';const p=n=>String(n).padStart(2,'0');return `${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())} ${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;}function fmtDuration(ms){if(!isFinite(ms)||ms<0)return'0초';let sec=Math.floor(ms/1000),h=Math.floor(sec/3600);sec%=3600;let m=Math.floor(sec/60);sec%=60;const arr=[];if(h)arr.push(`${h}시간`);if(m)arr.push(`${m}분`);arr.push(`${sec}초`);return arr.join(' ');}function findHeaderCol(rows,keywords){const limit=Math.min(rows.length,12);for(let r=0;r<limit;r++)for(let c=0;c<(rows[r]||[]).length;c++){const text=String(rows[r][c]??'').replace(/\s/g,'');if(keywords.some(k=>text.includes(k)))return c;}return-1;}function guessTimeCol(dataRows){const scores={};dataRows.forEach(row=>row.forEach((v,c)=>{if(parseDate14(v))scores[c]=(scores[c]||0)+1;}));let best=-1,score=0;Object.keys(scores).forEach(c=>{if(scores[c]>score){score=scores[c];best=+c;}});return best;}function guessQtyCol(rows,dataRows){let col=findHeaderCol(rows,['실사수량','실사 수량']);if(col>=0)return col;col=findHeaderCol(rows,['수량']);if(col>=0)return col;let best=-1,bestScore=-1;const maxCols=Math.max(...dataRows.map(r=>r.length),0);for(let c=0;c<maxCols;c++){let ones=0,nums=0;for(const row of dataRows){const n=Number(String(row[c]??'').replace(/,/g,'').trim());if(!isNaN(n)){nums++;if(n===1)ones++;}}const score=ones*3+nums*0.05;if(ones>0&&score>bestScore){bestScore=score;best=c;}}return best;}
-function fmtDateShort(dt){if(!dt)return'';const p=n=>String(n).padStart(2,'0');return `${p(dt.getHours())}:${p(dt.getMinutes())}:${p(dt.getSeconds())}`;}function analyzeTimeSegments(records){if(!records||!records.length)return{personCount:0,segmentText:''};let personCount=1;let segments=[];let segStart=records[0].dt;let segEnd=records[0].dt;let prev=records[0].ms;let segCount=1;for(let i=1;i<records.length;i++){const cur=records[i].ms;if(cur<prev){segments.push({start:segStart,end:segEnd,count:segCount});personCount++;segStart=records[i].dt;segCount=1;}else{segCount++;}segEnd=records[i].dt;prev=cur;}segments.push({start:segStart,end:segEnd,count:segCount});const segmentText=segments.map((s,i)=>`${i+1}인 ${fmtDateShort(s.start)}~${fmtDateShort(s.end)} (${fmtDuration(Math.max(0,s.end-s.start))}, ${s.count.toLocaleString()}건)`).join(' / ');return{personCount:personCount,segmentText:segmentText};}
-async function analyzeEmartFile(file){const buffer=await file.arrayBuffer();let wb;try{wb=XLSX.read(buffer,{type:'array',cellDates:false});}catch(e){return{store:cleanStoreName(file.name),total:0,ones:0,durationMs:0,start:null,end:null,personCount:0,segments:'',note:'엑셀 파일을 읽지 못했습니다.'};}const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});const dataRows=rows.slice(3).filter(r=>r.some(v=>!isEmpty(v)));const timeCol=guessTimeCol(dataRows);const qtyCol=guessQtyCol(rows,dataRows);const times=[];const records=[];if(timeCol>=0)dataRows.forEach(r=>{const dt=parseDate14(r[timeCol]);if(dt){times.push(dt);records.push({dt:dt,ms:dt.getTime()});}});let start=null,end=null,durationMs=0;if(times.length){start=new Date(Math.min(...times));end=new Date(Math.max(...times));durationMs=end-start;}let ones=0;if(qtyCol>=0)dataRows.forEach(r=>{const n=Number(String(r[qtyCol]??'').replace(/,/g,'').trim());if(n===1)ones++;});const people=analyzeTimeSegments(records);const notes=[];if(timeCol<0)notes.push('날짜시간 열 자동 인식 실패');if(qtyCol<0)notes.push('실사수량 열 자동 인식 실패');return{store:cleanStoreName(file.name),total:dataRows.length,ones,durationMs,start,end,personCount:people.personCount,segments:people.segmentText,note:notes.join(' / ')}};
+async function analyzeEmartFile(file){const buffer=await file.arrayBuffer();let wb;try{wb=XLSX.read(buffer,{type:'array',cellDates:false});}catch(e){return{store:cleanStoreName(file.name),total:0,ones:0,durationMs:0,start:null,end:null,note:'엑셀 파일을 읽지 못했습니다.'};}const ws=wb.Sheets[wb.SheetNames[0]];const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''});const dataRows=rows.slice(3).filter(r=>r.some(v=>!isEmpty(v)));const timeCol=guessTimeCol(dataRows);const qtyCol=guessQtyCol(rows,dataRows);const times=[];if(timeCol>=0)dataRows.forEach(r=>{const dt=parseDate14(r[timeCol]);if(dt)times.push(dt);});let start=null,end=null,durationMs=0;if(times.length){start=new Date(Math.min(...times));end=new Date(Math.max(...times));durationMs=end-start;}let ones=0;if(qtyCol>=0)dataRows.forEach(r=>{const n=Number(String(r[qtyCol]??'').replace(/,/g,'').trim());if(n===1)ones++;});const notes=[];if(timeCol<0)notes.push('날짜시간 열 자동 인식 실패');if(qtyCol<0)notes.push('실사수량 열 자동 인식 실패');return{store:cleanStoreName(file.name),total:dataRows.length,ones,durationMs,start,end,note:notes.join(' / ')};}
 async function handleEmartFiles(files){for(const file of files){const r=await analyzeEmartFile(file);emartResults.push(r);}renderEmart();}
-function renderEmart(){if(!emartResults.length){emartTbody.innerHTML='<tr><td colspan="11">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=true;}else{emartTbody.innerHTML=emartResults.map((r,i)=>`<tr><td>${i+1}</td><td class="store">${esc(r.store)}</td><td>${r.total.toLocaleString()}</td><td>${fmtDuration(r.durationMs)}</td><td>${r.ones.toLocaleString()}</td><td>${fmtDate(r.start)}</td><td>${fmtDate(r.end)}</td><td>${(r.personCount||0).toLocaleString()}인</td><td>${esc(r.segments||'')}</td><td class="err">${esc(r.note||'')}</td><td><button class="smallbtn" onclick="delEmartRow(${i})">삭제</button></td></tr>`).join('');document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=false;}document.getElementById('emartSumFiles').textContent=emartResults.length.toLocaleString();document.getElementById('emartSumRows').textContent=emartResults.reduce((a,b)=>a+b.total,0).toLocaleString();document.getElementById('emartSumOnes').textContent=emartResults.reduce((a,b)=>a+b.ones,0).toLocaleString();document.getElementById('emartSumTime').textContent=fmtDuration(emartResults.reduce((a,b)=>a+b.durationMs,0));}
+function renderEmart(){if(!emartResults.length){emartTbody.innerHTML='<tr><td colspan="9">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=true;}else{emartTbody.innerHTML=emartResults.map((r,i)=>`<tr><td>${i+1}</td><td class="store">${esc(r.store)}</td><td>${r.total.toLocaleString()}</td><td>${fmtDuration(r.durationMs)}</td><td>${r.ones.toLocaleString()}</td><td>${fmtDate(r.start)}</td><td>${fmtDate(r.end)}</td><td class="err">${esc(r.note||'')}</td><td><button class="smallbtn" onclick="delEmartRow(${i})">삭제</button></td></tr>`).join('');document.getElementById('emartDownloadBtn').disabled=document.getElementById('emartCsvBtn').disabled=false;}document.getElementById('emartSumFiles').textContent=emartResults.length.toLocaleString();document.getElementById('emartSumRows').textContent=emartResults.reduce((a,b)=>a+b.total,0).toLocaleString();document.getElementById('emartSumOnes').textContent=emartResults.reduce((a,b)=>a+b.ones,0).toLocaleString();document.getElementById('emartSumTime').textContent=fmtDuration(emartResults.reduce((a,b)=>a+b.durationMs,0));}
 function delEmartRow(i){emartResults.splice(i,1);renderEmart();}
-function exportEmartXlsx(){const aoa=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','몇인실사','구간','비고']];emartResults.forEach((r,i)=>aoa.push([i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),(r.personCount||0)+'인',r.segments||'',r.note]));const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:6},{wch:28},{wch:12},{wch:18},{wch:16},{wch:22},{wch:22},{wch:10},{wch:60},{wch:28}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'재고조사요약');XLSX.writeFile(wb,'이마트24_재고조사_요약결과.xlsx');}
-function exportEmartCsv(){const lines=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','몇인실사','구간','비고'],...emartResults.map((r,i)=>[i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),(r.personCount||0)+'인',r.segments||'',r.note])];const csv='﻿'+lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='이마트24_재고조사_요약결과.csv';a.click();URL.revokeObjectURL(a.href);}
+function exportEmartXlsx(){const aoa=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','비고']];emartResults.forEach((r,i)=>aoa.push([i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),r.note]));const ws=XLSX.utils.aoa_to_sheet(aoa);ws['!cols']=[{wch:6},{wch:28},{wch:12},{wch:18},{wch:16},{wch:22},{wch:22},{wch:28}];const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'재고조사요약');XLSX.writeFile(wb,'이마트24_재고조사_요약결과.xlsx');}
+function exportEmartCsv(){const lines=[['No','점포명','총건수','총걸린시간','실사수량1건수','시작시간','종료시간','비고'],...emartResults.map((r,i)=>[i+1,r.store,r.total,fmtDuration(r.durationMs),r.ones,fmtDate(r.start),fmtDate(r.end),r.note])];const csv='\uFEFF'+lines.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\n');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8;'}));a.download='이마트24_재고조사_요약결과.csv';a.click();URL.revokeObjectURL(a.href);}
 emartDrop.addEventListener('dragover',e=>{e.preventDefault();emartDrop.classList.add('drag')});emartDrop.addEventListener('dragleave',()=>emartDrop.classList.remove('drag'));emartDrop.addEventListener('drop',e=>{e.preventDefault();emartDrop.classList.remove('drag');handleEmartFiles(e.dataTransfer.files)});emartInput.addEventListener('change',e=>handleEmartFiles(e.target.files));document.getElementById('emartDownloadBtn').addEventListener('click',exportEmartXlsx);document.getElementById('emartCsvBtn').addEventListener('click',exportEmartCsv);document.getElementById('emartResetBtn').addEventListener('click',()=>{if(confirm('전체 결과를 초기화할까요?')){emartResults.length=0;emartInput.value='';renderEmart();}});
 
 let sevenResults=[];const sevenDrop=document.getElementById('sevenDrop');function secToText(s){let h=Math.floor(s/3600);let m=Math.floor((s%3600)/60);let sec=s%60;return(h>0?h+'시간 ':'')+m+'분 '+sec+'초';}
-function analyzeSeven(file,text){
-  const lines=String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>0);
-  let secs=[],single=0,records=[];
-  lines.forEach(l=>{
-    let d=l.replace(/\D/g,'');
-    if(d.length>=45){
-      let t=d.substring(18,24);
-      let q=parseInt(d.substring(30,35),10);
-      let hh=parseInt(t.substring(0,2),10);
-      let mm=parseInt(t.substring(2,4),10);
-      let ss=parseInt(t.substring(4,6),10);
-      if(!isNaN(hh)&&!isNaN(mm)&&!isNaN(ss)&&hh>=0&&hh<24&&mm>=0&&mm<60&&ss>=0&&ss<60){
-        const sec=hh*3600+mm*60+ss;
-        secs.push(sec);
-        records.push({sec:sec,time:t});
-      }
-      if(q===1)single++;
-    }
-  });
-  let personCount=records.length?1:0;
-  let segments=[];
-  let segStart=records.length?records[0].sec:null;
-  let segEnd=segStart;
-  let prev=records.length?records[0].sec:null;
-  let segLineCount=records.length?1:0;
-  for(let i=1;i<records.length;i++){
-    const cur=records[i].sec;
-    if(cur<prev){
-      segments.push({start:segStart,end:segEnd,count:segLineCount});
-      personCount++;
-      segStart=cur;
-      segLineCount=1;
-    }else{
-      segLineCount++;
-    }
-    segEnd=cur;
-    prev=cur;
-  }
-  if(records.length){
-    segments.push({start:segStart,end:segEnd,count:segLineCount});
-  }
-  secs.sort((a,b)=>a-b);
-  let dur=secs.length?secs[secs.length-1]-secs[0]:0;
-  const segmentText=segments.map((s,i)=>`${i+1}인 ${secClock(s.start)}~${secClock(s.end)} (${secToText(Math.max(0,s.end-s.start))}, ${s.count.toLocaleString()}건)`).join(' / ');
-  return{id:Date.now()+Math.random(),file:file.name,count:lines.length,duration:dur,single:single,personCount:personCount,segments:segmentText};
-}
-function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!sevenResults.length){tbody.innerHTML='<tr><td colspan="8">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('sevenExcelBtn').disabled=true;return;}tbody.innerHTML='';sevenResults.forEach((r,i)=>{let tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${esc(r.file)}</td><td>${r.count.toLocaleString()}</td><td>${secToText(r.duration)}</td><td>${r.single.toLocaleString()}</td><td>${(r.personCount||0).toLocaleString()}인</td><td>${esc(r.segments||'')}</td><td><button class="smallbtn" onclick="removeSevenItem('${r.id}')">삭제</button></td>`;tbody.appendChild(tr);});document.getElementById('sevenExcelBtn').disabled=false;}
-function secClock(s){s=Math.max(0,Number(s)||0);let h=Math.floor(s/3600)%24;let m=Math.floor((s%3600)/60);let sec=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');}
+function analyzeSeven(file,text){const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(x=>x.length>0);let secs=[],single=0;lines.forEach(l=>{let d=l.replace(/\D/g,'');if(d.length>=45){let t=d.substring(18,24);let q=parseInt(d.substring(30,35));let hh=parseInt(t.substring(0,2));let mm=parseInt(t.substring(2,4));let ss=parseInt(t.substring(4,6));if(!isNaN(hh)&&!isNaN(mm)&&!isNaN(ss)){secs.push(hh*3600+mm*60+ss);}if(q===1)single++;}});secs.sort((a,b)=>a-b);let dur=secs.length?secs[secs.length-1]-secs[0]:0;return{id:Date.now()+Math.random(),file:file.name,count:lines.length,duration:dur,single:single};}
+function renderSeven(){let tbody=document.getElementById('sevenTbody');if(!sevenResults.length){tbody.innerHTML='<tr><td colspan="6">아직 분석된 파일이 없습니다.</td></tr>';document.getElementById('sevenExcelBtn').disabled=true;return;}tbody.innerHTML='';sevenResults.forEach((r,i)=>{let tr=document.createElement('tr');tr.innerHTML=`<td>${i+1}</td><td>${esc(r.file)}</td><td>${r.count.toLocaleString()}</td><td>${secToText(r.duration)}</td><td>${r.single.toLocaleString()}</td><td><button class="smallbtn" onclick="removeSevenItem('${r.id}')">삭제</button></td>`;tbody.appendChild(tr);});document.getElementById('sevenExcelBtn').disabled=false;}
 function removeSevenItem(id){sevenResults=sevenResults.filter(r=>r.id!=id);renderSeven();}
 function handleSevenFile(file){const reader=new FileReader();reader.onload=function(e){let res=analyzeSeven(file,e.target.result);sevenResults.push(res);renderSeven();};reader.readAsText(file);}
-document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single,'몇인실사':(r.personCount||0)+'인','구간':r.segments||''}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
+document.getElementById('sevenFileInput').addEventListener('change',function(e){for(let f of e.target.files){handleSevenFile(f);}e.target.value='';});sevenDrop.addEventListener('dragover',e=>{e.preventDefault();sevenDrop.classList.add('drag');});sevenDrop.addEventListener('dragleave',()=>sevenDrop.classList.remove('drag'));sevenDrop.addEventListener('drop',e=>{e.preventDefault();sevenDrop.classList.remove('drag');for(let f of e.dataTransfer.files){handleSevenFile(f);}});document.getElementById('sevenClearBtn').onclick=function(){if(confirm('전체 삭제?')){sevenResults=[];renderSeven();}};document.getElementById('sevenExcelBtn').onclick=function(){let data=sevenResults.map(r=>({파일명:r.file,건수:r.count,작업시간초:r.duration,작업시간:secToText(r.duration),'1개건수':r.single}));let ws=XLSX.utils.json_to_sheet(data);let wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'결과');XLSX.writeFile(wb,'세븐일레븐_J파일_개별결과.xlsx');};
 const GOOGLE_SCHEDULE_API_URL = "https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec";
 
 let latestGoogleScheduleSheetName = '주황색 탭';
@@ -2784,13 +2737,11 @@ window.arrangePage2Boxes = window.arrangePage2Boxes || function(){
   const wrap=document.querySelector('.wrap');
   if(!wrap) return;
 
-  const alert=document.getElementById('rbcAlertCenterBox');
   const risk=document.getElementById('rbcRiskBox');
   const monthly=document.getElementById('rbcMonthlyBox');
   const score=document.getElementById('rbcScoreBox');
   const pin=document.querySelector('.pin-manager');
 
-  if(alert) wrap.appendChild(alert);
   if(risk) wrap.appendChild(risk);
   if(monthly) wrap.appendChild(monthly);
   if(score) wrap.appendChild(score);
@@ -2820,7 +2771,6 @@ window.arrangePage2Boxes = window.arrangePage2Boxes || function(){
 
   function page2Items(){
   return [
-    document.getElementById('rbcAlertCenterBox'),
     document.getElementById('rbcRiskBox'),
     document.getElementById('rbcMonthlyBox'),
     document.querySelector('.pin-manager'),
@@ -2917,8 +2867,7 @@ window.arrangePage2Boxes = window.arrangePage2Boxes || function(){
 
  function isPage2Item(el){
   if(!el) return false;
-  return el.id==='rbcAlertCenterBox' ||
-         el.id==='rbcRiskBox' ||
+  return el.id==='rbcRiskBox' ||
          el.id==='rbcMonthlyBox' ||
          el.id==='rbcScoreBox' ||
          el.classList.contains('pin-manager');
@@ -2930,13 +2879,11 @@ function arrangePage2Boxes(){
   const wrap=document.querySelector('.wrap');
   if(!wrap) return;
 
-  const alert=document.getElementById('rbcAlertCenterBox');
   const risk=document.getElementById('rbcRiskBox');
   const monthly=document.getElementById('rbcMonthlyBox');
   const score=document.getElementById('rbcScoreBox');
   const pin=document.querySelector('.pin-manager');
 
-  if(alert) wrap.appendChild(alert);
   if(risk) wrap.appendChild(risk);
   if(monthly) wrap.appendChild(monthly);
   if(score) wrap.appendChild(score);
@@ -3787,7 +3734,12 @@ window.debugTeamScheduleDate = async function(dateStr){
 .rbc-archive-card b{display:block;color:#0b3b77;font-size:22px;margin-top:4px}
 .rbc-archive-log{margin-top:12px;max-height:230px;overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px;font-size:13px;line-height:1.55}
 .rbc-archive-warn{margin-top:10px;padding:12px;border-radius:14px;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;font-weight:800;line-height:1.5}
-@media(max-width:768px){.rbc-archive-controls{display:grid;grid-template-columns:1fr}.rbc-archive-controls input{width:100%}}
+.rbc-auto-archive-panel{margin-top:12px;padding:13px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:14px;line-height:1.55}
+.rbc-auto-archive-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.rbc-auto-archive-row input[type=checkbox]{width:22px;height:22px;accent-color:#16a34a}
+.rbc-auto-archive-row input[type=number]{width:95px;max-width:100%}
+.rbc-auto-archive-status{font-size:13px;color:#166534;font-weight:800;margin-top:8px}
+@media(max-width:768px){.rbc-archive-controls,.rbc-auto-archive-row{display:grid;grid-template-columns:1fr}.rbc-archive-controls input,.rbc-auto-archive-row input[type=number]{width:100%}}
 </style>
 
 <div class="rbc-archive-box" id="rbcArchiveBox">
@@ -3795,21 +3747,35 @@ window.debugTeamScheduleDate = async function(dateStr){
     <h2>데이터 아카이브 관리</h2>
     <button class="rbc-archive-btn gray" type="button" onclick="rbcToggleArchiveBox()">접기/펼치기</button>
   </div>
-  <div id="rbcArchiveBody">
+  <div id="rbcArchiveBody" style="display:none">
     <div class="small" style="margin-top:8px;color:#64748b">
       기준: submissions의 submittedAt 날짜가 지정 개월보다 오래된 자료를 archiveSubmissions로 복사하고, 원본은 archived:true로 표시해 제출목록에서 숨깁니다.
     </div>
+    <div class="rbc-auto-archive-panel">
+      <b>자동 아카이브 설정</b>
+      <div class="small" style="margin-top:4px;color:#166534">사용함으로 저장하면 매월 1일 이후 관리자앱 첫 접속 시, 해당 월에 1번만 자동으로 archive 이동/숨김을 실행합니다. 원본 파일 삭제는 하지 않습니다.</div>
+      <div class="rbc-auto-archive-row">
+        <label style="font-weight:900;display:flex;gap:8px;align-items:center"><input id="rbcAutoArchiveEnabled" type="checkbox"> 자동 아카이브 사용</label>
+        <label style="font-weight:900">자동 보관 기준</label>
+        <input id="rbcAutoArchiveMonths" type="number" min="1" value="13">
+        <span class="small">개월 이전 자료</span>
+        <button class="rbc-archive-btn green" type="button" onclick="rbcSaveAutoArchiveSettings()">자동설정 저장</button>
+        <button class="rbc-archive-btn gray" type="button" onclick="rbcArchiveAutoCheck(true)">자동실행 점검</button>
+      </div>
+      <div id="rbcAutoArchiveStatus" class="rbc-auto-archive-status">자동 아카이브 설정 불러오는 중...</div>
+    </div>
     <div class="rbc-archive-controls">
       <label style="font-weight:900">보관 기준</label>
-      <input id="rbcArchiveMonths" type="number" min="1" value="13">
-      <span class="small">개월 이전 자료</span>
+      <input id="rbcArchiveMonths" type="number" min="0" value="13">
+      <span class="small">개월 이전 자료 · 테스트 시 0 입력 가능</span>
       <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
       <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
+      <button class="rbc-archive-btn gray" type="button" onclick="rbcArchiveRestoreHidden()">숨김 원본 복구</button>
       <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
       <button class="rbc-archive-btn gray" type="button" onclick="rbcLoadArchiveLogs()">로그 보기</button>
     </div>
     <div class="rbc-archive-warn">
-      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
+      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 숨김 처리 후에도 복구할 수 있으며, 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
     </div>
     <div id="rbcArchiveSummary" class="rbc-archive-summary">
       <div class="rbc-archive-card">상태<b>대기</b></div>
@@ -3835,7 +3801,9 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   function archiveCutoffDate(){
     const monthsEl=document.getElementById('rbcArchiveMonths');
-    const months=Math.max(1, parseInt(monthsEl && monthsEl.value, 10) || 13);
+    let rawMonths = parseInt(monthsEl && monthsEl.value, 10);
+    if(isNaN(rawMonths)) rawMonths = 13;
+    const months = Math.max(0, rawMonths);
     const d=new Date();
     d.setMonth(d.getMonth()-months);
     d.setHours(23,59,59,999);
@@ -3926,6 +3894,43 @@ window.debugTeamScheduleDate = async function(dateStr){
     }
   };
 
+
+
+  /* RAVEBIC_DRIVE_BACKUP_REQUEST_V2
+     관리자앱에서 수동 아카이브를 실행했을 때도 Cloud Function이 Drive 백업을 처리할 수 있도록
+     archiveLogs에 archivedDocIds를 남기고, 배포된 HTTP 함수가 있으면 즉시 호출합니다.
+  */
+  const RBC_DRIVE_BACKUP_FUNCTION_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/manualArchiveDriveBackup';
+
+  async function rbcRequestDriveBackup(runId, docIds, sourceType){
+    if(!runId) return {ok:false, message:'runId 없음'};
+    docIds = Array.isArray(docIds) ? docIds : [];
+
+    try{
+      await db.collection('archiveLogs').doc(runId).set({
+        driveBackupRequested:true,
+        driveBackupRequestedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        driveBackupRequestedAtText:new Date().toISOString(),
+        driveBackupRequestSource:sourceType || 'admin_app',
+        archivedDocIds:docIds
+      }, {merge:true});
+    }catch(e){
+      console.warn('Drive backup request log update failed', e);
+    }
+
+    try{
+      const resp = await fetch(RBC_DRIVE_BACKUP_FUNCTION_URL, {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({runId:runId, docIds:docIds, source:sourceType || 'admin_app'})
+      });
+      const text = await resp.text();
+      if(!resp.ok) throw new Error(text || ('HTTP '+resp.status));
+      return {ok:true, message:text || 'Drive 백업 함수 호출 완료'};
+    }catch(e){
+      return {ok:false, message:e.message || String(e)};
+    }
+  }
   window.rbcArchiveRun=async function(){
     try{
       const res=await archiveGetTargetRows();
@@ -3941,6 +3946,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       let done=0;
       let fail=0;
       const errors=[];
+      const archivedDocIds=[];
 
       for(const r of res.rows){
         try{
@@ -3961,6 +3967,7 @@ window.debugTeamScheduleDate = async function(dateStr){
             archiveRunId:runId
           });
           done++;
+          archivedDocIds.push(r.id);
         }catch(err){
           fail++;
           errors.push(r.id+': '+(err.message||err));
@@ -3978,16 +3985,99 @@ window.debugTeamScheduleDate = async function(dateStr){
         failCount:fail,
         fileCount:stats.fileCount,
         totalFileSize:stats.totalSize,
+        archivedDocIds:archivedDocIds,
+        driveBackupRequested:false,
+        driveBackup:false,
         createdAt:firebase.firestore.FieldValue.serverTimestamp(),
         createdAtText:new Date().toISOString(),
         errors:errors.slice(0,20)
       });
 
       archiveRenderSummary('아카이브 완료', res.rows, res.cutoff);
-      archiveSetLog('완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      archiveSetLog('완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>Drive 백업 요청 중...<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      const backupResult = await rbcRequestDriveBackup(runId, archivedDocIds, 'manual_archive_hide');
+      archiveSetLog(
+        '완료: '+done+'건 이동/숨김 처리 · 실패 '+fail+'건<br>'+ 
+        (backupResult.ok ? '✅ Google Drive 백업 요청 완료' : '⚠️ Google Drive 백업 함수 호출 실패: '+archiveEsc(backupResult.message)+'<br>※ Cloud Function manualArchiveDriveBackup 배포가 필요합니다.')+
+        '<br>로그ID: '+archiveEsc(runId)+
+        (errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):'')
+      );
       if(typeof loadData==='function') await loadData();
     }catch(e){
       archiveSetLog('<span style="color:#991b1b">아카이브 실행 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
+
+  window.rbcArchiveRestoreHidden=async function(){
+    try{
+      const c=archiveCutoffDate();
+      const snap=await db.collection('submissions').get();
+      const rows=[];
+      snap.forEach(function(doc){
+        const d=doc.data()||{};
+        const t=archiveDt(d);
+        if(d.archived === true && t && !isNaN(t.getTime()) && t <= c.cutoff){
+          rows.push({id:doc.id,...d,__archiveDate:t});
+        }
+      });
+      rows.sort(function(a,b){return a.__archiveDate-b.__archiveDate;});
+      archiveRenderSummary('복구 대상', rows, c.cutoff);
+      if(!rows.length){archiveSetLog('복구할 숨김 원본이 없습니다.');return;}
+
+      if(!confirm('숨김 처리된 원본 '+rows.length+'건을 다시 제출목록에 보이게 복구할까요?\n\narchiveSubmissions 백업 기록은 그대로 유지됩니다.')) return;
+
+      archiveSetLog('복구 실행 중... 창을 닫지 마세요.');
+      const runId='restore_archived_'+new Date().toISOString().replace(/[:.]/g,'-');
+      let restored=0;
+      let skipped=0;
+      let fail=0;
+      const errors=[];
+
+      for(const r of rows){
+        try{
+          const archiveDoc=await db.collection('archiveSubmissions').doc(r.id).get();
+          if(!archiveDoc.exists){
+            skipped++;
+            errors.push(r.id+': archiveSubmissions 백업 문서 없음 - 복구 건너뜀');
+            continue;
+          }
+
+          await db.collection('submissions').doc(r.id).update({
+            archived:false,
+            restoredAt:firebase.firestore.FieldValue.serverTimestamp(),
+            restoredAtText:new Date().toISOString(),
+            restoreRunId:runId
+          });
+          restored++;
+        }catch(err){
+          fail++;
+          errors.push(r.id+': '+(err.message||err));
+        }
+      }
+
+      const stats=archiveFileStats(rows);
+      await db.collection('archiveLogs').doc(runId).set({
+        runId:runId,
+        type:'restore_archived_originals',
+        months:c.months,
+        cutoffText:c.cutoff.toISOString(),
+        targetCount:rows.length,
+        successCount:restored,
+        skippedCount:skipped,
+        failCount:fail,
+        fileCount:stats.fileCount,
+        totalFileSize:stats.totalSize,
+        createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText:new Date().toISOString(),
+        errors:errors.slice(0,30)
+      });
+
+      archiveRenderSummary('복구 완료', rows, c.cutoff);
+      archiveSetLog('복구 완료: '+restored+'건 다시 표시 · 건너뜀 '+skipped+'건 · 실패 '+fail+'건<br>로그ID: '+archiveEsc(runId)+(errors.length?'<br><br>'+archiveEsc(errors.join('\n')).replace(/\n/g,'<br>'):''));
+      if(typeof loadData==='function') await loadData();
+    }catch(e){
+      archiveSetLog('<span style="color:#991b1b">복구 실패: '+archiveEsc(e.message||e)+'</span>');
     }
   };
 
@@ -4060,6 +4150,180 @@ window.debugTeamScheduleDate = async function(dateStr){
     }
   };
 
+
+  function archiveMonthKey(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  }
+
+  function archiveAutoStatus(msg){
+    const el=document.getElementById('rbcAutoArchiveStatus');
+    if(el) el.innerHTML=archiveEsc(msg).replace(/\n/g,'<br>');
+  }
+
+  async function archiveLoadAutoSettings(){
+    try{
+      const doc=await db.collection('settings').doc('archiveAutoSettings').get();
+      const data=doc.exists ? (doc.data()||{}) : {};
+      const enabled=!!data.enabled;
+      const months=Number(data.months || 13) || 13;
+      const enabledEl=document.getElementById('rbcAutoArchiveEnabled');
+      const monthsEl=document.getElementById('rbcAutoArchiveMonths');
+      const manualMonthsEl=document.getElementById('rbcArchiveMonths');
+      if(enabledEl) enabledEl.checked=enabled;
+      if(monthsEl) monthsEl.value=months;
+      if(manualMonthsEl && manualMonthsEl.value==='13') manualMonthsEl.value=months;
+      archiveAutoStatus(
+        '상태: '+(enabled?'사용함':'사용안함')+
+        '\n자동 보관 기준: '+months+'개월'+
+        '\n마지막 자동 실행월: '+(data.lastRunMonth || '-')+
+        '\n마지막 자동 실행일: '+(data.lastRunAtText || '-')
+      );
+      return data;
+    }catch(e){
+      archiveAutoStatus('자동 아카이브 설정 불러오기 실패: '+(e.message||e));
+      return {};
+    }
+  }
+
+  window.rbcSaveAutoArchiveSettings=async function(){
+    try{
+      const enabledEl=document.getElementById('rbcAutoArchiveEnabled');
+      const monthsEl=document.getElementById('rbcAutoArchiveMonths');
+      const months=Math.max(1, parseInt(monthsEl && monthsEl.value, 10) || 13);
+      const enabled=!!(enabledEl && enabledEl.checked);
+      await db.collection('settings').doc('archiveAutoSettings').set({
+        enabled:enabled,
+        months:months,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAtText:new Date().toISOString(),
+        updatedBy:'관리자앱'
+      },{merge:true});
+      const manualMonthsEl=document.getElementById('rbcArchiveMonths');
+      if(manualMonthsEl) manualMonthsEl.value=months;
+      archiveAutoStatus('저장 완료\n상태: '+(enabled?'사용함':'사용안함')+'\n자동 보관 기준: '+months+'개월');
+    }catch(e){
+      archiveAutoStatus('자동설정 저장 실패: '+(e.message||e));
+    }
+  };
+
+  async function archiveRunWithoutConfirm(sourceType, months){
+    const manualMonthsEl=document.getElementById('rbcArchiveMonths');
+    if(manualMonthsEl && months) manualMonthsEl.value=String(months);
+
+    const res=await archiveGetTargetRows();
+    if(!res.rows.length){
+      return {run:false, rows:0, done:0, fail:0, runId:'', fileCount:0, totalSize:0};
+    }
+
+    const runId=(sourceType || 'auto_archive')+'_'+new Date().toISOString().replace(/[:.]/g,'-');
+    let done=0;
+    let fail=0;
+    const errors=[];
+    const archivedDocIds=[];
+
+    for(const r of res.rows){
+      try{
+        const clean={...r};
+        delete clean.__archiveDate;
+        clean.originalSubmissionId=r.id;
+        clean.archivedAt=firebase.firestore.FieldValue.serverTimestamp();
+        clean.archivedAtText=new Date().toISOString();
+        clean.archiveRunId=runId;
+        clean.archiveCutoffText=res.cutoff.toISOString();
+        clean.archiveMonths=res.months;
+        clean.archiveSource=sourceType || 'auto_archive';
+
+        await db.collection('archiveSubmissions').doc(r.id).set(clean,{merge:true});
+        await db.collection('submissions').doc(r.id).update({
+          archived:true,
+          archivedAt:firebase.firestore.FieldValue.serverTimestamp(),
+          archivedAtText:new Date().toISOString(),
+          archiveRunId:runId,
+          archiveSource:sourceType || 'auto_archive'
+        });
+        done++;
+        archivedDocIds.push(r.id);
+      }catch(err){
+        fail++;
+        errors.push(r.id+': '+(err.message||err));
+      }
+    }
+
+    const stats=archiveFileStats(res.rows);
+    await db.collection('archiveLogs').doc(runId).set({
+      runId:runId,
+      type:sourceType || 'auto_archive_hide',
+      months:res.months,
+      cutoffText:res.cutoff.toISOString(),
+      targetCount:res.rows.length,
+      successCount:done,
+      failCount:fail,
+      fileCount:stats.fileCount,
+      totalFileSize:stats.totalSize,
+      archivedDocIds:archivedDocIds,
+      driveBackupRequested:false,
+      driveBackup:false,
+      createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+      createdAtText:new Date().toISOString(),
+      errors:errors.slice(0,20)
+    });
+
+    const backupResult = await rbcRequestDriveBackup(runId, archivedDocIds, sourceType || 'auto_archive_hide');
+    await db.collection('archiveLogs').doc(runId).set({
+      driveBackupFunctionCalled:backupResult.ok,
+      driveBackupFunctionMessage:backupResult.message || ''
+    }, {merge:true});
+
+    if(typeof loadData==='function') await loadData();
+    return {run:true, rows:res.rows.length, done:done, fail:fail, runId:runId, fileCount:stats.fileCount, totalSize:stats.totalSize, cutoff:res.cutoff, months:res.months, driveBackupFunctionCalled:backupResult.ok};
+  }
+
+  window.rbcArchiveAutoCheck=async function(forceManual){
+    try{
+      archiveAutoStatus('자동 아카이브 점검 중...');
+      const doc=await db.collection('settings').doc('archiveAutoSettings').get();
+      const data=doc.exists ? (doc.data()||{}) : {};
+      const enabled=!!data.enabled;
+      const months=Number(data.months || 13) || 13;
+      const now=new Date();
+      const thisMonth=archiveMonthKey(now);
+
+      if(!enabled && !forceManual){
+        archiveAutoStatus('상태: 사용안함\n자동 아카이브는 실행하지 않았습니다.');
+        return;
+      }
+      if(!forceManual && data.lastRunMonth===thisMonth){
+        archiveAutoStatus('이번 달은 이미 자동 실행됨\n마지막 실행월: '+thisMonth+'\n마지막 실행일: '+(data.lastRunAtText||'-'));
+        return;
+      }
+      if(forceManual && !confirm('자동 아카이브 점검을 지금 실행할까요?\n\n대상 자료가 있으면 archiveSubmissions로 복사하고 원본은 숨김 처리합니다. 파일은 삭제하지 않습니다.')){
+        archiveAutoStatus('자동실행 점검 취소');
+        return;
+      }
+
+      const result=await archiveRunWithoutConfirm(forceManual?'auto_archive_manual_check':'auto_archive_hide', months);
+      await db.collection('settings').doc('archiveAutoSettings').set({
+        enabled:enabled,
+        months:months,
+        lastRunMonth:thisMonth,
+        lastRunAt:firebase.firestore.FieldValue.serverTimestamp(),
+        lastRunAtText:new Date().toISOString(),
+        lastRunResult:result
+      },{merge:true});
+
+      if(result.run){
+        archiveAutoStatus('자동 아카이브 실행 완료\n처리: '+result.done+'건 / 실패: '+result.fail+'건\n파일: '+result.fileCount+'개\nDrive 함수 호출: '+(result.driveBackupFunctionCalled?'성공':'실패/미배포')+'\n로그ID: '+result.runId);
+        archiveSetLog('자동 아카이브 실행 완료<br>처리 '+result.done+'건 · 실패 '+result.fail+'건 · 파일 '+result.fileCount+'개<br>Drive 함수 호출 '+(result.driveBackupFunctionCalled?'성공':'실패/미배포')+'<br>로그ID: '+archiveEsc(result.runId));
+      }else{
+        archiveAutoStatus('자동 아카이브 점검 완료\n대상 자료가 없어 이번 달 실행 기록만 저장했습니다.\n실행월: '+thisMonth);
+        archiveSetLog('자동 아카이브 대상 자료가 없습니다. 이번 달 실행 기록을 저장했습니다.');
+      }
+    }catch(e){
+      archiveAutoStatus('자동 아카이브 실패: '+(e.message||e));
+      archiveSetLog('<span style="color:#991b1b">자동 아카이브 실패: '+archiveEsc(e.message||e)+'</span>');
+    }
+  };
+
   window.rbcLoadArchiveLogs=async function(){
     try{
       archiveSetLog('로그 불러오는 중...');
@@ -4083,12 +4347,9 @@ window.debugTeamScheduleDate = async function(dateStr){
   function placeArchiveBox(){
     const wrap=document.querySelector('.wrap');
     const box=document.getElementById('rbcArchiveBox');
-    const pin=document.querySelector('.pin-manager');
-    const monthly=document.getElementById('rbcMonthlyBox');
     if(!wrap || !box) return;
-    if(pin && box.parentElement!==wrap){ wrap.insertBefore(box,pin); }
-    else if(monthly && box.parentElement!==wrap){ wrap.insertBefore(box,monthly.nextSibling); }
-    else if(box.parentElement!==wrap){ wrap.appendChild(box); }
+    // 아카이브는 자주 쓰는 기능이 아니므로 페이지2의 가장 하단으로 고정합니다.
+    wrap.appendChild(box);
   }
 
   const oldLoadData=window.loadData || loadData;
@@ -4128,7 +4389,7 @@ window.debugTeamScheduleDate = async function(dateStr){
   window.isPage2Item=function(el){
     if(el && el.id==='rbcArchiveBox') return true;
     if(typeof prevIsPage2Item==='function') return prevIsPage2Item(el);
-    return el && (el.id==='rbcAlertCenterBox'||el.id==='rbcRiskBox'||el.id==='rbcMonthlyBox'||el.id==='rbcScoreBox'||el.classList.contains('pin-manager'));
+    return el && (el.id==='rbcRiskBox'||el.id==='rbcMonthlyBox'||el.id==='rbcScoreBox'||el.classList.contains('pin-manager'));
   };
 
   const prevShow=window.showRbcPage;
@@ -4142,1047 +4403,1087 @@ window.debugTeamScheduleDate = async function(dateStr){
     };
   }
 
-  document.addEventListener('DOMContentLoaded', function(){placeArchiveBox(); setTimeout(function(){if(typeof showRbcPage==='function') showRbcPage(1);},200);});
+  document.addEventListener('DOMContentLoaded', function(){
+    placeArchiveBox();
+    const body=document.getElementById('rbcArchiveBody');
+    if(body && !body.dataset.initializedCollapsed){ body.dataset.initializedCollapsed='1'; body.style.display='none'; }
+    setTimeout(function(){if(typeof showRbcPage==='function') showRbcPage(1);},200);
+    setTimeout(function(){ archiveLoadAutoSettings().then(function(){ rbcArchiveAutoCheck(false); }); },1800);
+  });
   setTimeout(placeArchiveBox,500);
   setTimeout(placeArchiveBox,1500);
 })();
 </script>
 
 
+<script>
+/* RAVEBIC_ALERT_CENTER_PAGE1_FIX_V1 */
+(function(){
+  function placeAlertCenterPage1(){
+    var wrap=document.querySelector('.wrap');
+    var alert=document.getElementById('rbcAlertCenterBox');
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!wrap || !alert) return;
+    if(tabs && tabs.nextSibling){
+      wrap.insertBefore(alert, tabs.nextSibling);
+    }else{
+      var logout=wrap.querySelector('.admin-logout-btn');
+      if(logout && logout.nextSibling) wrap.insertBefore(alert, logout.nextSibling);
+      else wrap.insertBefore(alert, wrap.firstChild);
+    }
+  }
 
-<!-- RAVEBIC_RESTORE_OFFICE_LOGIN_AND_SCHEDULE_FINAL_V2 -->
-<style>
-/* RAVEBIC_RESTORE_OFFICE_LOGIN_AND_SCHEDULE_FINAL_V2 */
-.admin-office-box{margin:12px 0 14px;padding:13px;border:1px solid #bfdbfe;background:#f8fbff;border-radius:16px;text-align:left}
-.admin-office-title{font-weight:900;color:#0b3b78;margin-bottom:8px}
-.admin-office-list{display:grid;grid-template-columns:1fr;gap:7px;max-height:220px;overflow:auto}
-.admin-office-btn{width:100%;border:2px solid transparent!important;background:#e5e7eb!important;color:#111827!important;border-radius:13px!important;padding:10px 12px!important;font-size:14px!important;font-weight:900!important;text-align:left!important;cursor:pointer!important}
-.admin-office-btn.active{background:#16a34a!important;color:#fff!important;border-color:#065f46!important;box-shadow:0 0 0 4px rgba(22,163,74,.15)!important}
-.admin-office-btn.active:before{content:'✓ 선택됨  '}
-.admin-office-help{margin-top:8px;font-size:12px;color:#64748b;line-height:1.45}
-.office-staff-line{display:flex!important;align-items:center!important;gap:8px!important;font-weight:900!important;color:#0b3b77!important;white-space:nowrap!important}
-.office-staff-line input{width:20px!important;height:20px!important;accent-color:#2563eb!important;margin:0!important}
-.staff-order-input{max-width:140px!important}
-.rbc-staff-count-line{margin:10px 0;padding:10px 12px;border:1px solid #dbeafe;background:#f8fbff;border-radius:13px;color:#0b3b77;font-weight:900}
-@media(max-width:800px){.staff-order-input{max-width:100%!important}}
-</style>
+  var previousShowRbcPage = window.showRbcPage;
+  window.showRbcPage = function(page){
+    if(typeof previousShowRbcPage === 'function') previousShowRbcPage(page);
+    placeAlertCenterPage1();
+
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(alert) alert.style.display = page===1 ? '' : 'none';
+
+    var archive=document.getElementById('rbcArchiveBox');
+    if(archive) archive.style.display = page===2 ? '' : 'none';
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){
+    placeAlertCenterPage1();
+    setTimeout(function(){ if(typeof window.showRbcPage==='function') window.showRbcPage(1); }, 250);
+  });
+  setTimeout(placeAlertCenterPage1, 700);
+  setTimeout(placeAlertCenterPage1, 1700);
+})();
+</script>
+
+
+
+
+
 
 <script>
-/* RAVEBIC_RESTORE_OFFICE_LOGIN_AND_SCHEDULE_FINAL_V2
-   - 사무실직원 이름 선택 로그인 복구
-   - 직원 PIN 관리에 사무실직원 체크/직급순서 복구
-   - 일정 승인 반영은 실패해도 기존 승인 저장을 보존하고 분석표만 안전 새로고침
+/* RAVEBIC_PAGE_LAYOUT_FINAL_FIX_V2
+   - 관리자 알림센터: 페이지1 고정
+   - 데이터 아카이브 관리: 페이지2 최하단 고정
+   - 기존 showRbcPage 충돌 방지용 최종 레이아웃 컨트롤러
 */
 (function(){
-  function escR(v){
-    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+  function getWrap(){ return document.querySelector('.wrap'); }
+
+  function ensureTabs(){
+    var wrap=getWrap();
+    if(!wrap) return;
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      tabs.innerHTML=
+        '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>'+ 
+        '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+
+      var cards=wrap.querySelector('.cards');
+      if(cards && cards.nextSibling) wrap.insertBefore(tabs, cards.nextSibling);
+      else wrap.insertBefore(tabs, wrap.firstChild);
+    }
+
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.onclick=function(){ window.showRbcPage(1); };
+    if(p2) p2.onclick=function(){ window.showRbcPage(2); };
+  }
+
+  function placeAlertPage1(){
+    var wrap=getWrap();
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(!wrap || !alert) return;
+
+    ensureTabs();
+    var tabs=document.getElementById('rbcPageTabs');
+
+    if(tabs && tabs.nextSibling){
+      wrap.insertBefore(alert, tabs.nextSibling);
+    }else if(tabs){
+      wrap.appendChild(alert);
+    }else{
+      var logout=wrap.querySelector('.admin-logout-btn');
+      if(logout && logout.nextSibling) wrap.insertBefore(alert, logout.nextSibling);
+      else wrap.insertBefore(alert, wrap.firstChild);
+    }
+  }
+
+  function placeArchiveBottom(){
+    var wrap=getWrap();
+    var archive=document.getElementById('rbcArchiveBox');
+    if(!wrap || !archive) return;
+    wrap.appendChild(archive);
+  }
+
+  function arrangePage2Bottom(){
+    var wrap=getWrap();
+    if(!wrap) return;
+
+    var risk=document.getElementById('rbcRiskBox');
+    var monthly=document.getElementById('rbcMonthlyBox');
+    var score=document.getElementById('rbcScoreBox');
+    var pin=document.querySelector('.pin-manager');
+    var archive=document.getElementById('rbcArchiveBox');
+
+    if(risk) wrap.appendChild(risk);
+    if(monthly) wrap.appendChild(monthly);
+    if(score) wrap.appendChild(score);
+    if(pin) wrap.appendChild(pin);
+    if(archive) wrap.appendChild(archive);
+  }
+
+  function isPage2Item(el){
+    if(!el) return false;
+    return el.id==='rbcRiskBox' ||
+           el.id==='rbcMonthlyBox' ||
+           el.id==='rbcScoreBox' ||
+           el.id==='rbcArchiveBox' ||
+           (el.classList && el.classList.contains('pin-manager'));
+  }
+
+  window.isPage2Item = isPage2Item;
+
+  window.showRbcPage=function(page){
+    page = Number(page)===2 ? 2 : 1;
+
+    ensureTabs();
+    placeAlertPage1();
+    arrangePage2Bottom();
+
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.classList.toggle('active', page===1);
+    if(p2) p2.classList.toggle('active', page===2);
+
+    var wrap=getWrap();
+    if(!wrap) return;
+
+    Array.from(wrap.children).forEach(function(el){
+      if(el.id==='rbcPageTabs') return;
+      if(el.classList && el.classList.contains('admin-main-title')) return;
+      if(el.classList && el.classList.contains('admin-logout-btn')) return;
+      if(el.classList && el.classList.contains('sub')) return;
+      if(el.id==='conn') return;
+      if(el.classList && el.classList.contains('cards')) return;
+
+      if(isPage2Item(el)){
+        el.style.display = page===2 ? '' : 'none';
+      }else{
+        el.style.display = page===1 ? '' : 'none';
+      }
     });
+
+    var alert=document.getElementById('rbcAlertCenterBox');
+    var archive=document.getElementById('rbcArchiveBox');
+    if(alert) alert.style.display = page===1 ? '' : 'none';
+    if(archive) archive.style.display = page===2 ? '' : 'none';
+  };
+
+  function initFinalLayout(){
+    ensureTabs();
+    placeAlertPage1();
+    arrangePage2Bottom();
+    window.showRbcPage(1);
+    if(typeof rbcLoadAlertCenter==='function') setTimeout(rbcLoadAlertCenter, 300);
   }
-  function normName(v){return String(v||'').replace(/\s+/g,'').trim();}
-  function tsText(v){
-    try{
-      if(v && typeof v.toDate === 'function') return v.toDate().toLocaleString();
-      if(v) return new Date(v).toLocaleString();
-    }catch(e){}
-    return '-';
-  }
+
+  document.addEventListener('DOMContentLoaded', initFinalLayout);
+  setTimeout(initFinalLayout, 300);
+  setTimeout(initFinalLayout, 1000);
+  setTimeout(initFinalLayout, 2500);
+})();
+</script>
+
+
+<!-- RAVEBIC_STABLE_FINAL_FIX_20260615_V6 -->
+<style>
+/* RAVEBIC_STABLE_FINAL_FIX_20260615_V6 */
+.rbc-auto-archive-panel{margin:12px 0;padding:13px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:15px;color:#064e3b;line-height:1.55}
+.rbc-auto-archive-row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px}
+.rbc-auto-archive-row label{font-weight:900;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.rbc-auto-archive-row input[type="checkbox"]{width:22px!important;height:22px!important;accent-color:#16a34a;margin:0!important}
+.rbc-auto-archive-row input[type="number"]{width:95px!important;max-width:120px!important}
+.rbc-schedule-manual-modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.58);z-index:999999;align-items:center;justify-content:center;padding:18px}
+.rbc-schedule-manual-card{width:100%;max-width:780px;max-height:88vh;overflow:auto;background:#fff;border-radius:22px;padding:22px;box-shadow:0 18px 55px rgba(0,0,0,.28)}
+.rbc-schedule-manual-card h3{margin:0 0 10px;color:#123f7a;font-size:23px;font-weight:900}
+.rbc-schedule-manual-card textarea{width:100%;min-height:270px;border:1px solid #cbd5e1;border-radius:14px;padding:12px;font-size:14px;line-height:1.5;resize:vertical}
+.rbc-schedule-help{margin:10px 0;padding:12px;border:1px solid #fed7aa;background:#fff7ed;border-radius:14px;color:#9a3412;font-weight:800;line-height:1.55}
+.rbc-page-tabs{display:flex!important;gap:10px!important;flex-wrap:wrap!important;margin:18px 0!important;padding:12px!important;background:#f8fbff!important;border:1px solid #d7e6fb!important;border-radius:18px!important}
+.rbc-page-tab{background:#e5e7eb!important;color:#111827!important;border:none!important;border-radius:13px!important;padding:13px 18px!important;font-weight:900!important;cursor:pointer!important}
+.rbc-page-tab.active{background:#2563eb!important;color:white!important}
+</style>
+
+<div id="rbcScheduleManualModal" class="rbc-schedule-manual-modal">
+  <div class="rbc-schedule-manual-card">
+    <h3>일정표 수동 반영</h3>
+    <div class="rbc-schedule-help">자동 반영이 실패할 때만 사용하세요. 구글 일정표 화면에서 내용을 전체선택(Ctrl+A) → 복사(Ctrl+C) 후 아래에 붙여넣고 저장하면 teamSchedules에 직접 반영됩니다.</div>
+    <textarea id="rbcScheduleManualText" placeholder="구글 일정표 내용을 여기에 붙여넣기"></textarea>
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;margin-top:12px">
+      <button class="gray" type="button" onclick="document.getElementById('rbcScheduleManualModal').style.display='none'">닫기</button>
+      <button class="green" type="button" onclick="rbcSaveManualScheduleText()">붙여넣은 일정 저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* RAVEBIC_STABLE_FINAL_FIX_20260615_V6
+   최종 안정화 패치:
+   1) 자동 아카이브 설정 UI 복구
+   2) 일정 승인 반영 시 teamSchedules 직접 생성 + 수동 반영 안전장치
+   3) 페이지 레이아웃 최종 단일 컨트롤러로 고정
+*/
+(function(){
+  var RBC_PAGE = 1;
+  var RBC_ARCHIVE_ZIP_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});}
+  function norm(v){return String(v||'').replace(/\s+/g,'').trim();}
   function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function simpleId(v){return String(v||'').replace(/\s+/g,'_').replace(/[\\/#?%:.,\[\]{}|~`^<>]/g,'_').slice(0,130);}
 
-  window.rbcSelectedOfficeStaffName = window.rbcSelectedOfficeStaffName || '';
+  function getWrap(){return document.querySelector('.wrap');}
 
-  async function fetchStaffRowsRbc(){
-    if(typeof db === 'undefined') return [];
-    const snap = await db.collection('staffPins').get();
-    const rows=[];
-    snap.forEach(function(doc){
-      const d = doc.data() || {};
-      if(d.active === false) return;
-      rows.push({
-        id: doc.id,
-        name: String(d.name || doc.id || '').trim(),
-        pin: String(d.pin || '').trim(),
-        officeStaff: d.officeStaff === true || d.isOffice === true || d.office === true || d.adminAccess === true || d.role === '사무실직원',
-        staffOrder: Number(d.staffOrder || d.order || d.orderIndex || 999999),
-        updated: tsText(d.updatedAt || d.updatedAtText)
-      });
+  function ensurePageTabs(){
+    var wrap=getWrap(); if(!wrap) return;
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      tabs.innerHTML='<button id="rbcPage1Btn" class="rbc-page-tab" type="button">페이지1 제출관리</button><button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+      var logout=wrap.querySelector('.admin-logout-btn');
+      if(logout && logout.nextSibling) wrap.insertBefore(tabs, logout.nextSibling);
+      else wrap.insertBefore(tabs, wrap.firstChild);
+    }
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.onclick=function(){window.showRbcPage(1);};
+    if(p2) p2.onclick=function(){window.showRbcPage(2);};
+  }
+
+  function isAlwaysVisible(el){
+    return el && (
+      el.id==='rbcPageTabs' ||
+      el.classList.contains('admin-main-title') ||
+      el.classList.contains('admin-logout-btn') ||
+      el.classList.contains('sub') ||
+      el.id==='conn' ||
+      el.classList.contains('cards')
+    );
+  }
+
+  function isPage2Item(el){
+    if(!el) return false;
+    return el.id==='rbcRiskBox' ||
+      el.id==='rbcMonthlyBox' ||
+      el.id==='rbcScoreBox' ||
+      el.id==='rbcArchiveBox' ||
+      (el.classList && el.classList.contains('pin-manager'));
+  }
+
+  function forceOrder(){
+    var wrap=getWrap(); if(!wrap) return;
+    ensurePageTabs();
+    var tabs=document.getElementById('rbcPageTabs');
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(alert && tabs){
+      wrap.insertBefore(alert, tabs.nextSibling);
+    }
+    var risk=document.getElementById('rbcRiskBox');
+    var monthly=document.getElementById('rbcMonthlyBox');
+    var score=document.getElementById('rbcScoreBox');
+    var pin=document.querySelector('.pin-manager');
+    var archive=document.getElementById('rbcArchiveBox');
+    if(risk) wrap.appendChild(risk);
+    if(monthly) wrap.appendChild(monthly);
+    if(score) wrap.appendChild(score);
+    if(pin) wrap.appendChild(pin);
+    if(archive) wrap.appendChild(archive);
+  }
+
+  window.showRbcPage=function(page){
+    RBC_PAGE = Number(page)===2 ? 2 : 1;
+    forceOrder();
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.classList.toggle('active', RBC_PAGE===1);
+    if(p2) p2.classList.toggle('active', RBC_PAGE===2);
+    var wrap=getWrap(); if(!wrap) return;
+    Array.from(wrap.children).forEach(function(el){
+      if(isAlwaysVisible(el)) return;
+      if(el.id==='rbcAlertCenterBox'){
+        el.style.display = RBC_PAGE===1 ? '' : 'none';
+      }else if(isPage2Item(el)){
+        el.style.display = RBC_PAGE===2 ? '' : 'none';
+      }else{
+        el.style.display = RBC_PAGE===1 ? '' : 'none';
+      }
     });
-    rows.sort(function(a,b){return (a.staffOrder-b.staffOrder) || a.name.localeCompare(b.name,'ko');});
+  };
+
+  window.isPage2Item = isPage2Item;
+
+  function archiveLog(msg){var el=document.getElementById('rbcArchiveLog'); if(el) el.innerHTML=msg;}
+
+  function ensureArchiveAutoPanel(){
+    var body=document.getElementById('rbcArchiveBody');
+    var controls=document.querySelector('#rbcArchiveBox .rbc-archive-controls');
+    if(!body || !controls) return;
+
+    if(false && !document.getElementById('rbcAutoArchivePanel')){
+      var panel=document.createElement('div');
+      panel.id='rbcAutoArchivePanel';
+      panel.className='rbc-auto-archive-panel';
+      panel.innerHTML=
+        '<b>자동 아카이브 설정</b><br>'+ 
+        '사용함으로 저장하면 매월 1일 이후 관리자앱 첫 접속 시, 해당 월에 1번만 자동으로 archive 이동/숨김을 실행합니다. 원본 파일 삭제는 하지 않습니다.'+
+        '<div class="rbc-auto-archive-row">'+
+          '<label><input id="rbcAutoArchiveEnabled" type="checkbox"> 자동 아카이브 사용</label>'+ 
+          '<label>자동 보관 기준 <input id="rbcAutoArchiveMonths" type="number" min="1" value="13"> 개월 이전 자료</label>'+ 
+          '<button class="rbc-archive-btn green" type="button" onclick="rbcSaveAutoArchiveSettings()">자동설정 저장</button>'+ 
+          '<button class="rbc-archive-btn gray" type="button" onclick="rbcAutoArchiveCheckNow()">자동실행 점검</button>'+ 
+        '</div>'+ 
+        '<div id="rbcAutoArchiveStatus" style="margin-top:8px;font-weight:900">상태 확인 중...</div>';
+      body.insertBefore(panel, controls);
+    }
+
+    if(!document.getElementById('rbcArchiveZipDownloadBtn')){
+      var zip=document.createElement('button');
+      zip.id='rbcArchiveZipDownloadBtn';
+      zip.className='rbc-archive-btn green';
+      zip.type='button';
+      zip.textContent='아카이브 첨부파일 ZIP 다운로드';
+      zip.onclick=function(){archiveLog('서버 ZIP 다운로드를 시작합니다. 새 창에서 파일이 만들어질 때까지 기다려주세요.'); window.open(RBC_ARCHIVE_ZIP_URL,'_blank');};
+      controls.appendChild(zip);
+    }
+
+    if(!document.getElementById('rbcArchiveRestoreBtn')){
+      var delBtn=Array.from(controls.querySelectorAll('button')).find(function(b){return (b.textContent||'').includes('영구삭제');});
+      var restore=document.createElement('button');
+      restore.id='rbcArchiveRestoreBtn';
+      restore.className='rbc-archive-btn gray';
+      restore.type='button';
+      restore.textContent='숨김 원본 복구';
+      restore.onclick=window.rbcArchiveRestoreHiddenOriginals || function(){alert('복구 함수 준비 중입니다. 새로고침 후 다시 눌러주세요.');};
+      if(delBtn) controls.insertBefore(restore, delBtn); else controls.appendChild(restore);
+    }
+
+    loadAutoArchiveSettings();
+  }
+
+  window.rbcSaveAutoArchiveSettings=async function(){
+    try{
+      var enabled=!!document.getElementById('rbcAutoArchiveEnabled')?.checked;
+      var months=Math.max(1, parseInt(document.getElementById('rbcAutoArchiveMonths')?.value,10)||13);
+      await db.collection('settings').doc('archiveAutoSettings').set({
+        enabled:enabled,
+        months:months,
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAtText:new Date().toISOString()
+      },{merge:true});
+      var st=document.getElementById('rbcAutoArchiveStatus');
+      if(st) st.textContent='상태: '+(enabled?'사용함':'사용안함')+' · '+months+'개월 기준 저장 완료';
+      alert('자동 아카이브 설정 저장 완료');
+    }catch(e){alert('자동설정 저장 실패:\n\n'+(e.message||e));}
+  };
+
+  async function loadAutoArchiveSettings(){
+    try{
+      var doc=await db.collection('settings').doc('archiveAutoSettings').get();
+      var d=doc.exists ? (doc.data()||{}) : {};
+      var en=document.getElementById('rbcAutoArchiveEnabled');
+      var mo=document.getElementById('rbcAutoArchiveMonths');
+      if(en) en.checked=!!d.enabled;
+      if(mo) mo.value=d.months || d.archiveMonths || 13;
+      var st=document.getElementById('rbcAutoArchiveStatus');
+      if(st) st.textContent='상태: '+(d.enabled?'사용함':'사용안함')+' · 자동 아카이브는 '+(d.lastRunMonth||'아직 실행 기록 없음');
+    }catch(e){var st=document.getElementById('rbcAutoArchiveStatus'); if(st) st.textContent='상태 불러오기 실패: '+(e.message||e);}
+  }
+
+  window.rbcAutoArchiveCheckNow=async function(){
+    try{
+      var doc=await db.collection('settings').doc('archiveAutoSettings').get();
+      var cfg=doc.exists ? (doc.data()||{}) : {};
+      var monthKey=new Date().toISOString().slice(0,7);
+      if(!cfg.enabled){alert('자동 아카이브가 사용안함 상태입니다.'); return;}
+      if(cfg.lastRunMonth===monthKey){alert('이번 달 자동 아카이브는 이미 실행된 것으로 기록되어 있습니다.'); return;}
+      if(!confirm('자동실행 점검으로 지금 아카이브 이동/숨김을 실행할까요?')) return;
+      if(document.getElementById('rbcArchiveMonths')) document.getElementById('rbcArchiveMonths').value=cfg.months || 13;
+      if(typeof rbcArchiveRun==='function'){
+        await rbcArchiveRun();
+        await db.collection('settings').doc('archiveAutoSettings').set({lastRunMonth:monthKey,lastCheckedAt:firebase.firestore.FieldValue.serverTimestamp(),lastCheckedAtText:new Date().toISOString()},{merge:true});
+        loadAutoArchiveSettings();
+      }else{
+        alert('아카이브 실행 함수가 없습니다.');
+      }
+    }catch(e){alert('자동실행 점검 실패:\n\n'+(e.message||e));}
+  };
+
+  window.rbcArchiveRestoreHiddenOriginals=async function(){
+    try{
+      var months=Math.max(0, parseInt(document.getElementById('rbcArchiveMonths')?.value,10)||0);
+      var cutoff=new Date(); cutoff.setMonth(cutoff.getMonth()-months); cutoff.setHours(23,59,59,999);
+      archiveLog('복구 대상 확인 중...');
+      var snap=await db.collection('submissions').get();
+      var rows=[];
+      snap.forEach(function(doc){
+        var d=doc.data()||{};
+        var t=d.submittedAt&&d.submittedAt.toDate?d.submittedAt.toDate():new Date(d.submittedAtText||d.date||0);
+        if(d.archived===true && (months===0 || (t && !isNaN(t.getTime()) && t<=cutoff))) rows.push(doc.id);
+      });
+      if(!rows.length){archiveLog('복구할 숨김 원본이 없습니다.'); alert('복구할 숨김 원본이 없습니다.'); return;}
+      if(!confirm('숨김 처리된 원본 '+rows.length+'건을 제출목록에 다시 보이게 복구할까요?')) return;
+      var batch=db.batch(), ops=0;
+      for(var i=0;i<rows.length;i++){
+        batch.update(db.collection('submissions').doc(rows[i]),{archived:false,restoredAt:firebase.firestore.FieldValue.serverTimestamp(),restoredAtText:new Date().toISOString()});
+        ops++;
+        if(ops>=420){await batch.commit(); batch=db.batch(); ops=0;}
+      }
+      if(ops>0) await batch.commit();
+      await db.collection('archiveLogs').add({type:'restore_archived_originals',targetCount:rows.length,successCount:rows.length,createdAt:firebase.firestore.FieldValue.serverTimestamp(),createdAtText:new Date().toISOString()});
+      archiveLog('숨김 원본 복구 완료: '+rows.length+'건');
+      if(typeof loadData==='function') await loadData();
+      alert('숨김 원본 '+rows.length+'건을 복구했습니다.');
+    }catch(e){archiveLog('<span style="color:#991b1b">복구 실패: '+esc(e.message||e)+'</span>'); alert('복구 실패:\n\n'+(e.message||e));}
+  };
+
+  async function staffNames(){
+    try{
+      var snap=await db.collection('staffPins').get();
+      var arr=[];
+      snap.forEach(function(doc){var d=doc.data()||{}; if(d.active===false) return; var n=String(d.name||doc.id||'').trim(); if(n) arr.push(n);});
+      arr.sort(function(a,b){return b.length-a.length;});
+      return arr;
+    }catch(e){return [];}
+  }
+
+  function parseDateText(s){
+    s=String(s||'');
+    var m=s.match(/(20\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})/);
+    if(m) return m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+    m=s.match(/(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*(?:일)?/);
+    if(m){var y=new Date().getFullYear(); return y+'-'+String(+m[1]).padStart(2,'0')+'-'+String(+m[2]).padStart(2,'0');}
+    var d=new Date(s); if(!isNaN(d.getTime())) return ymd(d);
+    return '';
+  }
+
+  function rowsFromText(text,names){
+    var lines=String(text||'').split(/\r?\n/).map(function(x){return x.replace(/\s+/g,' ').trim();}).filter(Boolean);
+    var rows=[], lastDate='', lastLeader='', lastBrand='';
+    var bad=/휴무|교육|사무실|차량|마감|수정|팀장휴무|담당휴무|브랜드|점포명|담당자|팀장|업무|합계|소계/;
+    lines.forEach(function(line,idx){
+      var date=parseDateText(line)||lastDate; if(date) lastDate=date;
+      var brand=/세븐|7\s*ELEVEN|seven/i.test(line)?'세븐일레븐':(/이마트\s*24|이마트24|emart/i.test(line)?'이마트24':'');
+      if(brand) lastBrand=brand; else brand=lastBrand;
+      var nline=norm(line), leader='';
+      for(var i=0;i<names.length;i++){if(nline.indexOf(norm(names[i]))>=0){leader=names[i];break;}}
+      if(leader) lastLeader=leader; else leader=lastLeader;
+      if(!date || !leader) return;
+      var store=line;
+      names.forEach(function(n){store=store.replace(new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),' ');});
+      store=store.replace(/20\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*(?:일)?/g,' ')
+        .replace(/\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*(?:일)?/g,' ')
+        .replace(/세븐일레븐|세븐|이마트\s*24|이마트24|정기실사|인수실사|양수도|폐점/gi,' ')
+        .replace(/\b\d{2,4}\b/g,' ')
+        .replace(/[^가-힣A-Za-z0-9점호점\s]/g,' ')
+        .replace(/\s+/g,' ')
+        .trim();
+      if(!store || store.length<2 || bad.test(store)) return;
+      rows.push({scheduleDate:date,leader:leader,brand:brand||'',store:store,rowIndex:idx,rawText:line});
+    });
     return rows;
   }
 
-  function rebuildLoginCard(){
-    const card = document.querySelector('#adminLockScreen .admin-lock-card');
-    if(!card || card.dataset.officeRebuilt === '1') return;
-    card.dataset.officeRebuilt = '1';
-    const p = card.querySelector('p');
-    if(p) p.textContent = '사무실직원 이름을 선택하고 관리자 비밀번호를 입력하세요.';
-    const input = document.getElementById('adminPasswordInput');
-    if(input && !document.getElementById('adminOfficeStaffBox')){
-      const box = document.createElement('div');
-      box.id = 'adminOfficeStaffBox';
-      box.className = 'admin-office-box';
-      box.innerHTML = '<div class="admin-office-title">사무실직원 선택</div><div id="adminOfficeStaffList" class="admin-office-list"><span class="small">사무실직원 목록 불러오는 중...</span></div><div id="adminOfficeStaffHelp" class="admin-office-help">직원 PIN 관리에서 사무실직원으로 체크한 이름만 표시됩니다.</div>';
-      input.parentNode.insertBefore(box, input);
-    }
-  }
-
-  async function refreshOfficeLoginStaff(){
-    rebuildLoginCard();
-    const list = document.getElementById('adminOfficeStaffList');
-    const help = document.getElementById('adminOfficeStaffHelp');
-    if(!list) return;
+  function rowsFromHtml(html,names){
     try{
-      const rows = await fetchStaffRowsRbc();
-      const office = rows.filter(function(r){return r.officeStaff;});
-      if(!office.length){
-        list.innerHTML = '<span class="small">사무실직원 미등록</span>';
-        if(help) help.innerHTML = '직원 PIN 관리에서 사무실직원을 체크 후 저장하면 여기에 표시됩니다.<br>현재는 기존 관리자 비밀번호만 맞으면 로그인됩니다.';
-        return;
-      }
-      if(!window.rbcSelectedOfficeStaffName || !office.some(function(r){return r.name === window.rbcSelectedOfficeStaffName;})){
-        window.rbcSelectedOfficeStaffName = office[0].name;
-      }
-      list.innerHTML = office.map(function(r){
-        const active = r.name === window.rbcSelectedOfficeStaffName ? ' active' : '';
-        return '<button type="button" class="admin-office-btn'+active+'" data-office-name="'+escR(r.name)+'">'+escR(r.name)+'</button>';
-      }).join('');
-      if(help) help.textContent = '초록색으로 표시된 이름이 로그인 직원입니다.';
-    }catch(e){
-      list.innerHTML = '<span class="small">사무실직원 목록을 불러오지 못했습니다.</span>';
-      if(help) help.textContent = String(e && e.message ? e.message : e);
-    }
+      var doc=new DOMParser().parseFromString(String(html||''),'text/html');
+      var text=[];
+      doc.querySelectorAll('tr').forEach(function(tr){text.push(Array.from(tr.querySelectorAll('th,td')).map(function(td){return td.textContent||'';}).join(' '));});
+      if(!text.length) text=[doc.body ? doc.body.textContent : html];
+      return rowsFromText(text.join('\n'),names);
+    }catch(e){return rowsFromText(html,names);}
   }
 
-  document.addEventListener('click', function(e){
-    const btn = e.target && e.target.closest ? e.target.closest('.admin-office-btn') : null;
-    if(!btn) return;
-    window.rbcSelectedOfficeStaffName = btn.getAttribute('data-office-name') || btn.textContent.trim();
-    document.querySelectorAll('.admin-office-btn').forEach(function(b){b.classList.toggle('active', b === btn);});
-  });
-
-  function patchAdminLogin(){
-    rebuildLoginCard();
-    const oldLogin = window.adminLogin;
-    window.adminLogin = async function(){
-      const input = document.getElementById('adminPasswordInput');
-      const error = document.getElementById('adminLockError');
-      const pw = input ? input.value.trim() : '';
-      let hasOffice = false;
-      try{
-        const rows = await fetchStaffRowsRbc();
-        hasOffice = rows.some(function(r){return r.officeStaff;});
-      }catch(e){}
-      if(hasOffice && !window.rbcSelectedOfficeStaffName){
-        if(error){error.style.display='block'; error.textContent='사무실직원 이름을 먼저 선택하세요.';}
+  function normalizePayloadRows(payload,names){
+    var raw=[];
+    if(Array.isArray(payload)) raw=payload;
+    else if(payload && Array.isArray(payload.rows)) raw=payload.rows;
+    else if(payload && Array.isArray(payload.data)) raw=payload.data;
+    else if(payload && Array.isArray(payload.schedules)) raw=payload.schedules;
+    var rows=[];
+    raw.forEach(function(r,idx){
+      if(Array.isArray(r)){
+        var line=r.join(' ');
+        rows=rows.concat(rowsFromText(line,names));
         return;
       }
-      if(pw === window.RAVEBIC_ADMIN_PASSWORD || pw === '98765'){
-        try{
-          sessionStorage.setItem('ravebicAdminStaffName', window.rbcSelectedOfficeStaffName || '');
-          sessionStorage.setItem('ravebicAdminUnlocked', 'Y');
-        }catch(e){}
-        const remember = document.getElementById('adminRememberPassword');
-        if(remember && remember.checked) localStorage.setItem('ravebicAdminRememberPassword', pw);
-        else localStorage.removeItem('ravebicAdminRememberPassword');
-        const lock = document.getElementById('adminLockScreen');
-        if(lock) lock.remove();
-        document.body.style.overflow = 'auto';
-        return;
-      }
-      if(typeof oldLogin === 'function') return oldLogin.apply(this, arguments);
-    };
-    const loginBtn = document.getElementById('adminLoginBtn');
-    const input = document.getElementById('adminPasswordInput');
-    if(loginBtn) loginBtn.onclick = window.adminLogin;
-    if(input && !input.dataset.officeEnterBound){
-      input.dataset.officeEnterBound='1';
-      input.addEventListener('keydown', function(e){ if(e.key === 'Enter') window.adminLogin(); });
-    }
+      r=r||{};
+      var date=parseDateText(r.scheduleDate||r.date||r.날짜||r.day||r.일자);
+      var leader=String(r.leader||r.name||r.팀장||r.담당자||r.staffName||'').trim();
+      if(!leader){var joined=norm(JSON.stringify(r)); for(var i=0;i<names.length;i++){if(joined.indexOf(norm(names[i]))>=0){leader=names[i];break;}}}
+      var brand=String(r.brand||r.브랜드||'').trim();
+      var store=String(r.store||r.점포명||r.shop||r.storeName||'').trim();
+      if(date && leader && store) rows.push({scheduleDate:date,leader:leader,brand:brand,store:store,rowIndex:idx,rawText:JSON.stringify(r)});
+    });
+    return rows;
   }
 
-  function patchStaffPinManagerDom(){
-    const form = document.querySelector('.pin-manager .pin-form');
-    if(!form) return;
-    if(!document.getElementById('staffOrderInput')){
-      const order = document.createElement('input');
-      order.id = 'staffOrderInput';
-      order.className = 'staff-order-input';
-      order.type = 'number';
-      order.min = '1';
-      order.placeholder = '직급순서 예: 1';
-      const saveBtn = document.getElementById('saveStaffPinBtn');
-      form.insertBefore(order, saveBtn || form.children[2] || null);
-    }
-    if(!document.getElementById('officeStaffInput')){
-      const label = document.createElement('label');
-      label.className = 'office-staff-line';
-      label.innerHTML = '<input id="officeStaffInput" type="checkbox"> 사무실직원';
-      const saveBtn = document.getElementById('saveStaffPinBtn');
-      form.insertBefore(label, saveBtn || null);
-    }
-    const notice = document.querySelector('.pin-manager .notice');
-    if(notice && !notice.dataset.officeNotice){
-      notice.dataset.officeNotice = '1';
-      notice.innerHTML = '직원용 일정표는 직원명/PIN으로 열고, 관리자앱 첫 화면은 <b>사무실직원</b>으로 체크된 이름만 선택해서 들어갑니다. 직급순서는 숫자가 낮을수록 로그인 첫 화면 위에 표시됩니다.';
-    }
-    const thead = document.querySelector('.pin-table thead');
-    if(thead) thead.innerHTML = '<tr><th>직원명</th><th>PIN</th><th>직급순서</th><th>사무실직원</th><th>등록/수정일</th><th>관리</th></tr>';
-  }
-
-  window.loadStaffPins = async function(){
-    patchStaffPinManagerDom();
-    const tbody = document.getElementById('staffPinTbody');
-    const status = document.getElementById('staffPinStatus');
-    if(!tbody || typeof db === 'undefined') return;
-    try{
-      const rows = await fetchStaffRowsRbc();
-      const officeCount = rows.filter(function(r){return r.officeStaff;}).length;
-      if(!rows.length){
-        tbody.innerHTML = '<tr><td colspan="6">등록된 직원 PIN이 없습니다.</td></tr>';
-        if(status) status.textContent = '등록된 직원 PIN이 없습니다.';
-        return;
-      }
-      tbody.innerHTML = rows.map(function(r){
-        return '<tr>'+ 
-          '<td>'+escR(r.name)+'</td>'+ 
-          '<td>'+escR(r.pin)+'</td>'+ 
-          '<td>'+((r.staffOrder && r.staffOrder < 999999) ? r.staffOrder : '-')+'</td>'+ 
-          '<td>'+(r.officeStaff ? '<b style="color:#166534">사무실직원</b>' : '-')+'</td>'+ 
-          '<td>'+escR(r.updated)+'</td>'+ 
-          '<td><button class="pin-del" type="button" data-staff-name="'+escR(r.id)+'">삭제</button></td>'+ 
-        '</tr>';
-      }).join('');
-      if(status) status.innerHTML = '<div class="rbc-staff-count-line">전체 직원 '+rows.length+'명&nbsp;&nbsp;|&nbsp;&nbsp;사무실 직원 '+officeCount+'명&nbsp;&nbsp;|&nbsp;&nbsp;현장 직원 '+(rows.length-officeCount)+'명</div>';
-      refreshOfficeLoginStaff();
-    }catch(err){
-      tbody.innerHTML = '<tr><td colspan="6">직원 PIN 목록 불러오기 실패: '+escR(err.message || err)+'</td></tr>';
-      if(status) status.textContent = '직원 PIN 목록 불러오기 실패';
-    }
-  };
-
-  window.saveStaffPin = async function(){
-    patchStaffPinManagerDom();
-    const nameEl = document.getElementById('staffNameInput');
-    const pinEl = document.getElementById('staffPinInput');
-    const orderEl = document.getElementById('staffOrderInput');
-    const officeEl = document.getElementById('officeStaffInput');
-    const name = nameEl ? nameEl.value.trim() : '';
-    const pin = pinEl ? pinEl.value.trim() : '';
-    const staffOrder = orderEl && orderEl.value ? Number(orderEl.value) : 999999;
-    const officeStaff = !!(officeEl && officeEl.checked);
-    if(!name){ alert('직원명을 입력하세요.'); return; }
-    if(!pin){ alert('PIN을 입력하세요.'); return; }
-    try{
-      await db.collection('staffPins').doc(name).set({
-        name:name,
-        pin:pin,
+  async function saveScheduleRows(rows,source){
+    if(!rows.length) return {ok:false,count:0,message:'저장할 일정이 없습니다.'};
+    var batch=db.batch(), ops=0, count=0;
+    var seen={};
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];
+      if(!r.scheduleDate || !r.leader || !r.store) continue;
+      var id=simpleId(r.scheduleDate+'_'+r.leader+'_'+(r.brand||'')+'_'+r.store);
+      if(seen[id]) continue; seen[id]=1;
+      batch.set(db.collection('teamSchedules').doc(id),{
+        scheduleDate:r.scheduleDate,
+        leader:r.leader,
+        brand:r.brand||'',
+        store:r.store,
         active:true,
-        staffOrder:staffOrder,
-        order:staffOrder,
-        officeStaff:officeStaff,
-        adminAccess:officeStaff,
-        role:officeStaff ? '사무실직원' : '현장직원',
+        rowIndex:r.rowIndex||i,
+        leaderOrderIndex:r.leaderOrderIndex||999999,
+        source:source||'admin_schedule_import',
+        rawText:r.rawText||'',
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         updatedAtText:new Date().toISOString()
-      }, {merge:true});
-      if(typeof invalidateRavebicValidStaffNames === 'function') invalidateRavebicValidStaffNames();
-      await window.loadStaffPins();
-      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
-      if(typeof rbcLoadScore === 'function') rbcLoadScore();
-      alert('직원 PIN 저장 완료');
-    }catch(err){
-      alert('직원 PIN 저장 실패:\n\n' + (err.message || err));
+      },{merge:true});
+      ops++; count++;
+      if(ops>=420){await batch.commit(); batch=db.batch(); ops=0;}
     }
-  };
-
-  window.deleteStaffPin = async function(name){
-    if(!name) return;
-    if(!confirm(name + ' 직원 PIN을 삭제할까요?')) return;
-    try{
-      await db.collection('staffPins').doc(name).delete();
-      if(typeof invalidateRavebicValidStaffNames === 'function') invalidateRavebicValidStaffNames();
-      await window.loadStaffPins();
-      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
-      if(typeof rbcLoadScore === 'function') rbcLoadScore();
-    }catch(err){alert('삭제 실패:\n\n' + (err.message || err));}
-  };
-
-  document.addEventListener('click', function(e){
-    if(e.target && e.target.id === 'saveStaffPinBtn') window.saveStaffPin();
-    if(e.target && e.target.id === 'refreshStaffPinBtn') window.loadStaffPins();
-    if(e.target && e.target.classList && e.target.classList.contains('pin-del')) window.deleteStaffPin(e.target.getAttribute('data-staff-name'));
-  }, true);
-
-  async function tryImportScheduleJsonNonBlocking(){
-    if(typeof window.rbcImportGoogleScheduleRowsFromAppsScript === 'function'){
-      try{return await window.rbcImportGoogleScheduleRowsFromAppsScript();}
-      catch(e){return {ok:false,count:0,message:e.message||String(e)};}
-    }
-    return {ok:false,count:0,message:'자동 일정분석 import 함수 없음'};
+    if(ops>0) await batch.commit();
+    await db.collection('settings').doc('approvedSchedule').set({teamSchedulesImportedAt:firebase.firestore.FieldValue.serverTimestamp(),teamSchedulesImportedAtText:new Date().toISOString(),teamSchedulesImportedCount:count},{merge:true});
+    return {ok:count>0,count:count};
   }
 
-  window.approveGoogleSchedule = async function(){
-    const status = document.getElementById('googleScheduleStatus');
-    const info = document.getElementById('lastApprovedInfo');
+  async function importScheduleFromAppsScript(){
+    var names=await staffNames();
+    var url=typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:'';
+    if(!url) return {ok:false,count:0,message:'Apps Script URL 없음'};
+    var res=await fetch(url,{method:'GET',cache:'no-store'});
+    var text=await res.text();
+    var rows=[];
+    try{rows=normalizePayloadRows(JSON.parse(text),names);}catch(e){rows=rowsFromHtml(text,names);}
+    if(!rows.length) return {ok:false,count:0,message:'Apps Script 응답에서 일정 행을 찾지 못했습니다.'};
+    return await saveScheduleRows(rows,'apps_script_import_final_v6');
+  }
+  window.rbcImportGoogleScheduleRowsFromAppsScript = importScheduleFromAppsScript;
+
+  window.rbcSaveManualScheduleText=async function(){
     try{
-      if(status) status.textContent = '일정 승인 반영 중...';
-      const url = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl !== 'undefined' ? latestGoogleSchedulePdfUrl : ''));
+      var text=document.getElementById('rbcScheduleManualText')?.value||'';
+      if(!text.trim()){alert('붙여넣은 일정 내용이 없습니다.'); return;}
+      var names=await staffNames();
+      var rows=rowsFromText(text,names);
+      var result=await saveScheduleRows(rows,'manual_paste_final_v6');
+      if(!result.ok){alert('일정 저장 실패: '+(result.message||'행을 찾지 못했습니다.')); return;}
+      document.getElementById('rbcScheduleManualModal').style.display='none';
+      if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
+      alert('붙여넣은 일정 '+result.count+'건을 저장했습니다.');
+    }catch(e){alert('수동 일정 저장 실패:\n\n'+(e.message||e));}
+  };
+
+  function addScheduleManualButton(){
+    var section=Array.from(document.querySelectorAll('.section')).find(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>=0;});
+    if(!section || document.getElementById('rbcScheduleManualBtn')) return;
+    var btns=section.querySelector('.btns'); if(!btns) return;
+    var btn=document.createElement('button');
+    btn.id='rbcScheduleManualBtn';
+    btn.className='gray';
+    btn.type='button';
+    btn.textContent='일정표 수동 붙여넣기';
+    btn.onclick=function(){document.getElementById('rbcScheduleManualModal').style.display='flex';};
+    btns.appendChild(btn);
+  }
+
+  window.approveGoogleSchedule=async function(){
+    var status=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    try{
+      if(status) status.textContent='일정 승인 반영 중...';
+      var url=typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:'';
       await db.collection('settings').doc('approvedSchedule').set({
-        sheetName: (typeof latestGoogleScheduleSheetName !== 'undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
-        range: (typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        sheetName:typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭',
+        range:typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79',
         pdfUrl:url,
         scheduleUrl:url,
         approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
         approvedAtText:new Date().toISOString(),
-        approvedBy:(window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태'),
-        source:'admin_app_schedule_approval_restored'
-      }, {merge:true});
-
-      const importResult = await tryImportScheduleJsonNonBlocking();
-      if(info){
-        info.innerHTML = '마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+escR(window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태')+'<br>'+(importResult.ok ? '분석 일정 반영: '+importResult.count+'건' : '직원용 일정 승인 저장 완료');
-      }
-      if(status){
-        status.textContent = importResult.ok ? '승인 완료 · 분석 일정 '+importResult.count+'건 반영' : '승인 완료 · 직원용 일정표 반영 완료';
-      }
-      if(typeof loadApprovedInfo === 'function') loadApprovedInfo();
-      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
-      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
-      alert(importResult.ok ? ('일정 승인 반영 완료\n\n분석 일정 '+importResult.count+'건 반영했습니다.') : '일정 승인 반영 완료\n\n직원용 일정표에 승인 주소를 저장했습니다.');
-    }catch(err){
-      if(status) status.textContent = '일정 승인 반영 실패';
-      alert('일정 승인 반영 실패:\n\n' + (err.message || err));
-    }
+        approvedBy:window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태',
+        source:'admin_approval_final_v6'
+      },{merge:true});
+      var result={ok:false,count:0,message:''};
+      try{result=await importScheduleFromAppsScript();}catch(e){result={ok:false,count:0,message:e.message||String(e)};}
+      if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태')+'<br>'+(result.ok?'분석 일정 반영: '+result.count+'건':'직원용 일정 승인 저장 완료 · 분석 자동반영 실패: '+esc(result.message));
+      if(status) status.textContent=result.ok?'승인 완료 · 분석 일정 '+result.count+'건 반영':'승인 완료 · 자동분석 반영 실패, 수동 붙여넣기 사용 가능';
+      if(typeof loadApprovedInfo==='function') loadApprovedInfo();
+      if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
+      if(result.ok) alert('일정 승인 반영 완료\n\n분석 일정 '+result.count+'건을 teamSchedules에 저장했습니다.');
+      else alert('직원용 일정 승인 저장은 완료했습니다.\n\n다만 분석표 자동반영은 실패했습니다.\n사유: '+result.message+'\n\n일정표 수동 붙여넣기를 사용해주세요.');
+    }catch(e){if(status) status.textContent='일정 승인 반영 실패'; alert('일정 승인 반영 실패:\n\n'+(e.message||e));}
   };
 
-  function initRestorePatch(){
-    rebuildLoginCard();
-    patchAdminLogin();
-    patchStaffPinManagerDom();
-    refreshOfficeLoginStaff();
-    if(typeof window.loadStaffPins === 'function') setTimeout(window.loadStaffPins, 300);
+  function init(){
+    ensurePageTabs();
+    ensureArchiveAutoPanel();
+    /* manual paste disabled by v7 */
+    forceOrder();
+    window.showRbcPage(RBC_PAGE);
   }
 
-  document.addEventListener('DOMContentLoaded', initRestorePatch);
-  setTimeout(initRestorePatch, 200);
-  setTimeout(initRestorePatch, 1000);
-  setTimeout(initRestorePatch, 2500);
+  document.addEventListener('DOMContentLoaded',init);
+  setTimeout(init,200);
+  setTimeout(init,800);
+  setTimeout(init,1800);
+  setInterval(function(){forceOrder(); window.showRbcPage(RBC_PAGE);},2500);
 })();
 </script>
 
-</body></html>
 
-<!-- RAVEBIC_ULTRA_STABLE_FIX_20260616_PAGINATION_PAGE_SCHEDULE -->
+
+<!-- RAVEBIC_V7_NO_DUPLICATE_AND_AUTO_SCHEDULE_PROXY -->
 <script>
-(function(){
-  if(window.__RAVEBIC_ULTRA_STABLE_FIX_20260616__) return;
-  window.__RAVEBIC_ULTRA_STABLE_FIX_20260616__ = true;
-
-  function rbcEsc(v){
-    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
-    });
-  }
-
-  function rbcDtOf(r){
-    if(typeof dtOf === 'function') return dtOf(r);
-    return r && r.submittedAt && r.submittedAt.toDate ? r.submittedAt.toDate() : new Date((r && (r.submittedAtText || r.date)) || 0);
-  }
-
-  function rbcFindSectionByTitle(title){
-    var sections = Array.from(document.querySelectorAll('.section'));
-    return sections.find(function(s){
-      var h = s.querySelector('h2');
-      return h && (h.textContent || '').indexOf(title) >= 0;
-    }) || null;
-  }
-
-  function rbcAlwaysVisible(el){
-    if(!el) return false;
-    return el.id === 'rbcPageTabs' ||
-      (el.classList && el.classList.contains('admin-main-title')) ||
-      (el.classList && el.classList.contains('admin-logout-btn')) ||
-      (el.classList && el.classList.contains('sub')) ||
-      el.id === 'conn' ||
-      (el.classList && el.classList.contains('cards'));
-  }
-
-  function rbcPage2Item(el){
-    if(!el) return false;
-    return el.id === 'rbcRiskBox' ||
-      el.id === 'rbcMonthlyBox' ||
-      el.id === 'rbcScoreBox' ||
-      el.id === 'rbcArchiveBox' ||
-      (el.classList && el.classList.contains('pin-manager'));
-  }
-
-  function rbcEnsureTabs(){
-    var wrap = document.querySelector('.wrap');
-    if(!wrap) return;
-    var tabs = document.getElementById('rbcPageTabs');
-    if(!tabs){
-      tabs = document.createElement('div');
-      tabs.id = 'rbcPageTabs';
-      tabs.className = 'rbc-page-tabs';
-      tabs.innerHTML =
-        '<button id="rbcPage1Btn" class="rbc-page-tab" type="button">페이지1 제출관리</button>' +
-        '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
-      var title = wrap.querySelector('.admin-main-title');
-      var logout = wrap.querySelector('.admin-logout-btn');
-      if(logout && logout.nextSibling) wrap.insertBefore(tabs, logout.nextSibling);
-      else if(title && title.nextSibling) wrap.insertBefore(tabs, title.nextSibling);
-      else wrap.insertBefore(tabs, wrap.firstChild);
-    }
-
-    var p1 = document.getElementById('rbcPage1Btn');
-    var p2 = document.getElementById('rbcPage2Btn');
-
-    if(p1){
-      p1.onclick = function(e){
-        if(e) e.preventDefault();
-        window.__rbcCurrentPage = 1;
-        window.__rbcPage2LockUntil = 0;
-        window.showRbcPage(1, {manual:true});
-        return false;
-      };
-    }
-    if(p2){
-      p2.onclick = function(e){
-        if(e) e.preventDefault();
-        window.__rbcCurrentPage = 2;
-        window.__rbcPage2LockUntil = Date.now() + 60*60*1000;
-        window.showRbcPage(2, {manual:true});
-        return false;
-      };
-    }
-  }
-
-  function rbcStableOrder(){
-    var wrap = document.querySelector('.wrap');
-    if(!wrap) return;
-
-    rbcEnsureTabs();
-
-    var tabs = document.getElementById('rbcPageTabs');
-    var alert = document.getElementById('rbcAlertCenterBox');
-    var team = document.getElementById('teamAnalysisBox');
-    var filters = document.querySelector('.filters');
-    var btns = Array.from(document.querySelectorAll('.btns')).find(function(b){
-      return b.querySelector('button[onclick*="applyFilters"]');
-    }) || document.querySelector('.filters + .btns');
-    var tbody = document.getElementById('tbody');
-    var tableWrap = tbody && tbody.closest('table') ? tbody.closest('table').parentElement : null;
-    var pagination = document.querySelector('.pagination-bar');
-    var schedule = rbcFindSectionByTitle('구글 일정 승인 시스템');
-    var upload = rbcFindSectionByTitle('업로드 파일 분석 도구');
-
-    if(tabs && alert) wrap.insertBefore(alert, tabs.nextSibling);
-    [team, filters, btns, tableWrap, pagination, schedule, upload].forEach(function(el){
-      if(el) wrap.appendChild(el);
-    });
-
-    ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox','rbcArchiveBox'].forEach(function(id){
-      var el = document.getElementById(id);
-      if(el) wrap.appendChild(el);
-    });
-    var pin = document.querySelector('.pin-manager');
-    if(pin) wrap.appendChild(pin);
-  }
-
-  window.isPage2Item = rbcPage2Item;
-
-  window.showRbcPage = function(page, opts){
-    opts = opts || {};
-    page = Number(page) === 2 ? 2 : 1;
-
-    if(page === 1 && !opts.manual && window.__rbcCurrentPage === 2 && Date.now() < (window.__rbcPage2LockUntil || 0)){
-      page = 2;
-    }
-
-    window.__rbcCurrentPage = page;
-    if(page === 2 && opts.manual){
-      window.__rbcPage2LockUntil = Date.now() + 60*60*1000;
-    }
-
-    document.body.style.overflow = 'auto';
-    document.documentElement.style.overflow = 'auto';
-
-    rbcStableOrder();
-
-    var p1 = document.getElementById('rbcPage1Btn');
-    var p2 = document.getElementById('rbcPage2Btn');
-    if(p1) p1.classList.toggle('active', page === 1);
-    if(p2) p2.classList.toggle('active', page === 2);
-
-    var wrap = document.querySelector('.wrap');
-    if(!wrap) return;
-
-    Array.from(wrap.children).forEach(function(el){
-      if(rbcAlwaysVisible(el)) return;
-      if(rbcPage2Item(el)){
-        el.style.display = page === 2 ? '' : 'none';
-      }else{
-        el.style.display = page === 1 ? '' : 'none';
-      }
-    });
-
-    var alert = document.getElementById('rbcAlertCenterBox');
-    if(alert) alert.style.display = page === 1 ? '' : 'none';
-
-    var schedule = rbcFindSectionByTitle('구글 일정 승인 시스템');
-    if(schedule) schedule.style.display = page === 1 ? '' : 'none';
-
-    var upload = rbcFindSectionByTitle('업로드 파일 분석 도구');
-    if(upload) upload.style.display = page === 1 ? '' : 'none';
-  };
-
-  window.updatePaginationControls = function(totalPages, totalGroups){
-    totalPages = Math.max(1, Number(totalPages || 1));
-    totalGroups = Number(totalGroups || (Array.isArray(window.filtered) ? window.filtered.length : 0));
-
-    var info = document.getElementById('pageInfo');
-    var prev = document.getElementById('prevPageBtn');
-    var next = document.getElementById('nextPageBtn');
-
-    if(currentPage > totalPages) currentPage = totalPages;
-    if(currentPage < 1) currentPage = 1;
-
-    if(info) info.textContent = currentPage + ' / ' + totalPages + ' 페이지 · 총 ' + totalGroups + '개 점포그룹';
-    if(prev) prev.disabled = currentPage <= 1;
-    if(next) next.disabled = currentPage >= totalPages;
-  };
-
-  window.prevPage = function(){
-    if(currentPage > 1){
-      currentPage--;
-      render();
-    }
-  };
-
-  window.nextPage = function(){
-    var groups = {};
-    (filtered || []).forEach(function(r){
-      var key = String(r.store || '미지정점포').trim();
-      if(!groups[key]) groups[key] = [];
-      groups[key].push(r);
-    });
-    var totalPages = Math.max(1, Math.ceil(Object.keys(groups).length / pageSize));
-    if(currentPage < totalPages){
-      currentPage++;
-      render();
-    }
-  };
-
-  window.changePageSize = function(v){
-    pageSize = parseInt(v, 10) || 10;
-    currentPage = 1;
-    var sel = document.getElementById('pageSizeSelect');
-    if(sel) sel.value = String(pageSize);
-    render();
-  };
-
-  window.render = function(){
-    var tb = document.getElementById('tbody');
-    if(!tb) return;
-
-    var todayStr = new Date().toDateString();
-    var totalEl = document.getElementById('total');
-    var todayEl = document.getElementById('today');
-    var s0 = document.getElementById('s0');
-    var s1 = document.getElementById('s1');
-    var s2 = document.getElementById('s2');
-
-    if(totalEl) totalEl.textContent = (filtered || []).length;
-    if(todayEl) todayEl.textContent = (filtered || []).filter(function(r){ return rbcDtOf(r).toDateString() === todayStr; }).length;
-    if(s0) s0.textContent = (filtered || []).filter(function(r){ return (r.status || '미확인') === '미확인'; }).length;
-    if(s1) s1.textContent = (filtered || []).filter(function(r){ return r.status === '확인완료'; }).length;
-    if(s2) s2.textContent = (filtered || []).filter(function(r){ return r.status === '보완요청'; }).length;
-
-    if(!(filtered || []).length){
-      tb.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';
-      window.updatePaginationControls(1, 0);
-      return;
-    }
-
-    var groups = {};
-    (filtered || []).forEach(function(r){
-      var key = String(r.store || '미지정점포').trim();
-      if(!groups[key]) groups[key] = [];
-      groups[key].push(r);
-    });
-
-    var stores = Object.keys(groups).sort(function(a,b){
-      var aa = Math.max.apply(null, groups[a].map(function(x){ return rbcDtOf(x).getTime(); }));
-      var bb = Math.max.apply(null, groups[b].map(function(x){ return rbcDtOf(x).getTime(); }));
-      return bb - aa;
-    });
-
-    pageSize = parseInt(pageSize, 10) || 10;
-    var totalPages = Math.max(1, Math.ceil(stores.length / pageSize));
-    if(currentPage > totalPages) currentPage = totalPages;
-    if(currentPage < 1) currentPage = 1;
-
-    var start = (currentPage - 1) * pageSize;
-    var pageStores = stores.slice(start, start + pageSize);
-    var html = '';
-    window.__mergedFiles = {};
-
-    pageStores.forEach(function(store, localIdx){
-      var globalIdx = start + localIdx;
-      var rows = groups[store].sort(function(a,b){ return rbcDtOf(b) - rbcDtOf(a); });
-      var latestRow = rows[0] || {};
-      var latestTime = rbcDtOf(latestRow).toLocaleString();
-      var mergedFiles = [];
-
-      rows.forEach(function(r){
-        (r.files || []).forEach(function(f){
-          mergedFiles.push({rowId:r.id, file:f});
-        });
-      });
-
-      window.__mergedFiles[globalIdx] = mergedFiles;
-
-      html +=
-        '<tr>' +
-          '<td>' + rbcEsc(latestTime) + '</td>' +
-          '<td>' + rbcEsc(latestRow.name) + '</td>' +
-          '<td><button type="button" onclick="if(typeof openStoreHistory===\'function\'){openStoreHistory(\'' + rbcEsc(store).replace(/'/g,'&#39;') + '\')}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ ' + rbcEsc(store) + '</button></td>' +
-          '<td>' + rbcEsc(latestRow.region) + '</td>' +
-          '<td>' + rbcEsc(latestRow.brand) + '</td>' +
-          '<td>' + rbcEsc(latestRow.workType) + '</td>' +
-          '<td><span class="rbc-merged-note">총 ' + rows.length + '회 제출</span>' + (latestRow.note ? '<div class="small">' + rbcEsc(latestRow.note) + '</div>' : '') + '</td>' +
-          '<td><button class="file-view-btn" type="button" onclick="showMergedFiles(' + globalIdx + ')">📎 첨부파일 ' + mergedFiles.length + '개</button></td>' +
-          '<td><select onchange="changeStatus(\'' + rbcEsc(latestRow.id) + '\',this.value)">' +
-            '<option ' + ((latestRow.status || '미확인') === '미확인' ? 'selected' : '') + '>미확인</option>' +
-            '<option ' + (latestRow.status === '확인완료' ? 'selected' : '') + '>확인완료</option>' +
-            '<option ' + (latestRow.status === '보완요청' ? 'selected' : '') + '>보완요청</option>' +
-          '</select></td>' +
-          '<td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(\'' + rbcEsc(latestRow.id) + '\')">제출삭제</button></td>' +
-        '</tr>';
-    });
-
-    tb.innerHTML = html;
-    window.updatePaginationControls(totalPages, stores.length);
-
-    if(typeof applyRavebicStatusColors === 'function'){
-      setTimeout(applyRavebicStatusColors, 30);
-      setTimeout(applyRavebicStatusColors, 250);
-      setTimeout(applyRavebicStatusColors, 700);
-    }
-    if(typeof bindStoreHistoryClick === 'function'){
-      setTimeout(bindStoreHistoryClick, 80);
-    }
-  };
-
-  async function rbcTodayScheduleCount(){
-    try{
-      if(typeof db === 'undefined') return 0;
-      var d = new Date();
-      var ymd = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
-      var snap = await db.collection('teamSchedules').where('scheduleDate','==',ymd).get();
-      return snap.size || 0;
-    }catch(e){
-      return 0;
-    }
-  }
-
-  var oldImport = window.rbcImportGoogleScheduleRowsFromAppsScript;
-  window.rbcImportGoogleScheduleRowsFromAppsScript = async function(){
-    var result = null;
-    if(typeof oldImport === 'function'){
-      result = await oldImport();
-      if(result && result.ok) return result;
-    }
-
-    var existing = await rbcTodayScheduleCount();
-    if(existing > 0){
-      return {ok:true, count:existing, message:'이미 오늘 일정이 Firestore에 반영되어 있어 기존 일정으로 계속 진행합니다.'};
-    }
-
-    return result || {ok:false, count:0, message:'Firebase Function 호출 실패'};
-  };
-
-  var oldApprove = window.approveGoogleSchedule;
-  window.approveGoogleSchedule = async function(){
-    var status = document.getElementById('googleScheduleStatus');
-    var info = document.getElementById('lastApprovedInfo');
-    var approver = window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '관리자';
-
-    try{
-      if(status) status.textContent = '일정 승인 저장 및 서버 자동반영 확인 중...';
-
-      if(typeof db !== 'undefined'){
-        await db.collection('settings').doc('approvedSchedule').set({
-          approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          approvedAtText: new Date().toISOString(),
-          approvedBy: approver,
-          source: 'admin_ultra_stable_fix_20260616'
-        }, {merge:true});
-      }
-
-      var result = await window.rbcImportGoogleScheduleRowsFromAppsScript();
-      if(!result || !result.ok) throw new Error((result && result.message) || '자동반영 실패');
-
-      if(info) info.innerHTML = '마지막 승인: ' + new Date().toLocaleString() + '<br>승인자: ' + rbcEsc(approver) + '<br>분석 일정 반영: ' + Number(result.count || 0) + '건';
-      if(status) status.textContent = '승인 완료 · 분석 일정 ' + Number(result.count || 0) + '건 확인';
-
-      if(typeof loadApprovedInfo === 'function') loadApprovedInfo();
-      if(typeof loadTeamScheduleAnalysis === 'function') await loadTeamScheduleAnalysis();
-      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
-      if(typeof rbcLoadScore === 'function') rbcLoadScore();
-
-      alert('직원용 일정 승인 저장 및 분석표 반영 확인 완료\n\nteamSchedules ' + Number(result.count || 0) + '건 확인했습니다.');
-    }catch(e){
-      var existing = await rbcTodayScheduleCount();
-      if(existing > 0){
-        if(info) info.innerHTML = '마지막 승인: ' + new Date().toLocaleString() + '<br>승인자: ' + rbcEsc(approver) + '<br>기존 반영 일정: ' + existing + '건';
-        if(status) status.textContent = '새로 불러오기는 실패했지만 기존 반영 일정 ' + existing + '건 사용 중';
-        if(typeof loadTeamScheduleAnalysis === 'function') await loadTeamScheduleAnalysis();
-        alert('새로 불러오기는 실패했지만, 오늘 일정은 이미 반영되어 있습니다.\n\n기존 teamSchedules ' + existing + '건으로 계속 사용합니다.');
-        return;
-      }
-
-      if(typeof oldApprove === 'function'){
-        return oldApprove();
-      }
-
-      alert('일정 자동반영 실패:\n\n' + (e.message || e) + '\n\n다음 확인: Functions > importGoogleScheduleToFirestore > 로그');
-    }
-  };
-
-  function boot(){
-    rbcStableOrder();
-    var sel = document.getElementById('pageSizeSelect');
-    if(sel) sel.value = String(pageSize || 10);
-    window.showRbcPage(window.__rbcCurrentPage || 1);
-    if(typeof render === 'function') render();
-    if(typeof window.rbcEnsureArchiveZipButton === 'function') window.rbcEnsureArchiveZipButton();
-  }
-
-  document.addEventListener('DOMContentLoaded', function(){ setTimeout(boot, 50); });
-  setTimeout(boot, 300);
-  setTimeout(boot, 1200);
-  setTimeout(boot, 3000);
-})();
-</script>
-
-<script>
-/* RAVEBIC_RESTORE_ARCHIVE_ZIP_DOWNLOAD_20260616
-   아카이브 첨부파일 ZIP 다운로드 버튼 복구 전용 패치.
-   기존 레이아웃/페이지/일정/로그인 코드는 건드리지 않고 버튼만 보강합니다.
+/* RAVEBIC_V7_NO_DUPLICATE_AND_AUTO_SCHEDULE_PROXY
+   - 중복 자동 아카이브 박스 제거
+   - 일정 수동 붙여넣기 버튼 숨김
+   - 일정 자동반영은 서버 프록시 함수 우선 호출, 실패 시 원인 명확 표시
 */
 (function(){
-  var ZIP_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
+  function escV7(v){return String(v==null?'':v).replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});}
+  function normV7(v){return String(v||'').replace(/\s+/g,'').trim();}
+  function ymdV7(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function simpleIdV7(v){return String(v||'').replace(/\s+/g,'_').replace(/[\\/#?%:.,\[\]{}|~`^<>]/g,'_').slice(0,130);}
 
-  function findArchiveBox(){
-    return document.getElementById('rbcArchiveBox') ||
-      Array.from(document.querySelectorAll('div')).find(function(el){
-        return (el.innerText || '').indexOf('데이터 아카이브 관리') >= 0;
-      });
+  function removeDuplicateAutoArchivePanels(){
+    var panels=Array.from(document.querySelectorAll('#rbcArchiveBody .rbc-auto-archive-panel'));
+    if(panels.length>1){
+      panels.forEach(function(p,i){ if(i>0) p.remove(); });
+    }
+    var extra=document.getElementById('rbcAutoArchivePanel');
+    if(extra && panels[0] && extra!==panels[0]) extra.remove();
   }
 
-  function findArchiveToolbar(box){
-    if(!box) return null;
-    var controls = box.querySelector('.rbc-archive-controls');
-    if(controls) return controls;
-
-    var divs = Array.from(box.querySelectorAll('div'));
-    for(var i=0;i<divs.length;i++){
-      var txt = divs[i].innerText || divs[i].textContent || '';
-      if(
-        txt.indexOf('아카이브 시뮬레이션') >= 0 ||
-        txt.indexOf('archive로 이동') >= 0 ||
-        txt.indexOf('영구삭제') >= 0 ||
-        txt.indexOf('로그 보기') >= 0
-      ){
-        return divs[i];
-      }
-    }
-    return box;
+  function hideManualScheduleButton(){
+    var btn=document.getElementById('rbcScheduleManualBtn');
+    if(btn) btn.remove();
+    var modal=document.getElementById('rbcScheduleManualModal');
+    if(modal) modal.style.display='none';
   }
 
-  function restoreArchiveZipButton(){
-    var box = findArchiveBox();
-    if(!box) return;
-
-    var old = document.getElementById('rbcArchiveZipDownloadBtn');
-    if(old){
-      old.style.display = '';
-      return;
-    }
-
-    var btn = document.createElement('button');
-    btn.id = 'rbcArchiveZipDownloadBtn';
-    btn.type = 'button';
-    btn.className = 'rbc-archive-btn green';
-    btn.textContent = '아카이브 첨부파일 ZIP 다운로드';
-    btn.style.marginLeft = '6px';
-    btn.onclick = function(e){
-      if(e) e.preventDefault();
-      var log = document.getElementById('rbcArchiveLog');
-      if(log){
-        log.innerHTML = '서버에서 아카이브 첨부파일 ZIP 생성을 시작합니다.<br>다운로드가 바로 시작되지 않으면 새 창 로딩을 기다려주세요.';
-      }
-      window.open(ZIP_URL + '?t=' + Date.now(), '_blank');
-      return false;
-    };
-
-    var toolbar = findArchiveToolbar(box);
-    if(toolbar){
-      toolbar.appendChild(btn);
-    }else{
-      box.appendChild(btn);
-    }
+  async function staffNamesV7(){
+    try{
+      var snap=await db.collection('staffPins').get();
+      var arr=[];
+      snap.forEach(function(doc){var d=doc.data()||{}; if(d.active===false) return; var n=String(d.name||doc.id||'').trim(); if(n) arr.push(n);});
+      arr.sort(function(a,b){return b.length-a.length;});
+      return arr;
+    }catch(e){return [];}
   }
 
-  window.rbcDownloadArchiveFilesZip = function(){
-    window.open(ZIP_URL + '?t=' + Date.now(), '_blank');
+  function parseDateTextV7(s){
+    s=String(s||'');
+    var m=s.match(/(20\d{2})\s*[.\-/년]\s*(\d{1,2})\s*[.\-/월]\s*(\d{1,2})/);
+    if(m) return m[1]+'-'+String(+m[2]).padStart(2,'0')+'-'+String(+m[3]).padStart(2,'0');
+    m=s.match(/(\d{1,2})\s*[.\-/월]\s*(\d{1,2})\s*(?:일)?/);
+    if(m){var y=new Date().getFullYear(); return y+'-'+String(+m[1]).padStart(2,'0')+'-'+String(+m[2]).padStart(2,'0');}
+    var d=new Date(s); if(!isNaN(d.getTime())) return ymdV7(d);
+    return '';
+  }
+
+  function rowsFromTextV7(text,names){
+    var lines=String(text||'').split(/\r?\n/).map(function(x){return x.replace(/\s+/g,' ').trim();}).filter(Boolean);
+    var rows=[], lastDate='', lastLeader='', lastBrand='';
+    var bad=/휴무|교육|사무실|차량|마감|수정|팀장휴무|담당휴무|브랜드|점포명|담당자|팀장|업무|합계|소계/;
+    lines.forEach(function(line,idx){
+      var date=parseDateTextV7(line)||lastDate; if(date) lastDate=date;
+      var brand=/세븐|7\s*ELEVEN|seven/i.test(line)?'세븐일레븐':(/이마트\s*24|이마트24|emart/i.test(line)?'이마트24':'');
+      if(brand) lastBrand=brand; else brand=lastBrand;
+      var nline=normV7(line), leader='';
+      for(var i=0;i<names.length;i++){if(nline.indexOf(normV7(names[i]))>=0){leader=names[i];break;}}
+      if(leader) lastLeader=leader; else leader=lastLeader;
+      if(!date || !leader) return;
+      var store=line;
+      names.forEach(function(n){store=store.replace(new RegExp(n.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'),'g'),' ');});
+      store=store.replace(/20\d{2}\s*[.\-/년]\s*\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*(?:일)?/g,' ')
+        .replace(/\d{1,2}\s*[.\-/월]\s*\d{1,2}\s*(?:일)?/g,' ')
+        .replace(/세븐일레븐|세븐|이마트\s*24|이마트24|정기실사|인수실사|양수도|폐점/gi,' ')
+        .replace(/\b\d{2,4}\b/g,' ')
+        .replace(/[^가-힣A-Za-z0-9점호점\s]/g,' ')
+        .replace(/\s+/g,' ')
+        .trim();
+      if(!store || store.length<2 || bad.test(store)) return;
+      rows.push({scheduleDate:date,leader:leader,brand:brand||'',store:store,rowIndex:idx,rawText:line});
+    });
+    return rows;
+  }
+
+  function normalizePayloadRowsV7(payload,names){
+    var raw=[];
+    if(Array.isArray(payload)) raw=payload;
+    else if(payload && Array.isArray(payload.rows)) raw=payload.rows;
+    else if(payload && Array.isArray(payload.data)) raw=payload.data;
+    else if(payload && Array.isArray(payload.schedules)) raw=payload.schedules;
+    var rows=[];
+    raw.forEach(function(r,idx){
+      if(Array.isArray(r)){ rows=rows.concat(rowsFromTextV7(r.join(' '),names)); return; }
+      r=r||{};
+      var date=parseDateTextV7(r.scheduleDate||r.date||r.날짜||r.day||r.일자);
+      var leader=String(r.leader||r.name||r.팀장||r.담당자||r.staffName||'').trim();
+      if(!leader){var joined=normV7(JSON.stringify(r)); for(var i=0;i<names.length;i++){if(joined.indexOf(normV7(names[i]))>=0){leader=names[i];break;}}}
+      var brand=String(r.brand||r.브랜드||'').trim();
+      var store=String(r.store||r.점포명||r.shop||r.storeName||'').trim();
+      if(date && leader && store) rows.push({scheduleDate:date,leader:leader,brand:brand,store:store,rowIndex:idx,rawText:JSON.stringify(r)});
+    });
+    return rows;
+  }
+
+  async function saveScheduleRowsV7(rows,source){
+    if(!rows.length) return {ok:false,count:0,message:'저장할 일정이 없습니다.'};
+    var batch=db.batch(), ops=0, count=0, seen={};
+    for(var i=0;i<rows.length;i++){
+      var r=rows[i];
+      if(!r.scheduleDate || !r.leader || !r.store) continue;
+      var id=simpleIdV7(r.scheduleDate+'_'+r.leader+'_'+(r.brand||'')+'_'+r.store);
+      if(seen[id]) continue; seen[id]=1;
+      batch.set(db.collection('teamSchedules').doc(id),{
+        scheduleDate:r.scheduleDate,
+        leader:r.leader,
+        brand:r.brand||'',
+        store:r.store,
+        active:true,
+        rowIndex:r.rowIndex||i,
+        leaderOrderIndex:r.leaderOrderIndex||999999,
+        source:source||'admin_schedule_import_v7',
+        rawText:r.rawText||'',
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAtText:new Date().toISOString()
+      },{merge:true});
+      ops++; count++;
+      if(ops>=420){await batch.commit(); batch=db.batch(); ops=0;}
+    }
+    if(ops>0) await batch.commit();
+    await db.collection('settings').doc('approvedSchedule').set({teamSchedulesImportedAt:firebase.firestore.FieldValue.serverTimestamp(),teamSchedulesImportedAtText:new Date().toISOString(),teamSchedulesImportedCount:count},{merge:true});
+    return {ok:count>0,count:count,message:count>0?'OK':'일정 행을 찾지 못했습니다.'};
+  }
+
+  async function tryServerProxyV7(scheduleUrl){
+    var candidates=[
+      'https://us-central1-ravebic-app.cloudfunctions.net/importGoogleScheduleToFirestore',
+      'https://us-central1-ravebic-app.cloudfunctions.net/importGoogleScheduleToFirestore',
+      'https://us-central1-ravebic-app.cloudfunctions.net/importGoogleScheduleToFirestore'
+    ];
+    var lastErr='';
+    for(var i=0;i<candidates.length;i++){
+      try{
+        var res=await fetch(candidates[i],{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({scheduleUrl:scheduleUrl, source:'admin_app_v7'})
+        });
+        var text=await res.text();
+        var data={}; try{data=JSON.parse(text);}catch(e){data={message:text};}
+        if(res.ok && (data.ok || data.count || data.importedCount)){
+          return {ok:true,count:Number(data.count||data.importedCount||data.savedCount||0),message:'서버 프록시 자동반영 완료'};
+        }
+        lastErr=(data.message||text||('HTTP '+res.status));
+      }catch(e){lastErr=e.message||String(e);}
+    }
+    return {ok:false,count:0,message:lastErr||'서버 프록시 함수가 없습니다.'};
+  }
+
+  async function tryDirectFetchV7(scheduleUrl){
+    var names=await staffNamesV7();
+    var res=await fetch(scheduleUrl,{method:'GET',cache:'no-store'});
+    var text=await res.text();
+    var rows=[];
+    try{rows=normalizePayloadRowsV7(JSON.parse(text),names);}catch(e){rows=rowsFromTextV7(text,names);}
+    if(!rows.length) return {ok:false,count:0,message:'Apps Script 응답에서 일정 행을 찾지 못했습니다.'};
+    return await saveScheduleRowsV7(rows,'apps_script_direct_v7');
+  }
+
+  window.rbcImportGoogleScheduleRowsFromAppsScript=async function(){
+    var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:'');
+    if(!url) return {ok:false,count:0,message:'Apps Script URL 없음'};
+
+    var proxy=await tryServerProxyV7(url);
+    if(proxy.ok) return proxy;
+
+    try{
+      var direct=await tryDirectFetchV7(url);
+      if(direct.ok) return direct;
+      return direct;
+    }catch(e){
+      return {ok:false,count:0,message:(e.message||String(e)) + ' / 해결: Firebase Function 일정 프록시 배포 필요'};
+    }
   };
 
-  window.rbcEnsureArchiveZipButton = restoreArchiveZipButton;
+  window.approveGoogleSchedule=async function(){
+    var status=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    try{
+      if(status) status.textContent='일정 승인 반영 중...';
+      var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:'');
+      var approver=window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태';
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName:typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭',
+        range:typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79',
+        pdfUrl:url,
+        scheduleUrl:url,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText:new Date().toISOString(),
+        approvedBy:approver,
+        source:'admin_approval_v7_auto_required'
+      },{merge:true});
 
-  document.addEventListener('DOMContentLoaded', restoreArchiveZipButton);
-  setTimeout(restoreArchiveZipButton, 200);
-  setTimeout(restoreArchiveZipButton, 800);
-  setTimeout(restoreArchiveZipButton, 2000);
-  setTimeout(restoreArchiveZipButton, 4000);
-})();
-</script>
-
-<!-- RAVEBIC_FINAL_PAGE1_ALERT_PAGE2_ARCHIVE_RESTORE_20260616 -->
-<style>
-/* 관리자 알림센터는 페이지1 상단 고정, 백업기능은 페이지2 복구 */
-#rbcArchiveBackupBox{
-  margin:18px 0;
-  padding:16px;
-  border:1px solid #d7e6fb;
-  background:#f8fbff;
-  border-radius:18px;
-}
-#rbcArchiveBackupBox h2{
-  margin:0 0 8px;
-  color:#123f7a;
-  font-size:21px;
-}
-.rbc-archive-row{
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  margin:14px 0;
-}
-.rbc-archive-status{
-  margin-top:10px;
-  padding:11px 13px;
-  border:1px solid #cfe0f8;
-  background:#fff;
-  border-radius:13px;
-  color:#0b3b77;
-  font-weight:800;
-  line-height:1.5;
-}
-</style>
-
-<script>
-(function(){
-  if(window.__RAVEBIC_FINAL_PAGE1_ALERT_PAGE2_ARCHIVE_RESTORE_20260616__) return;
-  window.__RAVEBIC_FINAL_PAGE1_ALERT_PAGE2_ARCHIVE_RESTORE_20260616__ = true;
-
-  const ARCHIVE_ZIP_URL = 'https://us-central1-ravebic-app.cloudfunctions.net/downloadArchiveFilesZip';
-
-  function createArchiveBackupBox(){
-    if(document.getElementById('rbcArchiveBackupBox')) return document.getElementById('rbcArchiveBackupBox');
-
-    const box = document.createElement('div');
-    box.id = 'rbcArchiveBackupBox';
-    box.className = 'rbc-page2-only';
-    box.innerHTML =
-      '<h2>데이터 아카이브 관리</h2>' +
-      '<div class="notice">' +
-        '서버에 보관된 ARCHIVE 제출자료의 첨부파일을 ZIP으로 묶어 내 컴퓨터로 다운로드합니다. ' +
-        '관리자앱을 열지 않아도 밤 9시 자동 보완요청은 Firebase Functions에서 별도로 실행됩니다.' +
-      '</div>' +
-      '<div class="rbc-archive-row">' +
-        '<button class="green" type="button" onclick="rbcDownloadArchiveZip()">ARCHIVE 첨부파일 ZIP 다운로드</button>' +
-        '<button class="gray" type="button" onclick="rbcOpenFirebaseFunctionsHelp()">Functions 확인 안내</button>' +
-      '</div>' +
-      '<div id="rbcArchiveBackupStatus" class="rbc-archive-status">' +
-        'ZIP 다운로드 버튼을 누르면 새 창에서 다운로드가 시작됩니다.' +
-      '</div>';
-
-    return box;
-  }
-
-  window.rbcDownloadArchiveZip = function(){
-    const status = document.getElementById('rbcArchiveBackupStatus');
-    if(status){
-      status.innerHTML = 'ARCHIVE 첨부파일 ZIP 다운로드를 시작했습니다.<br>브라우저가 팝업을 막으면 새 창 허용 후 다시 눌러주세요.';
-    }
-    window.open(ARCHIVE_ZIP_URL, '_blank');
-  };
-
-  window.rbcOpenFirebaseFunctionsHelp = function(){
-    const status = document.getElementById('rbcArchiveBackupStatus');
-    if(status){
-      status.innerHTML =
-        'Firebase Console → Functions에서 아래 함수가 보이면 정상입니다.<br>' +
-        '1) downloadArchiveFilesZip<br>' +
-        '2) autoSendCorrectionRequestsAtNight<br>' +
-        '3) importGoogleScheduleToFirestore';
-    }
-  };
-
-  function placeArchiveBox(){
-    const wrap = document.querySelector('.wrap');
-    if(!wrap) return;
-
-    const box = createArchiveBackupBox();
-    if(!box.parentNode){
-      const pin = document.querySelector('.pin-manager');
-      const score = document.getElementById('rbcScoreBox');
-      const monthly = document.getElementById('rbcMonthlyBox');
-
-      if(pin && pin.parentNode){
-        pin.parentNode.insertBefore(box, pin);
-      }else if(score && score.parentNode){
-        score.parentNode.insertBefore(box, score);
-      }else if(monthly && monthly.parentNode){
-        monthly.parentNode.insertBefore(box, monthly.nextSibling);
-      }else{
-        wrap.appendChild(box);
-      }
-    }
-  }
-
-  function moveAlertCenterToPage1Top(){
-    const wrap = document.querySelector('.wrap');
-    const alert = document.getElementById('rbcAlertCenterBox');
-    if(!wrap || !alert) return;
-
-    const tabs = document.getElementById('rbcPageTabs');
-    const logout = wrap.querySelector('.admin-logout-btn');
-    const title = wrap.querySelector('.admin-main-title');
-
-    if(tabs && tabs.nextSibling){
-      wrap.insertBefore(alert, tabs.nextSibling);
-    }else if(logout && logout.nextSibling){
-      wrap.insertBefore(alert, logout.nextSibling);
-    }else if(title && title.nextSibling){
-      wrap.insertBefore(alert, title.nextSibling);
-    }else{
-      wrap.insertBefore(alert, wrap.firstChild);
-    }
-
-    alert.style.display = '';
-  }
-
-  function makeTabs(){
-    let tabs = document.getElementById('rbcPageTabs');
-    const cards = document.querySelector('.cards');
-    const wrap = document.querySelector('.wrap');
-    if(!wrap) return;
-
-    if(!tabs){
-      tabs = document.createElement('div');
-      tabs.id = 'rbcPageTabs';
-      tabs.className = 'rbc-page-tabs';
-      tabs.innerHTML =
-        '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>' +
-        '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
-      if(cards && cards.nextSibling) cards.parentNode.insertBefore(tabs, cards.nextSibling);
-      else wrap.insertBefore(tabs, wrap.firstChild);
-    }
-
-    const b1 = document.getElementById('rbcPage1Btn');
-    const b2 = document.getElementById('rbcPage2Btn');
-    if(b1) b1.onclick = function(){ window.showRbcPage(1); };
-    if(b2) b2.onclick = function(){ window.showRbcPage(2); };
-  }
-
-  function isAlwaysVisible(el){
-    return !!(
-      el &&
-      (
-        el.id === 'rbcPageTabs' ||
-        el.classList.contains('admin-main-title') ||
-        el.classList.contains('admin-logout-btn') ||
-        el.classList.contains('sub') ||
-        el.id === 'conn' ||
-        el.classList.contains('cards')
-      )
-    );
-  }
-
-  function isPage2Only(el){
-    return !!(
-      el &&
-      (
-        el.id === 'rbcArchiveBackupBox' ||
-        el.id === 'rbcRiskBox' ||
-        el.id === 'rbcMonthlyBox' ||
-        el.id === 'rbcScoreBox' ||
-        el.classList.contains('pin-manager')
-      )
-    );
-  }
-
-  window.showRbcPage = function(page){
-    const wrap = document.querySelector('.wrap');
-    if(!wrap) return;
-
-    makeTabs();
-    placeArchiveBox();
-    moveAlertCenterToPage1Top();
-
-    const p1 = document.getElementById('rbcPage1Btn');
-    const p2 = document.getElementById('rbcPage2Btn');
-
-    if(p1) p1.classList.toggle('active', page === 1);
-    if(p2) p2.classList.toggle('active', page === 2);
-
-    Array.from(wrap.children).forEach(function(el){
-      if(isAlwaysVisible(el)) return;
-
-      if(el.id === 'rbcAlertCenterBox'){
-        el.style.display = page === 1 ? '' : 'none';
+      var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
+      if(result.ok){
+        if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+escV7(approver)+'<br>분석 일정 자동반영: '+result.count+'건';
+        if(status) status.textContent='승인 완료 · 분석 일정 '+result.count+'건 자동반영';
+        if(typeof loadApprovedInfo==='function') loadApprovedInfo();
+        if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+        if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
+        alert('직원용 일정 승인 저장 및 분석표 자동반영 완료\n\nteamSchedules '+result.count+'건 저장했습니다.');
         return;
       }
 
-      if(isPage2Only(el)){
-        el.style.display = page === 2 ? '' : 'none';
-      }else{
-        el.style.display = page === 1 ? '' : 'none';
-      }
-    });
-
-    if(page === 1){
-      moveAlertCenterToPage1Top();
-      if(typeof rbcLoadAlertCenter === 'function'){
-        setTimeout(rbcLoadAlertCenter, 200);
-      }
+      if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+escV7(approver)+'<br>분석 자동반영 실패: '+escV7(result.message);
+      if(status) status.textContent='승인 저장 완료 · 분석 자동반영 실패: 서버 프록시 필요';
+      alert('직원용 일정 승인 저장은 완료했습니다.\n\n하지만 분석표 자동반영은 실패했습니다.\n사유: '+result.message+'\n\n이 문제는 index.html만으로는 해결되지 않고 Firebase Function 일정 프록시가 필요합니다.');
+    }catch(e){
+      if(status) status.textContent='일정 승인 반영 실패';
+      alert('일정 승인 반영 실패:\n\n'+(e.message||e));
     }
-
-    try{ sessionStorage.setItem('ravebicAdminCurrentPage', String(page)); }catch(e){}
   };
 
-  function initFinalPageFix(){
-    makeTabs();
-    placeArchiveBox();
-    moveAlertCenterToPage1Top();
+  function initV7(){
+    removeDuplicateAutoArchivePanels();
+    hideManualScheduleButton();
+    if(typeof showRbcPage==='function') showRbcPage(window.__rbcCurrentPage||1);
+  }
+  document.addEventListener('DOMContentLoaded',initV7);
+  setTimeout(initV7,100);
+  setTimeout(initV7,800);
+  setTimeout(initV7,1800);
+  setInterval(initV7,2500);
+})();
+</script>
 
-    let page = 1;
-    try{
-      page = Number(sessionStorage.getItem('ravebicAdminCurrentPage') || '1') || 1;
-    }catch(e){}
 
-    window.showRbcPage(page === 2 ? 2 : 1);
+
+<!-- RAVEBIC_STABLE_V10_CORE_FIX: office order + sticky page2 + schedule proxy only -->
+<style>
+.rbc-v10-note{display:none!important}
+</style>
+<script>
+(function(){
+  var RBC_PAGE_KEY='rbcAdminCurrentPageStableV10';
+  var currentPage = (sessionStorage.getItem(RBC_PAGE_KEY)==='2') ? 2 : 1;
+  window.__rbcCurrentPage = currentPage;
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s];});}
+  function wrap(){return document.querySelector('.wrap');}
+  function norm(t){return String(t||'').replace(/\s+/g,'');}
+  function byText(txt){return Array.from(document.querySelectorAll('.section,.box,.card')).find(function(el){return (el.innerText||'').indexOf(txt)>=0;});}
+
+  function getPage2Els(){
+    var arr=[];
+    ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox','rbcArchiveBox'].forEach(function(id){var el=document.getElementById(id); if(el) arr.push(el);});
+    var schedule=byText('구글 일정 승인 시스템'); if(schedule) arr.push(schedule);
+    var pin=document.querySelector('.pin-manager'); if(pin) arr.push(pin);
+    var upload=byText('업로드 파일 분석 도구'); if(upload) arr.push(upload);
+    return Array.from(new Set(arr)).filter(Boolean);
+  }
+  function isAlways(el){
+    if(!el) return false;
+    if(el.id==='rbcPageTabs') return true;
+    if(el.classList && (el.classList.contains('admin-main-title')||el.classList.contains('admin-logout-btn')||el.classList.contains('sub')||el.classList.contains('cards'))) return true;
+    if(el.id==='conn') return true;
+    return false;
+  }
+  function isPage2(el){return getPage2Els().indexOf(el)>=0;}
+
+  function ensureTabs(){
+    var w=wrap(); if(!w) return;
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      tabs.innerHTML='<button id="rbcPage1Btn" class="rbc-page-tab" type="button">페이지1 제출관리</button><button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+      var title=w.querySelector('.admin-main-title')||w.firstElementChild;
+      if(title && title.nextSibling) w.insertBefore(tabs,title.nextSibling); else w.insertBefore(tabs,w.firstChild);
+    }
+    var b1=document.getElementById('rbcPage1Btn'), b2=document.getElementById('rbcPage2Btn');
+    if(b1 && !b1.dataset.v10){b1.dataset.v10='1'; b1.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();setPage(1,true);},true);}
+    if(b2 && !b2.dataset.v10){b2.dataset.v10='1'; b2.addEventListener('click',function(e){e.preventDefault();e.stopImmediatePropagation();setPage(2,true);},true);}
   }
 
-  document.addEventListener('DOMContentLoaded', initFinalPageFix);
-  setTimeout(initFinalPageFix, 200);
-  setTimeout(initFinalPageFix, 700);
-  setTimeout(initFinalPageFix, 1500);
-  setTimeout(initFinalPageFix, 3000);
+  function orderLayout(){
+    var w=wrap(); if(!w) return;
+    ensureTabs();
+    var tabs=document.getElementById('rbcPageTabs');
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(alert && tabs && tabs.nextSibling!==alert) w.insertBefore(alert,tabs.nextSibling);
+    ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox'].forEach(function(id){var el=document.getElementById(id); if(el) w.appendChild(el);});
+    var schedule=byText('구글 일정 승인 시스템'); if(schedule) w.appendChild(schedule);
+    var pin=document.querySelector('.pin-manager'); if(pin) w.appendChild(pin);
+    var upload=byText('업로드 파일 분석 도구'); if(upload) w.appendChild(upload);
+    var archive=document.getElementById('rbcArchiveBox'); if(archive) w.appendChild(archive);
+    removeArchiveDupes();
+  }
+
+  function setPage(page, explicit){
+    currentPage = Number(page)===2 ? 2 : 1;
+    window.__rbcCurrentPage = currentPage;
+    sessionStorage.setItem(RBC_PAGE_KEY,String(currentPage));
+    try{sessionStorage.setItem('rbcAdminCurrentPage',String(currentPage));}catch(e){}
+    orderLayout();
+    var b1=document.getElementById('rbcPage1Btn'), b2=document.getElementById('rbcPage2Btn');
+    if(b1) b1.classList.toggle('active',currentPage===1);
+    if(b2) b2.classList.toggle('active',currentPage===2);
+    var w=wrap(); if(!w) return;
+    Array.from(w.children).forEach(function(el){
+      if(isAlways(el)){el.style.display=''; return;}
+      if(el.id==='rbcAlertCenterBox'){el.style.display=currentPage===1?'':'none'; return;}
+      if(isPage2(el)){el.style.display=currentPage===2?'':'none'; return;}
+      el.style.display=currentPage===1?'':'none';
+    });
+  }
+
+  window.showRbcPage=function(page){
+    if(Number(page)===1 && currentPage===2){
+      // 기존 코드가 스크롤/새로고침 중 자동으로 1페이지 호출하는 것을 막습니다.
+      setPage(2,false);
+      return;
+    }
+    setPage(page,true);
+  };
+  window.rbcGoPage1=function(){setPage(1,true);};
+  window.rbcGoPage2=function(){setPage(2,true);};
+
+  function removeArchiveDupes(){
+    var panels=Array.from(document.querySelectorAll('#rbcArchiveBox .rbc-auto-archive-panel'));
+    panels.forEach(function(p,i){if(i>0)p.remove();});
+    var labels={};
+    Array.from(document.querySelectorAll('#rbcArchiveBox button')).forEach(function(b){
+      var t=norm(b.textContent);
+      if(!t) return;
+      if(labels[t]) b.remove(); else labels[t]=1;
+    });
+  }
+
+  async function getStaffRows(){
+    if(typeof db==='undefined') return [];
+    var snap=await db.collection('staffPins').get();
+    var rows=[];
+    snap.forEach(function(doc){
+      var d=doc.data()||{}; if(d.active===false) return;
+      var name=String(d.name||doc.id||'').trim(); if(!name) return;
+      var isOffice=(d.officeStaff===true||d.isOffice===true||d.office===true||d.adminAccess===true||d.role==='사무실직원'||d.staffType==='office');
+      var order=Number(d.staffOrder||d.officeOrder||d.order||d.orderIndex||d.rankOrder||999999);
+      rows.push({id:doc.id,name:name,pin:String(d.pin||''),officeStaff:isOffice,staffOrder:isNaN(order)?999999:order});
+    });
+    rows.sort(function(a,b){return (a.staffOrder-b.staffOrder)||a.name.localeCompare(b.name,'ko');});
+    return rows;
+  }
+
+  async function rebuildOfficeLogin(){
+    var list=document.getElementById('adminOfficeStaffList');
+    if(!list){
+      var card=document.querySelector('#adminLockScreen .admin-lock-card');
+      if(!card) return;
+      var box=document.createElement('div');
+      box.style.margin='12px 0';
+      box.innerHTML='<div style="font-weight:900;color:#0b3b78;margin-bottom:8px">사무실직원 이름 선택</div><div id="adminOfficeStaffList" style="display:flex;gap:8px;flex-wrap:wrap"></div><div id="adminOfficeStaffHelp" class="small" style="margin-top:6px"></div>';
+      var btn=document.getElementById('adminLoginBtn');
+      if(btn) card.insertBefore(box,btn); else card.appendChild(box);
+      list=document.getElementById('adminOfficeStaffList');
+    }
+    try{
+      var rows=await getStaffRows();
+      var office=rows.filter(function(r){return r.officeStaff;});
+      if(!office.length){list.innerHTML='<span class="small">사무실직원 미등록</span>';return;}
+      var saved=sessionStorage.getItem('ravebicAdminStaffName')||sessionStorage.getItem('ravebicAdminSelectedStaffName')||'';
+      if(!saved || !office.some(function(r){return r.name===saved;})) saved=office[0].name;
+      window.rbcSelectedOfficeStaffName=saved;
+      sessionStorage.setItem('ravebicAdminStaffName',saved);
+      list.innerHTML=office.map(function(r){
+        var active=r.name===saved?' active':'';
+        var text=r.name;
+        return '<button type="button" class="admin-office-btn'+active+'" data-office-name="'+esc(r.name)+'" style="padding:10px 13px;border-radius:12px;border:1px solid #bfdbfe;font-weight:900;'+(active?'background:#16a34a;color:#fff':'background:#fff;color:#123f7a')+'">'+esc(text)+'</button>';
+      }).join('');
+      var help=document.getElementById('adminOfficeStaffHelp'); if(help) help.textContent='사무실직원으로 체크된 이름만 로그인 화면에 표시됩니다.';
+    }catch(e){list.innerHTML='<span class="small">사무실직원 목록 불러오기 실패</span>';}
+  }
+  document.addEventListener('click',function(e){
+    var btn=e.target&&e.target.closest?e.target.closest('.admin-office-btn'):null;
+    if(!btn) return;
+    var name=btn.getAttribute('data-office-name')||btn.textContent.trim();
+    window.rbcSelectedOfficeStaffName=name;
+    sessionStorage.setItem('ravebicAdminStaffName',name);
+    sessionStorage.setItem('ravebicAdminSelectedStaffName',name);
+    Array.from(document.querySelectorAll('.admin-office-btn')).forEach(function(b){
+      var on=b===btn; b.classList.toggle('active',on); b.style.background=on?'#16a34a':'#fff'; b.style.color=on?'#fff':'#123f7a';
+    });
+  },true);
+
+  var IMPORT_URL='https://us-central1-ravebic-app.cloudfunctions.net/importGoogleScheduleToFirestore';
+  window.approveGoogleSchedule=async function(){
+    var status=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined')?GOOGLE_SCHEDULE_API_URL:'';
+    var approver=window.rbcSelectedOfficeStaffName||sessionStorage.getItem('ravebicAdminStaffName')||'관리자';
+    try{
+      if(status) status.textContent='일정 승인 저장 및 자동반영 중...';
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),
+        range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),
+        pdfUrl:url,
+        scheduleUrl:url,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText:new Date().toISOString(),
+        approvedBy:approver,
+        source:'admin_v10_proxy_required'
+      },{merge:true});
+      var res=await fetch(IMPORT_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scheduleUrl:url,approvedBy:approver,source:'admin_v10'})});
+      var text=await res.text(); var data={}; try{data=JSON.parse(text);}catch(e){data={message:text};}
+      if(!res.ok || data.ok===false) throw new Error(data.message||text||('HTTP '+res.status));
+      var count=Number(data.count||data.savedCount||data.importedCount||0);
+      if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 일정 자동반영: '+count+'건';
+      if(status) status.textContent='승인 완료 · 분석 일정 '+count+'건 자동반영';
+      if(typeof loadApprovedInfo==='function') loadApprovedInfo();
+      if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
+      alert('직원용 일정 승인 저장 및 분석표 자동반영 완료\n\nteamSchedules '+count+'건 저장했습니다.');
+    }catch(e){
+      if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 자동반영 실패: '+esc(e.message||e);
+      if(status) status.textContent='승인 저장 완료 · 자동반영 실패';
+      alert('일정 자동반영 실패:\n\n'+(e.message||e)+'\n\n해결: functions/index.js에 importGoogleScheduleToTeamSchedules 함수가 배포되어야 합니다.');
+    }
+  };
+
+  function init(){
+    ensureTabs();
+    rebuildOfficeLogin();
+    orderLayout();
+    setPage(currentPage,false);
+  }
+  document.addEventListener('DOMContentLoaded',init);
+  window.addEventListener('load',init);
+  setTimeout(init,100);
+  setTimeout(init,800);
+  setTimeout(init,2000);
+  setInterval(function(){
+    currentPage=(sessionStorage.getItem(RBC_PAGE_KEY)==='2'||window.__rbcCurrentPage===2)?2:1;
+    orderLayout();
+    setPage(currentPage,false);
+  },1500);
 })();
 </script>
 
