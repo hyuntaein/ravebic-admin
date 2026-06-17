@@ -5565,3 +5565,239 @@ html, body{
   setTimeout(init,2500);
 })();
 </script>
+
+<!-- RAVEBIC_EMERGENCY_SCROLL_PAGINATION_FIX_20260617_FINAL -->
+<style>
+/* 최종 스크롤 잠금 해제 */
+html, body{
+  overflow-y:auto !important;
+  overflow-x:hidden !important;
+  height:auto !important;
+  min-height:100% !important;
+  position:static !important;
+}
+body{padding-bottom:60px !important;}
+.wrap{overflow:visible !important; height:auto !important; min-height:auto !important;}
+#rbcPageTabs{position:relative !important; top:auto !important;}
+</style>
+<script>
+(function(){
+  if(window.__RAVEBIC_EMERGENCY_SCROLL_PAGINATION_FIX_20260617_FINAL__) return;
+  window.__RAVEBIC_EMERGENCY_SCROLL_PAGINATION_FIX_20260617_FINAL__ = true;
+
+  function escF(v){
+    return String(v||'').replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+  function cleanLoginName(v){
+    return String(v||'')
+      .replace(/^\s*\d+[.)\-\s]*/,'')
+      .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
+      .replace(/\s+/g,' ')
+      .trim();
+  }
+  function getWrap(){return document.querySelector('.wrap');}
+  function findSection(title){
+    return Array.from(document.querySelectorAll('.section')).find(function(s){
+      return (s.innerText||'').indexOf(title)>=0;
+    }) || null;
+  }
+  function forceScrollOpen(){
+    document.documentElement.style.overflowY='auto';
+    document.documentElement.style.overflowX='hidden';
+    document.documentElement.style.height='auto';
+    document.documentElement.style.position='static';
+    document.body.style.overflowY='auto';
+    document.body.style.overflowX='hidden';
+    document.body.style.height='auto';
+    document.body.style.position='static';
+    var w=getWrap();
+    if(w){w.style.overflow='visible';w.style.height='auto';w.style.maxHeight='none';}
+  }
+
+  function ensureTabsFinal(){
+    var w=getWrap(); if(!w) return;
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      tabs.innerHTML='<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button><button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>';
+      var logout=w.querySelector('.admin-logout-btn');
+      if(logout&&logout.nextSibling) w.insertBefore(tabs,logout.nextSibling); else w.insertBefore(tabs,w.firstChild);
+    }
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.onclick=function(e){if(e)e.preventDefault();window.__rbcCurrentPage=1;window.showRbcPage(1,{manual:true});return false;};
+    if(p2) p2.onclick=function(e){if(e)e.preventDefault();window.__rbcCurrentPage=2;window.showRbcPage(2,{manual:true});return false;};
+  }
+
+  function orderLayoutFinal(){
+    var w=getWrap(); if(!w) return;
+    ensureTabsFinal();
+    var tabs=document.getElementById('rbcPageTabs');
+    var alert=document.getElementById('rbcAlertCenterBox');
+    if(alert && tabs) w.insertBefore(alert,tabs.nextSibling);
+
+    var page1Items=[
+      document.getElementById('teamAnalysisBox'),
+      document.querySelector('.filters'),
+      Array.from(document.querySelectorAll('.btns')).find(function(b){return (b.innerText||'').indexOf('검색/필터')>=0;}),
+      (document.getElementById('tbody') && document.getElementById('tbody').closest('table')) ? document.getElementById('tbody').closest('table').parentElement : null,
+      document.querySelector('.pagination-bar'),
+      findSection('구글 일정 승인 시스템'),
+      findSection('업로드 파일 분석 도구')
+    ];
+    page1Items.forEach(function(el){if(el) w.appendChild(el);});
+
+    ['rbcRiskBox','rbcMonthlyBox','rbcScoreBox'].forEach(function(id){var el=document.getElementById(id); if(el) w.appendChild(el);});
+    var pin=document.querySelector('.pin-manager'); if(pin) w.appendChild(pin);
+    var archive=document.getElementById('rbcArchiveBox'); if(archive) w.appendChild(archive);
+  }
+
+  function isAlwaysFinal(el){
+    return el && (el.id==='rbcPageTabs' ||
+      (el.classList&&el.classList.contains('admin-main-title')) ||
+      (el.classList&&el.classList.contains('admin-logout-btn')) ||
+      (el.classList&&el.classList.contains('sub')) ||
+      el.id==='conn' ||
+      (el.classList&&el.classList.contains('cards')));
+  }
+  function isPage2Final(el){
+    return el && (el.id==='rbcRiskBox' || el.id==='rbcMonthlyBox' || el.id==='rbcScoreBox' || el.id==='rbcArchiveBox' || (el.classList&&el.classList.contains('pin-manager')));
+  }
+
+  window.isPage2Item=isPage2Final;
+  window.showRbcPage=function(page,opts){
+    forceScrollOpen();
+    page=Number(page)===2?2:1;
+    window.__rbcCurrentPage=page;
+    orderLayoutFinal();
+    var p1=document.getElementById('rbcPage1Btn'), p2=document.getElementById('rbcPage2Btn');
+    if(p1) p1.classList.toggle('active',page===1);
+    if(p2) p2.classList.toggle('active',page===2);
+    var w=getWrap(); if(!w) return;
+    Array.from(w.children).forEach(function(el){
+      if(isAlwaysFinal(el)){el.style.display='';return;}
+      if(el.id==='rbcAlertCenterBox'){el.style.display=page===1?'':'none';return;}
+      if(isPage2Final(el)){el.style.display=page===2?'':'none';return;}
+      el.style.display=page===1?'':'none';
+    });
+    forceScrollOpen();
+  };
+
+  function fixLoginNamesFinal(){
+    document.querySelectorAll('.admin-office-btn').forEach(function(btn){
+      var n=cleanLoginName(btn.getAttribute('data-name')||btn.textContent||'');
+      if(n){btn.setAttribute('data-name',n);btn.textContent=n;}
+    });
+    var help=document.getElementById('adminOfficeStaffHelp');
+    if(help) help.textContent='초록색 이름이 로그인 직원입니다.';
+    var order=document.getElementById('staffOrderInput');
+    if(order) order.placeholder='';
+    document.querySelectorAll('.pin-manager .notice').forEach(function(n){
+      n.innerHTML='직원용 일정표는 직원명/PIN으로 열고, 관리자앱 첫 화면은 <b>사무실직원</b>으로 체크된 이름만 선택해서 들어갑니다.';
+    });
+  }
+
+  function applyFinalPaginationPatch(){
+    if(window.__rbcFinalPaginationPatched) return;
+    if(typeof render!=='function') return;
+    window.__rbcFinalPaginationPatched=true;
+
+    render=function(){
+      forceScrollOpen();
+      var todayStr=new Date().toDateString();
+      var totalEl=document.getElementById('total');
+      var todayEl=document.getElementById('today');
+      var s0=document.getElementById('s0');
+      var s1=document.getElementById('s1');
+      var s2=document.getElementById('s2');
+      if(totalEl) totalEl.textContent=filtered.length;
+      if(todayEl) todayEl.textContent=filtered.filter(function(r){return dtOf(r).toDateString()===todayStr;}).length;
+      if(s0) s0.textContent=filtered.filter(function(r){return (r.status||'미확인')==='미확인';}).length;
+      if(s1) s1.textContent=filtered.filter(function(r){return r.status==='확인완료';}).length;
+      if(s2) s2.textContent=filtered.filter(function(r){return r.status==='보완요청';}).length;
+
+      var tb=document.getElementById('tbody');
+      if(!tb) return;
+      if(!filtered.length){
+        tb.innerHTML='<tr><td colspan="10" style="text-align:center;padding:35px">조건에 맞는 데이터가 없습니다.</td></tr>';
+        if(typeof updatePaginationControls==='function') updatePaginationControls(1);
+        return;
+      }
+
+      var groups={};
+      filtered.forEach(function(r){
+        var key=String((r.store||'미지정점포')).trim();
+        if(!groups[key]) groups[key]=[];
+        groups[key].push(r);
+      });
+
+      var stores=Object.keys(groups).sort(function(a,b){
+        var aa=Math.max.apply(null,groups[a].map(function(x){return dtOf(x).getTime();}));
+        var bb=Math.max.apply(null,groups[b].map(function(x){return dtOf(x).getTime();}));
+        return bb-aa;
+      });
+
+      var totalPages=Math.max(1,Math.ceil(stores.length/pageSize));
+      if(currentPage>totalPages) currentPage=totalPages;
+      if(currentPage<1) currentPage=1;
+      var start=(currentPage-1)*pageSize;
+      var pageStores=stores.slice(start,start+pageSize);
+
+      var html='';
+      window.__mergedFiles=window.__mergedFiles||{};
+      pageStores.forEach(function(store,localIdx){
+        var idx=start+localIdx;
+        var rows=groups[store].sort(function(a,b){return dtOf(b)-dtOf(a);});
+        var latestRow=rows[0];
+        var latestTime=dtOf(latestRow).toLocaleString();
+        var mergedFiles=[];
+        rows.forEach(function(r){
+          (r.files||[]).forEach(function(f){mergedFiles.push({rowId:r.id,file:f});});
+        });
+        window.__mergedFiles[idx]=mergedFiles;
+        var filesHtml='<button class="file-view-btn" type="button" onclick="showMergedFiles('+idx+')">📎 첨부파일 '+mergedFiles.length+'개</button>';
+        html += '<tr>'+
+          '<td>'+latestTime+'</td>'+
+          '<td>'+escF(latestRow.name)+'</td>'+
+          '<td><button onclick="if(typeof openStoreHistory===\'function\'){openStoreHistory(\''+escF(store).replace(/'/g,'&#39;')+'\')}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ '+escF(store)+'</button></td>'+
+          '<td>'+escF(latestRow.region)+'</td>'+
+          '<td>'+escF(latestRow.brand)+'</td>'+
+          '<td>'+escF(latestRow.workType)+'</td>'+
+          '<td><span class="rbc-merged-note">총 '+rows.length+'회 제출</span>'+(latestRow.note?'<div class="small">'+escF(latestRow.note)+'</div>':'')+'</td>'+
+          '<td>'+filesHtml+'</td>'+
+          '<td><select onchange="changeStatus(\''+latestRow.id+'\',this.value)">'+
+            '<option '+((latestRow.status||'미확인')==='미확인'?'selected':'')+'>미확인</option>'+
+            '<option '+(latestRow.status==='확인완료'?'selected':'')+'>확인완료</option>'+
+            '<option '+(latestRow.status==='보완요청'?'selected':'')+'>보완요청</option>'+
+          '</select></td>'+
+          '<td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(\''+latestRow.id+'\')">제출삭제</button></td>'+
+        '</tr>';
+      });
+      tb.innerHTML=html;
+      if(typeof updatePaginationControls==='function') updatePaginationControls(totalPages);
+      var sel=document.getElementById('pageSizeSelect');
+      if(sel && String(sel.value)!==String(pageSize)) sel.value=String(pageSize);
+      setTimeout(function(){if(typeof applyRavebicStatusColors==='function')applyRavebicStatusColors();},30);
+      forceScrollOpen();
+    };
+  }
+
+  function initFinalFix(){
+    forceScrollOpen();
+    ensureTabsFinal();
+    fixLoginNamesFinal();
+    applyFinalPaginationPatch();
+    orderLayoutFinal();
+    window.showRbcPage(window.__rbcCurrentPage||1,{manual:false});
+    if(typeof render==='function' && Array.isArray(window.filtered)){try{render();}catch(e){}}
+  }
+
+  document.addEventListener('DOMContentLoaded',initFinalFix);
+  [100,400,900,1800,3500,6000].forEach(function(ms){setTimeout(initFinalFix,ms);});
+  setInterval(forceScrollOpen,1500);
+})();
+</script>
