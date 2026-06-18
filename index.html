@@ -4800,6 +4800,660 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 -->
+<style>
+#rbcStoreSearchPage3{
+  display:none;
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #d7e6fb;
+  background:#f8fbff;
+  border-radius:18px;
+}
+.rbc-store3-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.rbc-store3-head h2{
+  margin:0;
+  color:#123f7a;
+  font-size:22px;
+}
+.rbc-store3-badge{
+  display:inline-block;
+  padding:9px 12px;
+  border-radius:999px;
+  background:#eef6ff;
+  border:1px solid #b8d3fb;
+  font-weight:900;
+  color:#123f7a;
+}
+.rbc-store3-card{
+  border:1px solid #d7e6fb;
+  background:#fff;
+  border-radius:18px;
+  padding:16px;
+  margin:14px 0;
+}
+.rbc-store3-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:center;
+}
+.rbc-store3-map{
+  width:100%;
+  height:480px;
+  border-radius:14px;
+  border:1px solid #cbd5e1;
+  background:#e5e7eb;
+}
+.rbc-store3-table-wrap{
+  overflow:auto;
+  margin-top:12px;
+}
+.rbc-store3-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+  background:#fff;
+}
+.rbc-store3-table th,
+.rbc-store3-table td{
+  border-bottom:1px solid #e2e8f0;
+  padding:9px;
+  text-align:left;
+  white-space:nowrap;
+}
+.rbc-store3-table th{
+  background:#eaf4ff;
+  color:#0b3b77;
+}
+.rbc-store3-link{
+  color:#2563eb;
+  font-weight:900;
+  cursor:pointer;
+  text-decoration:underline;
+}
+.rbc-store3-selected{
+  background:#fff7ed!important;
+}
+.rbc-store3-distance{
+  display:inline-block;
+  background:#ecfeff;
+  border:1px solid #67e8f9;
+  color:#155e75;
+  border-radius:999px;
+  padding:4px 9px;
+  font-size:12px;
+  font-weight:900;
+}
+@media(max-width:768px){
+  .rbc-store3-row{grid-template-columns:1fr}
+  .rbc-store3-map{height:360px}
+}
+</style>
+
+<script>
+/* RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 */
+(function(){
+  const COLLECTION_NAME = "stores_v2";
+  const NAVER_CLIENT_ID = "oglmjsekyv";
+
+  let pageReady = false;
+  let mapReady = false;
+  let storeMap = null;
+  let infoWindow = null;
+  let markers = [];
+  let nearbyMarkers = [];
+  let selectedMarker = null;
+  let allStores = [];
+  let currentRows = [];
+  let currentNearby = [];
+
+  function esc(v){
+    return String(v == null ? "" : v).replace(/[&<>'"]/g,function(s){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[s];
+    });
+  }
+
+  function norm(v){
+    return String(v || "")
+      .replace(/\s+/g,"")
+      .replace(/[·ㆍ.\-_/]/g,"")
+      .trim();
+  }
+
+  function hasLatLng(s){
+    if(!s) return false;
+    const lat = Number(s.lat);
+    const lng = Number(s.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  function distanceMeters(lat1,lng1,lat2,lng2){
+    const R=6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2-lat1);
+    const dLng = toRad(lng2-lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function fmtDist(m){
+    m = Number(m);
+    if(!Number.isFinite(m)) return "";
+    if(m < 1000) return Math.round(m).toLocaleString() + "m";
+    return (m/1000).toFixed(2) + "km";
+  }
+
+  function ensurePageHtml(){
+    const wrap = document.querySelector(".wrap");
+    if(!wrap) return;
+
+    if(!document.getElementById("rbcStoreSearchPage3")){
+      const box = document.createElement("div");
+      box.id = "rbcStoreSearchPage3";
+      box.innerHTML = `
+        <div class="rbc-store3-head">
+          <h2>페이지3 가까운 점포검색</h2>
+          <div class="rbc-store3-badge" id="rbcStore3Status">점포 데이터 대기중</div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">지도</h3>
+          <div id="rbcStore3Map" class="rbc-store3-map"></div>
+          <div class="small" style="margin-top:8px">점포명을 클릭하면 지도 중심 이동 + 가까운 점포 15개가 아래 표에 표시됩니다.</div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">가까운 점포 15개</h3>
+          <div id="rbcStore3NearbyInfo" class="small">아래 점포 목록에서 파란 점포명을 클릭하세요.</div>
+          <div class="rbc-store3-table-wrap">
+            <table class="rbc-store3-table">
+              <thead>
+                <tr>
+                  <th>순위</th><th>브랜드</th><th>점포명</th><th>주소</th><th>거리</th><th>위도</th><th>경도</th>
+                </tr>
+              </thead>
+              <tbody id="rbcStore3NearbyTbody"><tr><td colspan="7">기준 점포를 선택하세요.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">점포 검색</h3>
+          <div class="rbc-store3-row">
+            <input id="rbcStore3SearchInput" placeholder="예: 강남, 대치, 여의도, 이마트24">
+            <button class="blue" type="button" onclick="rbcStore3Search()">검색</button>
+          </div>
+          <div class="btns">
+            <button class="gray" type="button" onclick="rbcStore3LoadStores()">저장된 점포 불러오기</button>
+            <button class="gray" type="button" onclick="rbcStore3Summary()">좌표 현황</button>
+            <button class="green" type="button" onclick="rbcStore3ShowAllOnMap()">지도에 전체 좌표 표시</button>
+          </div>
+          <div id="rbcStore3CountInfo" class="small">0개</div>
+          <div class="rbc-store3-table-wrap">
+            <table class="rbc-store3-table">
+              <thead>
+                <tr>
+                  <th>No</th><th>브랜드</th><th>점포명</th><th>주소</th><th>위도</th><th>경도</th><th>상태</th>
+                </tr>
+              </thead>
+              <tbody id="rbcStore3Tbody"><tr><td colspan="7">데이터가 없습니다. 저장된 점포 불러오기를 누르세요.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      wrap.appendChild(box);
+    }
+
+    ensurePageTab();
+  }
+
+  function ensurePageTab(){
+    let tabs = document.getElementById("rbcPageTabs");
+    const cards = document.querySelector(".cards");
+    const wrap = document.querySelector(".wrap");
+
+    if(!tabs && cards){
+      tabs = document.createElement("div");
+      tabs.id = "rbcPageTabs";
+      tabs.className = "rbc-page-tabs";
+      cards.parentNode.insertBefore(tabs, cards.nextSibling);
+    }else if(!tabs && wrap){
+      tabs = document.createElement("div");
+      tabs.id = "rbcPageTabs";
+      tabs.className = "rbc-page-tabs";
+      const title = wrap.querySelector(".admin-main-title");
+      wrap.insertBefore(tabs, title ? title.nextSibling : wrap.firstChild);
+    }
+
+    if(!tabs) return;
+
+    if(!document.getElementById("rbcPage1Btn")){
+      tabs.insertAdjacentHTML("beforeend", '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>');
+    }
+    if(!document.getElementById("rbcPage2Btn")){
+      tabs.insertAdjacentHTML("beforeend", '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>');
+    }
+    if(!document.getElementById("rbcPage3Btn")){
+      tabs.insertAdjacentHTML("beforeend", '<button id="rbcPage3Btn" class="rbc-page-tab" type="button">페이지3 가까운 점포검색</button>');
+    }
+
+    const b1 = document.getElementById("rbcPage1Btn");
+    const b2 = document.getElementById("rbcPage2Btn");
+    const b3 = document.getElementById("rbcPage3Btn");
+    if(b1) b1.onclick = function(){ showRbcPage(1); };
+    if(b2) b2.onclick = function(){ showRbcPage(2); };
+    if(b3) b3.onclick = function(){ showRbcPage(3); };
+  }
+
+  function loadNaverMapScript(){
+    return new Promise(function(resolve,reject){
+      if(window.naver && window.naver.maps){
+        resolve();
+        return;
+      }
+
+      const existing = document.querySelector('script[data-rbc-store3-map="Y"]');
+      if(existing){
+        existing.addEventListener("load", resolve);
+        existing.addEventListener("error", reject);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.dataset.rbcStore3Map = "Y";
+      script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(NAVER_CLIENT_ID);
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async function initMap(){
+    ensurePageHtml();
+
+    if(mapReady && storeMap){
+      setTimeout(function(){
+        try{ naver.maps.Event.trigger(storeMap, "resize"); }catch(e){}
+      },200);
+      return;
+    }
+
+    await loadNaverMapScript();
+
+    const mapEl = document.getElementById("rbcStore3Map");
+    if(!mapEl) return;
+
+    storeMap = new naver.maps.Map(mapEl, {
+      center: new naver.maps.LatLng(37.5665,126.9780),
+      zoom: 11
+    });
+
+    infoWindow = new naver.maps.InfoWindow({content:""});
+    mapReady = true;
+  }
+
+  function clearMarkers(){
+    markers.forEach(function(m){ m.setMap(null); });
+    markers = [];
+    clearNearbyMarkers();
+    if(selectedMarker){
+      selectedMarker.setMap(null);
+      selectedMarker = null;
+    }
+  }
+
+  function clearNearbyMarkers(){
+    nearbyMarkers.forEach(function(m){ m.setMap(null); });
+    nearbyMarkers = [];
+  }
+
+  function drawMarkers(rows){
+    if(!storeMap || !window.naver) return;
+
+    clearMarkers();
+
+    const valid = (rows || []).filter(hasLatLng).slice(0,350);
+    if(!valid.length) return;
+
+    const bounds = new naver.maps.LatLngBounds();
+
+    valid.forEach(function(store,idx){
+      const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+      const marker = new naver.maps.Marker({position:pos,map:storeMap,title:store.storeName || store.store || ""});
+      naver.maps.Event.addListener(marker, "click", function(){
+        openInfo(marker, store);
+        showNearby(store);
+      });
+      markers.push(marker);
+      bounds.extend(pos);
+    });
+
+    storeMap.fitBounds(bounds);
+  }
+
+  function openInfo(marker, store){
+    if(!infoWindow || !storeMap) return;
+    const d = Number.isFinite(Number(store.distanceM)) ? '<br><b style="color:#155e75">거리: '+fmtDist(store.distanceM)+'</b>' : "";
+    infoWindow.setContent(
+      '<div style="padding:10px;min-width:220px"><b>'+
+      esc(store.brand || "") + " " + esc(store.storeName || store.store || "") +
+      '</b><br><span style="font-size:12px">'+esc(store.address || "")+'</span>'+d+'</div>'
+    );
+    infoWindow.open(storeMap, marker);
+  }
+
+  function renderRows(rows){
+    currentRows = rows || [];
+    const tb = document.getElementById("rbcStore3Tbody");
+    const count = document.getElementById("rbcStore3CountInfo");
+    if(count) count.textContent = currentRows.length.toLocaleString() + "개 표시";
+
+    if(!tb) return;
+
+    if(!currentRows.length){
+      tb.innerHTML = '<tr><td colspan="7">데이터가 없습니다.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = currentRows.map(function(r,i){
+      const status = hasLatLng(r) ? "완료" : (r.geocodeFailed ? "실패" : "미변환");
+      return '<tr id="rbcStore3Row_'+i+'">'+
+        '<td>'+(i+1)+'</td>'+
+        '<td>'+esc(r.brand)+'</td>'+
+        '<td><span class="rbc-store3-link" onclick="rbcStore3Focus('+i+')">'+esc(r.storeName || r.store || "")+'</span></td>'+
+        '<td>'+esc(r.address)+'</td>'+
+        '<td>'+esc(r.lat ?? "")+'</td>'+
+        '<td>'+esc(r.lng ?? "")+'</td>'+
+        '<td>'+status+'</td>'+
+      '</tr>';
+    }).join("");
+  }
+
+  async function loadStores(){
+    ensurePageHtml();
+    await initMap();
+
+    const status = document.getElementById("rbcStore3Status");
+    if(status) status.textContent = "점포 불러오는 중...";
+
+    allStores = [];
+    let lastDoc = null;
+    const pageSize = 1000;
+
+    while(true){
+      let query = db.collection(COLLECTION_NAME).orderBy(firebase.firestore.FieldPath.documentId()).limit(pageSize);
+      if(lastDoc) query = query.startAfter(lastDoc);
+
+      const snap = await query.get();
+      if(snap.empty) break;
+
+      snap.forEach(function(doc){
+        allStores.push({id:doc.id, ...doc.data()});
+      });
+
+      lastDoc = snap.docs[snap.docs.length - 1];
+
+      if(status) status.textContent = "점포 불러오는 중... " + allStores.length.toLocaleString() + "개";
+      if(snap.size < pageSize) break;
+    }
+
+    const done = allStores.filter(hasLatLng).length;
+    if(status) status.textContent = "전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString();
+
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+  }
+
+  function search(){
+    const input = document.getElementById("rbcStore3SearchInput");
+    const q = norm(input ? input.value : "");
+
+    if(!allStores.length){
+      alert("먼저 저장된 점포 불러오기를 눌러주세요.");
+      return;
+    }
+    if(!q){
+      alert("검색어를 입력하세요.");
+      return;
+    }
+
+    const rows = allStores.filter(function(s){
+      return norm((s.brand||"") + (s.storeName||s.store||"") + (s.address||"")).includes(q);
+    }).slice(0,100);
+
+    renderRows(rows);
+    drawMarkers(rows);
+  }
+
+  async function focus(index){
+    const store = currentRows[index];
+    if(!store) return;
+    if(!hasLatLng(store)){
+      alert("이 점포에는 좌표가 없습니다.");
+      return;
+    }
+
+    await initMap();
+
+    document.querySelectorAll("[id^='rbcStore3Row_']").forEach(function(el){
+      el.classList.remove("rbc-store3-selected");
+    });
+    const tr = document.getElementById("rbcStore3Row_" + index);
+    if(tr) tr.classList.add("rbc-store3-selected");
+
+    const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+    storeMap.setCenter(pos);
+    storeMap.setZoom(16);
+
+    if(selectedMarker) selectedMarker.setMap(null);
+    selectedMarker = new naver.maps.Marker({
+      position:pos,
+      map:storeMap,
+      title:"기준: " + (store.storeName || store.store || ""),
+      icon:{
+        content:'<div style="background:#dc2626;color:white;border-radius:999px;padding:7px 10px;font-weight:900;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25)">기준</div>',
+        anchor:new naver.maps.Point(20,20)
+      }
+    });
+
+    openInfo(selectedMarker, store);
+    showNearby(store);
+  }
+
+  function showNearby(base){
+    if(!hasLatLng(base)) return;
+
+    const baseLat = Number(base.lat);
+    const baseLng = Number(base.lng);
+    const baseId = base.id || "";
+
+    currentNearby = allStores
+      .filter(hasLatLng)
+      .filter(function(s){ return (s.id || "") !== baseId; })
+      .map(function(s){
+        return {...s, distanceM:distanceMeters(baseLat, baseLng, Number(s.lat), Number(s.lng))};
+      })
+      .sort(function(a,b){ return a.distanceM - b.distanceM; })
+      .slice(0,15);
+
+    renderNearby(base, currentNearby);
+    drawNearby(base, currentNearby);
+
+    const el = document.getElementById("rbcStore3NearbyInfo");
+    if(el) el.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+
+  function renderNearby(base, rows){
+    const info = document.getElementById("rbcStore3NearbyInfo");
+    const tb = document.getElementById("rbcStore3NearbyTbody");
+
+    if(info){
+      info.innerHTML = '<b>기준: '+esc(base.brand||"")+' '+esc(base.storeName||base.store||"")+'</b> · '+esc(base.address||"");
+    }
+
+    if(!tb) return;
+
+    if(!rows.length){
+      tb.innerHTML = '<tr><td colspan="7">가까운 점포가 없습니다.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = rows.map(function(r,i){
+      return '<tr>'+
+        '<td>'+(i+1)+'</td>'+
+        '<td>'+esc(r.brand)+'</td>'+
+        '<td><span class="rbc-store3-link" onclick="rbcStore3FocusNearby('+i+')">'+esc(r.storeName || r.store || "")+'</span></td>'+
+        '<td>'+esc(r.address)+'</td>'+
+        '<td><span class="rbc-store3-distance">'+fmtDist(r.distanceM)+'</span></td>'+
+        '<td>'+esc(r.lat ?? "")+'</td>'+
+        '<td>'+esc(r.lng ?? "")+'</td>'+
+      '</tr>';
+    }).join("");
+  }
+
+  function drawNearby(base, rows){
+    if(!storeMap || !window.naver) return;
+
+    clearNearbyMarkers();
+
+    const bounds = new naver.maps.LatLngBounds();
+    bounds.extend(new naver.maps.LatLng(Number(base.lat), Number(base.lng)));
+
+    rows.forEach(function(store,idx){
+      const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+      const marker = new naver.maps.Marker({
+        position:pos,
+        map:storeMap,
+        title:store.storeName || store.store || "",
+        icon:{
+          content:'<div style="background:#2563eb;color:white;border-radius:999px;padding:5px 8px;font-weight:900;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25)">'+(idx+1)+'</div>',
+          anchor:new naver.maps.Point(15,15)
+        }
+      });
+      naver.maps.Event.addListener(marker, "click", function(){ openInfo(marker, store); });
+      nearbyMarkers.push(marker);
+      bounds.extend(pos);
+    });
+
+    storeMap.fitBounds(bounds);
+  }
+
+  function focusNearby(index){
+    const store = currentNearby[index];
+    if(!store || !hasLatLng(store)) return;
+    const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+    storeMap.setCenter(pos);
+    storeMap.setZoom(17);
+    const marker = nearbyMarkers[index];
+    if(marker) openInfo(marker, store);
+  }
+
+  function summary(){
+    const total = allStores.length;
+    const done = allStores.filter(hasLatLng).length;
+    const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
+    const pending = total - done - failed;
+    alert(
+      "점포 좌표 현황\n" +
+      "전체 점포: " + total.toLocaleString() + "개\n" +
+      "좌표 완료: " + done.toLocaleString() + "개\n" +
+      "미변환: " + pending.toLocaleString() + "개\n" +
+      "실패: " + failed.toLocaleString() + "개"
+    );
+  }
+
+  function showAllOnMap(){
+    if(!allStores.length){
+      alert("먼저 저장된 점포 불러오기를 누르세요.");
+      return;
+    }
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,500));
+  }
+
+  window.rbcStore3LoadStores = loadStores;
+  window.rbcStore3Search = search;
+  window.rbcStore3Focus = focus;
+  window.rbcStore3FocusNearby = focusNearby;
+  window.rbcStore3Summary = summary;
+  window.rbcStore3ShowAllOnMap = showAllOnMap;
+
+  const previousShowRbcPage = window.showRbcPage;
+
+  window.showRbcPage = function(page){
+    page = Number(page);
+    ensurePageHtml();
+
+    if(page !== 3 && typeof previousShowRbcPage === "function"){
+      previousShowRbcPage(page);
+    }
+
+    const b1 = document.getElementById("rbcPage1Btn");
+    const b2 = document.getElementById("rbcPage2Btn");
+    const b3 = document.getElementById("rbcPage3Btn");
+    if(b1) b1.classList.toggle("active", page === 1);
+    if(b2) b2.classList.toggle("active", page === 2);
+    if(b3) b3.classList.toggle("active", page === 3);
+
+    const wrap = document.querySelector(".wrap");
+    const page3 = document.getElementById("rbcStoreSearchPage3");
+
+    if(page === 3){
+      if(wrap){
+        Array.from(wrap.children).forEach(function(el){
+          if(el.id === "rbcPageTabs") return;
+          if(el.classList.contains("admin-main-title")) return;
+          if(el.classList.contains("admin-logout-btn")) return;
+          if(el.classList.contains("sub")) return;
+          if(el.id === "conn") return;
+          if(el.classList.contains("cards")) return;
+          el.style.display = "none";
+        });
+      }
+
+      if(page3) page3.style.display = "block";
+      initMap().then(function(){
+        if(!pageReady){
+          pageReady = true;
+          loadStores();
+        }else{
+          setTimeout(function(){
+            try{ naver.maps.Event.trigger(storeMap, "resize"); }catch(e){}
+          },200);
+        }
+      }).catch(function(err){
+        const status = document.getElementById("rbcStore3Status");
+        if(status) status.textContent = "지도 로딩 실패";
+        console.error(err);
+      });
+    }else{
+      if(page3) page3.style.display = "none";
+    }
+
+    window.__rbcCurrentPage = page;
+  };
+
+  function boot(){
+    ensurePageHtml();
+    if(!window.__rbcCurrentPage) window.__rbcCurrentPage = 1;
+    if(typeof window.showRbcPage === "function") window.showRbcPage(window.__rbcCurrentPage);
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
+  setTimeout(boot,500);
+  setTimeout(boot,1500);
+  setTimeout(boot,3000);
+})();
+</script>
+
 </body></html>
 
 <!-- RAVEBIC_ULTRA_STABLE_FIX_20260616_PAGINATION_PAGE_SCHEDULE -->
@@ -5841,6 +6495,660 @@ window.debugTeamScheduleDate = async function(dateStr){
       rbcLoadAutoCorrectionAudit('yesterday');
     }
   },2500);
+})();
+</script>
+
+
+<!-- RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 -->
+<style>
+#rbcStoreSearchPage3{
+  display:none;
+  margin:18px 0;
+  padding:16px;
+  border:1px solid #d7e6fb;
+  background:#f8fbff;
+  border-radius:18px;
+}
+.rbc-store3-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.rbc-store3-head h2{
+  margin:0;
+  color:#123f7a;
+  font-size:22px;
+}
+.rbc-store3-badge{
+  display:inline-block;
+  padding:9px 12px;
+  border-radius:999px;
+  background:#eef6ff;
+  border:1px solid #b8d3fb;
+  font-weight:900;
+  color:#123f7a;
+}
+.rbc-store3-card{
+  border:1px solid #d7e6fb;
+  background:#fff;
+  border-radius:18px;
+  padding:16px;
+  margin:14px 0;
+}
+.rbc-store3-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:center;
+}
+.rbc-store3-map{
+  width:100%;
+  height:480px;
+  border-radius:14px;
+  border:1px solid #cbd5e1;
+  background:#e5e7eb;
+}
+.rbc-store3-table-wrap{
+  overflow:auto;
+  margin-top:12px;
+}
+.rbc-store3-table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+  background:#fff;
+}
+.rbc-store3-table th,
+.rbc-store3-table td{
+  border-bottom:1px solid #e2e8f0;
+  padding:9px;
+  text-align:left;
+  white-space:nowrap;
+}
+.rbc-store3-table th{
+  background:#eaf4ff;
+  color:#0b3b77;
+}
+.rbc-store3-link{
+  color:#2563eb;
+  font-weight:900;
+  cursor:pointer;
+  text-decoration:underline;
+}
+.rbc-store3-selected{
+  background:#fff7ed!important;
+}
+.rbc-store3-distance{
+  display:inline-block;
+  background:#ecfeff;
+  border:1px solid #67e8f9;
+  color:#155e75;
+  border-radius:999px;
+  padding:4px 9px;
+  font-size:12px;
+  font-weight:900;
+}
+@media(max-width:768px){
+  .rbc-store3-row{grid-template-columns:1fr}
+  .rbc-store3-map{height:360px}
+}
+</style>
+
+<script>
+/* RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 */
+(function(){
+  const COLLECTION_NAME = "stores_v2";
+  const NAVER_CLIENT_ID = "oglmjsekyv";
+
+  let pageReady = false;
+  let mapReady = false;
+  let storeMap = null;
+  let infoWindow = null;
+  let markers = [];
+  let nearbyMarkers = [];
+  let selectedMarker = null;
+  let allStores = [];
+  let currentRows = [];
+  let currentNearby = [];
+
+  function esc(v){
+    return String(v == null ? "" : v).replace(/[&<>'"]/g,function(s){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[s];
+    });
+  }
+
+  function norm(v){
+    return String(v || "")
+      .replace(/\s+/g,"")
+      .replace(/[·ㆍ.\-_/]/g,"")
+      .trim();
+  }
+
+  function hasLatLng(s){
+    if(!s) return false;
+    const lat = Number(s.lat);
+    const lng = Number(s.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+  }
+
+  function distanceMeters(lat1,lng1,lat2,lng2){
+    const R=6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2-lat1);
+    const dLng = toRad(lng2-lng1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*Math.sin(dLng/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  }
+
+  function fmtDist(m){
+    m = Number(m);
+    if(!Number.isFinite(m)) return "";
+    if(m < 1000) return Math.round(m).toLocaleString() + "m";
+    return (m/1000).toFixed(2) + "km";
+  }
+
+  function ensurePageHtml(){
+    const wrap = document.querySelector(".wrap");
+    if(!wrap) return;
+
+    if(!document.getElementById("rbcStoreSearchPage3")){
+      const box = document.createElement("div");
+      box.id = "rbcStoreSearchPage3";
+      box.innerHTML = `
+        <div class="rbc-store3-head">
+          <h2>페이지3 가까운 점포검색</h2>
+          <div class="rbc-store3-badge" id="rbcStore3Status">점포 데이터 대기중</div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">지도</h3>
+          <div id="rbcStore3Map" class="rbc-store3-map"></div>
+          <div class="small" style="margin-top:8px">점포명을 클릭하면 지도 중심 이동 + 가까운 점포 15개가 아래 표에 표시됩니다.</div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">가까운 점포 15개</h3>
+          <div id="rbcStore3NearbyInfo" class="small">아래 점포 목록에서 파란 점포명을 클릭하세요.</div>
+          <div class="rbc-store3-table-wrap">
+            <table class="rbc-store3-table">
+              <thead>
+                <tr>
+                  <th>순위</th><th>브랜드</th><th>점포명</th><th>주소</th><th>거리</th><th>위도</th><th>경도</th>
+                </tr>
+              </thead>
+              <tbody id="rbcStore3NearbyTbody"><tr><td colspan="7">기준 점포를 선택하세요.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">점포 검색</h3>
+          <div class="rbc-store3-row">
+            <input id="rbcStore3SearchInput" placeholder="예: 강남, 대치, 여의도, 이마트24">
+            <button class="blue" type="button" onclick="rbcStore3Search()">검색</button>
+          </div>
+          <div class="btns">
+            <button class="gray" type="button" onclick="rbcStore3LoadStores()">저장된 점포 불러오기</button>
+            <button class="gray" type="button" onclick="rbcStore3Summary()">좌표 현황</button>
+            <button class="green" type="button" onclick="rbcStore3ShowAllOnMap()">지도에 전체 좌표 표시</button>
+          </div>
+          <div id="rbcStore3CountInfo" class="small">0개</div>
+          <div class="rbc-store3-table-wrap">
+            <table class="rbc-store3-table">
+              <thead>
+                <tr>
+                  <th>No</th><th>브랜드</th><th>점포명</th><th>주소</th><th>위도</th><th>경도</th><th>상태</th>
+                </tr>
+              </thead>
+              <tbody id="rbcStore3Tbody"><tr><td colspan="7">데이터가 없습니다. 저장된 점포 불러오기를 누르세요.</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      `;
+      wrap.appendChild(box);
+    }
+
+    ensurePageTab();
+  }
+
+  function ensurePageTab(){
+    let tabs = document.getElementById("rbcPageTabs");
+    const cards = document.querySelector(".cards");
+    const wrap = document.querySelector(".wrap");
+
+    if(!tabs && cards){
+      tabs = document.createElement("div");
+      tabs.id = "rbcPageTabs";
+      tabs.className = "rbc-page-tabs";
+      cards.parentNode.insertBefore(tabs, cards.nextSibling);
+    }else if(!tabs && wrap){
+      tabs = document.createElement("div");
+      tabs.id = "rbcPageTabs";
+      tabs.className = "rbc-page-tabs";
+      const title = wrap.querySelector(".admin-main-title");
+      wrap.insertBefore(tabs, title ? title.nextSibling : wrap.firstChild);
+    }
+
+    if(!tabs) return;
+
+    if(!document.getElementById("rbcPage1Btn")){
+      tabs.insertAdjacentHTML("beforeend", '<button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button>');
+    }
+    if(!document.getElementById("rbcPage2Btn")){
+      tabs.insertAdjacentHTML("beforeend", '<button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button>');
+    }
+    if(!document.getElementById("rbcPage3Btn")){
+      tabs.insertAdjacentHTML("beforeend", '<button id="rbcPage3Btn" class="rbc-page-tab" type="button">페이지3 가까운 점포검색</button>');
+    }
+
+    const b1 = document.getElementById("rbcPage1Btn");
+    const b2 = document.getElementById("rbcPage2Btn");
+    const b3 = document.getElementById("rbcPage3Btn");
+    if(b1) b1.onclick = function(){ showRbcPage(1); };
+    if(b2) b2.onclick = function(){ showRbcPage(2); };
+    if(b3) b3.onclick = function(){ showRbcPage(3); };
+  }
+
+  function loadNaverMapScript(){
+    return new Promise(function(resolve,reject){
+      if(window.naver && window.naver.maps){
+        resolve();
+        return;
+      }
+
+      const existing = document.querySelector('script[data-rbc-store3-map="Y"]');
+      if(existing){
+        existing.addEventListener("load", resolve);
+        existing.addEventListener("error", reject);
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.dataset.rbcStore3Map = "Y";
+      script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(NAVER_CLIENT_ID);
+      script.onload = resolve;
+      script.onerror = reject;
+      document.head.appendChild(script);
+    });
+  }
+
+  async function initMap(){
+    ensurePageHtml();
+
+    if(mapReady && storeMap){
+      setTimeout(function(){
+        try{ naver.maps.Event.trigger(storeMap, "resize"); }catch(e){}
+      },200);
+      return;
+    }
+
+    await loadNaverMapScript();
+
+    const mapEl = document.getElementById("rbcStore3Map");
+    if(!mapEl) return;
+
+    storeMap = new naver.maps.Map(mapEl, {
+      center: new naver.maps.LatLng(37.5665,126.9780),
+      zoom: 11
+    });
+
+    infoWindow = new naver.maps.InfoWindow({content:""});
+    mapReady = true;
+  }
+
+  function clearMarkers(){
+    markers.forEach(function(m){ m.setMap(null); });
+    markers = [];
+    clearNearbyMarkers();
+    if(selectedMarker){
+      selectedMarker.setMap(null);
+      selectedMarker = null;
+    }
+  }
+
+  function clearNearbyMarkers(){
+    nearbyMarkers.forEach(function(m){ m.setMap(null); });
+    nearbyMarkers = [];
+  }
+
+  function drawMarkers(rows){
+    if(!storeMap || !window.naver) return;
+
+    clearMarkers();
+
+    const valid = (rows || []).filter(hasLatLng).slice(0,350);
+    if(!valid.length) return;
+
+    const bounds = new naver.maps.LatLngBounds();
+
+    valid.forEach(function(store,idx){
+      const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+      const marker = new naver.maps.Marker({position:pos,map:storeMap,title:store.storeName || store.store || ""});
+      naver.maps.Event.addListener(marker, "click", function(){
+        openInfo(marker, store);
+        showNearby(store);
+      });
+      markers.push(marker);
+      bounds.extend(pos);
+    });
+
+    storeMap.fitBounds(bounds);
+  }
+
+  function openInfo(marker, store){
+    if(!infoWindow || !storeMap) return;
+    const d = Number.isFinite(Number(store.distanceM)) ? '<br><b style="color:#155e75">거리: '+fmtDist(store.distanceM)+'</b>' : "";
+    infoWindow.setContent(
+      '<div style="padding:10px;min-width:220px"><b>'+
+      esc(store.brand || "") + " " + esc(store.storeName || store.store || "") +
+      '</b><br><span style="font-size:12px">'+esc(store.address || "")+'</span>'+d+'</div>'
+    );
+    infoWindow.open(storeMap, marker);
+  }
+
+  function renderRows(rows){
+    currentRows = rows || [];
+    const tb = document.getElementById("rbcStore3Tbody");
+    const count = document.getElementById("rbcStore3CountInfo");
+    if(count) count.textContent = currentRows.length.toLocaleString() + "개 표시";
+
+    if(!tb) return;
+
+    if(!currentRows.length){
+      tb.innerHTML = '<tr><td colspan="7">데이터가 없습니다.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = currentRows.map(function(r,i){
+      const status = hasLatLng(r) ? "완료" : (r.geocodeFailed ? "실패" : "미변환");
+      return '<tr id="rbcStore3Row_'+i+'">'+
+        '<td>'+(i+1)+'</td>'+
+        '<td>'+esc(r.brand)+'</td>'+
+        '<td><span class="rbc-store3-link" onclick="rbcStore3Focus('+i+')">'+esc(r.storeName || r.store || "")+'</span></td>'+
+        '<td>'+esc(r.address)+'</td>'+
+        '<td>'+esc(r.lat ?? "")+'</td>'+
+        '<td>'+esc(r.lng ?? "")+'</td>'+
+        '<td>'+status+'</td>'+
+      '</tr>';
+    }).join("");
+  }
+
+  async function loadStores(){
+    ensurePageHtml();
+    await initMap();
+
+    const status = document.getElementById("rbcStore3Status");
+    if(status) status.textContent = "점포 불러오는 중...";
+
+    allStores = [];
+    let lastDoc = null;
+    const pageSize = 1000;
+
+    while(true){
+      let query = db.collection(COLLECTION_NAME).orderBy(firebase.firestore.FieldPath.documentId()).limit(pageSize);
+      if(lastDoc) query = query.startAfter(lastDoc);
+
+      const snap = await query.get();
+      if(snap.empty) break;
+
+      snap.forEach(function(doc){
+        allStores.push({id:doc.id, ...doc.data()});
+      });
+
+      lastDoc = snap.docs[snap.docs.length - 1];
+
+      if(status) status.textContent = "점포 불러오는 중... " + allStores.length.toLocaleString() + "개";
+      if(snap.size < pageSize) break;
+    }
+
+    const done = allStores.filter(hasLatLng).length;
+    if(status) status.textContent = "전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString();
+
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+  }
+
+  function search(){
+    const input = document.getElementById("rbcStore3SearchInput");
+    const q = norm(input ? input.value : "");
+
+    if(!allStores.length){
+      alert("먼저 저장된 점포 불러오기를 눌러주세요.");
+      return;
+    }
+    if(!q){
+      alert("검색어를 입력하세요.");
+      return;
+    }
+
+    const rows = allStores.filter(function(s){
+      return norm((s.brand||"") + (s.storeName||s.store||"") + (s.address||"")).includes(q);
+    }).slice(0,100);
+
+    renderRows(rows);
+    drawMarkers(rows);
+  }
+
+  async function focus(index){
+    const store = currentRows[index];
+    if(!store) return;
+    if(!hasLatLng(store)){
+      alert("이 점포에는 좌표가 없습니다.");
+      return;
+    }
+
+    await initMap();
+
+    document.querySelectorAll("[id^='rbcStore3Row_']").forEach(function(el){
+      el.classList.remove("rbc-store3-selected");
+    });
+    const tr = document.getElementById("rbcStore3Row_" + index);
+    if(tr) tr.classList.add("rbc-store3-selected");
+
+    const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+    storeMap.setCenter(pos);
+    storeMap.setZoom(16);
+
+    if(selectedMarker) selectedMarker.setMap(null);
+    selectedMarker = new naver.maps.Marker({
+      position:pos,
+      map:storeMap,
+      title:"기준: " + (store.storeName || store.store || ""),
+      icon:{
+        content:'<div style="background:#dc2626;color:white;border-radius:999px;padding:7px 10px;font-weight:900;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25)">기준</div>',
+        anchor:new naver.maps.Point(20,20)
+      }
+    });
+
+    openInfo(selectedMarker, store);
+    showNearby(store);
+  }
+
+  function showNearby(base){
+    if(!hasLatLng(base)) return;
+
+    const baseLat = Number(base.lat);
+    const baseLng = Number(base.lng);
+    const baseId = base.id || "";
+
+    currentNearby = allStores
+      .filter(hasLatLng)
+      .filter(function(s){ return (s.id || "") !== baseId; })
+      .map(function(s){
+        return {...s, distanceM:distanceMeters(baseLat, baseLng, Number(s.lat), Number(s.lng))};
+      })
+      .sort(function(a,b){ return a.distanceM - b.distanceM; })
+      .slice(0,15);
+
+    renderNearby(base, currentNearby);
+    drawNearby(base, currentNearby);
+
+    const el = document.getElementById("rbcStore3NearbyInfo");
+    if(el) el.scrollIntoView({behavior:"smooth", block:"center"});
+  }
+
+  function renderNearby(base, rows){
+    const info = document.getElementById("rbcStore3NearbyInfo");
+    const tb = document.getElementById("rbcStore3NearbyTbody");
+
+    if(info){
+      info.innerHTML = '<b>기준: '+esc(base.brand||"")+' '+esc(base.storeName||base.store||"")+'</b> · '+esc(base.address||"");
+    }
+
+    if(!tb) return;
+
+    if(!rows.length){
+      tb.innerHTML = '<tr><td colspan="7">가까운 점포가 없습니다.</td></tr>';
+      return;
+    }
+
+    tb.innerHTML = rows.map(function(r,i){
+      return '<tr>'+
+        '<td>'+(i+1)+'</td>'+
+        '<td>'+esc(r.brand)+'</td>'+
+        '<td><span class="rbc-store3-link" onclick="rbcStore3FocusNearby('+i+')">'+esc(r.storeName || r.store || "")+'</span></td>'+
+        '<td>'+esc(r.address)+'</td>'+
+        '<td><span class="rbc-store3-distance">'+fmtDist(r.distanceM)+'</span></td>'+
+        '<td>'+esc(r.lat ?? "")+'</td>'+
+        '<td>'+esc(r.lng ?? "")+'</td>'+
+      '</tr>';
+    }).join("");
+  }
+
+  function drawNearby(base, rows){
+    if(!storeMap || !window.naver) return;
+
+    clearNearbyMarkers();
+
+    const bounds = new naver.maps.LatLngBounds();
+    bounds.extend(new naver.maps.LatLng(Number(base.lat), Number(base.lng)));
+
+    rows.forEach(function(store,idx){
+      const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+      const marker = new naver.maps.Marker({
+        position:pos,
+        map:storeMap,
+        title:store.storeName || store.store || "",
+        icon:{
+          content:'<div style="background:#2563eb;color:white;border-radius:999px;padding:5px 8px;font-weight:900;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25)">'+(idx+1)+'</div>',
+          anchor:new naver.maps.Point(15,15)
+        }
+      });
+      naver.maps.Event.addListener(marker, "click", function(){ openInfo(marker, store); });
+      nearbyMarkers.push(marker);
+      bounds.extend(pos);
+    });
+
+    storeMap.fitBounds(bounds);
+  }
+
+  function focusNearby(index){
+    const store = currentNearby[index];
+    if(!store || !hasLatLng(store)) return;
+    const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
+    storeMap.setCenter(pos);
+    storeMap.setZoom(17);
+    const marker = nearbyMarkers[index];
+    if(marker) openInfo(marker, store);
+  }
+
+  function summary(){
+    const total = allStores.length;
+    const done = allStores.filter(hasLatLng).length;
+    const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
+    const pending = total - done - failed;
+    alert(
+      "점포 좌표 현황\n" +
+      "전체 점포: " + total.toLocaleString() + "개\n" +
+      "좌표 완료: " + done.toLocaleString() + "개\n" +
+      "미변환: " + pending.toLocaleString() + "개\n" +
+      "실패: " + failed.toLocaleString() + "개"
+    );
+  }
+
+  function showAllOnMap(){
+    if(!allStores.length){
+      alert("먼저 저장된 점포 불러오기를 누르세요.");
+      return;
+    }
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,500));
+  }
+
+  window.rbcStore3LoadStores = loadStores;
+  window.rbcStore3Search = search;
+  window.rbcStore3Focus = focus;
+  window.rbcStore3FocusNearby = focusNearby;
+  window.rbcStore3Summary = summary;
+  window.rbcStore3ShowAllOnMap = showAllOnMap;
+
+  const previousShowRbcPage = window.showRbcPage;
+
+  window.showRbcPage = function(page){
+    page = Number(page);
+    ensurePageHtml();
+
+    if(page !== 3 && typeof previousShowRbcPage === "function"){
+      previousShowRbcPage(page);
+    }
+
+    const b1 = document.getElementById("rbcPage1Btn");
+    const b2 = document.getElementById("rbcPage2Btn");
+    const b3 = document.getElementById("rbcPage3Btn");
+    if(b1) b1.classList.toggle("active", page === 1);
+    if(b2) b2.classList.toggle("active", page === 2);
+    if(b3) b3.classList.toggle("active", page === 3);
+
+    const wrap = document.querySelector(".wrap");
+    const page3 = document.getElementById("rbcStoreSearchPage3");
+
+    if(page === 3){
+      if(wrap){
+        Array.from(wrap.children).forEach(function(el){
+          if(el.id === "rbcPageTabs") return;
+          if(el.classList.contains("admin-main-title")) return;
+          if(el.classList.contains("admin-logout-btn")) return;
+          if(el.classList.contains("sub")) return;
+          if(el.id === "conn") return;
+          if(el.classList.contains("cards")) return;
+          el.style.display = "none";
+        });
+      }
+
+      if(page3) page3.style.display = "block";
+      initMap().then(function(){
+        if(!pageReady){
+          pageReady = true;
+          loadStores();
+        }else{
+          setTimeout(function(){
+            try{ naver.maps.Event.trigger(storeMap, "resize"); }catch(e){}
+          },200);
+        }
+      }).catch(function(err){
+        const status = document.getElementById("rbcStore3Status");
+        if(status) status.textContent = "지도 로딩 실패";
+        console.error(err);
+      });
+    }else{
+      if(page3) page3.style.display = "none";
+    }
+
+    window.__rbcCurrentPage = page;
+  };
+
+  function boot(){
+    ensurePageHtml();
+    if(!window.__rbcCurrentPage) window.__rbcCurrentPage = 1;
+    if(typeof window.showRbcPage === "function") window.showRbcPage(window.__rbcCurrentPage);
+  }
+
+  document.addEventListener("DOMContentLoaded", boot);
+  setTimeout(boot,500);
+  setTimeout(boot,1500);
+  setTimeout(boot,3000);
 })();
 </script>
 
