@@ -4801,7 +4801,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 
 
-<!-- RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 -->
+<!-- RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V2_EXCEL_DELETE -->
 <style>
 #rbcStoreSearchPage3{
   display:none;
@@ -4840,6 +4840,18 @@ window.debugTeamScheduleDate = async function(dateStr){
   margin:14px 0;
 }
 .rbc-store3-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:center;
+}
+.rbc-store3-row2{
+  display:grid;
+  grid-template-columns:220px 1fr;
+  gap:10px;
+  align-items:center;
+}
+.rbc-store3-row3{
   display:grid;
   grid-template-columns:1fr auto;
   gap:10px;
@@ -4892,17 +4904,22 @@ window.debugTeamScheduleDate = async function(dateStr){
   font-size:12px;
   font-weight:900;
 }
+.rbc-store3-danger{
+  background:#dc2626!important;
+  color:white!important;
+}
 @media(max-width:768px){
-  .rbc-store3-row{grid-template-columns:1fr}
+  .rbc-store3-row,.rbc-store3-row2,.rbc-store3-row3{grid-template-columns:1fr}
   .rbc-store3-map{height:360px}
 }
 </style>
 
 <script>
-/* RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 */
+/* RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V2_EXCEL_DELETE */
 (function(){
   const COLLECTION_NAME = "stores_v2";
   const NAVER_CLIENT_ID = "oglmjsekyv";
+  const GEOCODE_URL = "https://asia-northeast3-ravebic-app.cloudfunctions.net/geocodeAddress";
 
   let pageReady = false;
   let mapReady = false;
@@ -4914,6 +4931,8 @@ window.debugTeamScheduleDate = async function(dateStr){
   let allStores = [];
   let currentRows = [];
   let currentNearby = [];
+  let parsedStores = [];
+  let stopGeocodeRequested = false;
 
   function esc(v){
     return String(v == null ? "" : v).replace(/[&<>'"]/g,function(s){
@@ -4951,6 +4970,33 @@ window.debugTeamScheduleDate = async function(dateStr){
     return (m/1000).toFixed(2) + "km";
   }
 
+  function setStatus(msg){
+    const status = document.getElementById("rbcStore3Status");
+    if(status) status.textContent = msg;
+  }
+
+  function findColumn(headers, candidates){
+    for(const c of candidates){
+      const target = norm(c).toLowerCase();
+      const idx = headers.findIndex(h => norm(h).toLowerCase().includes(target));
+      if(idx >= 0) return idx;
+    }
+    return -1;
+  }
+
+  function toNumberOrNull(v){
+    if(v === null || v === undefined || v === "") return null;
+    const n = Number(String(v).replace(/,/g,"").trim());
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function makeStoreDocId(store){
+    if(store.storeCode){
+      return String(store.storeCode).trim();
+    }
+    return norm((store.brand || "") + "_" + (store.storeName || store.store || "")).slice(0,120);
+  }
+
   function ensurePageHtml(){
     const wrap = document.querySelector(".wrap");
     if(!wrap) return;
@@ -4982,6 +5028,36 @@ window.debugTeamScheduleDate = async function(dateStr){
               </thead>
               <tbody id="rbcStore3NearbyTbody"><tr><td colspan="7">기준 점포를 선택하세요.</td></tr></tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">점포 엑셀 추가 / 좌표 변환</h3>
+          <div class="small" style="margin-bottom:10px">신규 점포는 엑셀로 읽고 Firestore 저장하면 기존 점포는 점포코드 기준으로 덮어쓰기됩니다. 저장 후 좌표 변환 버튼을 사용하세요.</div>
+          <div class="rbc-store3-row2">
+            <select id="rbcStore3Brand">
+              <option value="세븐일레븐">세븐일레븐</option>
+              <option value="이마트24">이마트24</option>
+            </select>
+            <input id="rbcStore3FileInput" type="file" accept=".xlsx,.xls,.csv">
+          </div>
+          <div class="btns">
+            <button class="blue" type="button" onclick="rbcStore3ParseExcel()">엑셀 읽기</button>
+            <button class="green" type="button" onclick="rbcStore3UploadStores()">Firestore 저장</button>
+            <button class="blue" type="button" onclick="rbcStore3GeocodeVisible()">현재 목록 좌표 변환</button>
+            <button class="green" type="button" onclick="rbcStore3GeocodeAll()">전체 미변환 자동 변환</button>
+            <button class="gray" type="button" onclick="rbcStore3StopGeocode()">전체 변환 중지</button>
+            <button class="gray" type="button" onclick="rbcStore3DownloadFailed()">실패 점포 엑셀 다운로드</button>
+          </div>
+          <div id="rbcStore3UploadInfo" class="small">아직 읽은 파일이 없습니다.</div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">점포 삭제</h3>
+          <div class="small" style="margin-bottom:10px">점포명을 입력하고 삭제 버튼을 누르면 같은 이름의 점포를 삭제합니다. 중복 점포명이 있으면 한 번 더 확인합니다.</div>
+          <div class="rbc-store3-row3">
+            <input id="rbcStore3DeleteName" placeholder="삭제할 점포명 입력">
+            <button class="rbc-store3-danger" type="button" onclick="rbcStore3DeleteByName()">삭제</button>
           </div>
         </div>
 
@@ -5053,27 +5129,41 @@ window.debugTeamScheduleDate = async function(dateStr){
     if(b3) b3.onclick = function(){ showRbcPage(3); };
   }
 
-  function loadNaverMapScript(){
+  function loadScriptOnce(src, testFn, dataKey){
     return new Promise(function(resolve,reject){
-      if(window.naver && window.naver.maps){
+      if(testFn && testFn()){
         resolve();
         return;
       }
-
-      const existing = document.querySelector('script[data-rbc-store3-map="Y"]');
+      const existing = document.querySelector('script[data-rbc-key="'+dataKey+'"]');
       if(existing){
         existing.addEventListener("load", resolve);
         existing.addEventListener("error", reject);
         return;
       }
-
       const script = document.createElement("script");
-      script.dataset.rbcStore3Map = "Y";
-      script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(NAVER_CLIENT_ID);
+      script.dataset.rbcKey = dataKey;
+      script.src = src;
       script.onload = resolve;
       script.onerror = reject;
       document.head.appendChild(script);
     });
+  }
+
+  function loadNaverMapScript(){
+    return loadScriptOnce(
+      "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(NAVER_CLIENT_ID),
+      function(){ return window.naver && window.naver.maps; },
+      "store3-map"
+    );
+  }
+
+  function loadXlsxScript(){
+    return loadScriptOnce(
+      "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+      function(){ return window.XLSX; },
+      "xlsx"
+    );
   }
 
   async function initMap(){
@@ -5125,7 +5215,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     const bounds = new naver.maps.LatLngBounds();
 
-    valid.forEach(function(store,idx){
+    valid.forEach(function(store){
       const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
       const marker = new naver.maps.Marker({position:pos,map:storeMap,title:store.storeName || store.store || ""});
       naver.maps.Event.addListener(marker, "click", function(){
@@ -5181,8 +5271,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     ensurePageHtml();
     await initMap();
 
-    const status = document.getElementById("rbcStore3Status");
-    if(status) status.textContent = "점포 불러오는 중...";
+    setStatus("점포 불러오는 중...");
 
     allStores = [];
     let lastDoc = null;
@@ -5201,15 +5290,133 @@ window.debugTeamScheduleDate = async function(dateStr){
 
       lastDoc = snap.docs[snap.docs.length - 1];
 
-      if(status) status.textContent = "점포 불러오는 중... " + allStores.length.toLocaleString() + "개";
+      setStatus("점포 불러오는 중... " + allStores.length.toLocaleString() + "개");
       if(snap.size < pageSize) break;
     }
 
     const done = allStores.filter(hasLatLng).length;
-    if(status) status.textContent = "전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString();
+    setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString());
 
     renderRows(allStores.slice(0,100));
     drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+  }
+
+  async function ensureStoresLoaded(){
+    if(allStores && allStores.length) return allStores;
+    await loadStores();
+    return allStores;
+  }
+
+  async function parseExcel(){
+    await loadXlsxScript();
+
+    const file = document.getElementById("rbcStore3FileInput").files[0];
+    const brand = document.getElementById("rbcStore3Brand").value;
+
+    if(!file){
+      alert("엑셀 파일을 선택하세요.");
+      return;
+    }
+
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, {type:"array"});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+
+    if(rows.length < 2){
+      alert("엑셀 데이터가 부족합니다.");
+      return;
+    }
+
+    let headerRowIndex = 0;
+    for(let i=0;i<Math.min(rows.length,10);i++){
+      const rowText = rows[i].join(" ");
+      if(rowText.includes("점포") || rowText.includes("주소") || rowText.includes("상호") || rowText.includes("storeName") || rowText.includes("address")){
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    const headers = rows[headerRowIndex].map(function(v){ return String(v == null ? "" : v).trim(); });
+
+    const brandCol = findColumn(headers, ["brand","브랜드"]);
+    const nameCol = findColumn(headers, ["점포명","점포","상호","매장명","점명","storeName","name"]);
+    const addressCol = findColumn(headers, ["주소","소재지","점포주소","매장주소","address"]);
+    const codeCol = findColumn(headers, ["점포코드","코드","점코드","storeCode","storeCo"]);
+    const latCol = findColumn(headers, ["위도","lat","latitude"]);
+    const lngCol = findColumn(headers, ["경도","lng","lon","longitude"]);
+
+    if(nameCol < 0 || addressCol < 0){
+      alert("점포명 또는 주소 컬럼을 찾지 못했습니다. 엑셀 헤더명을 확인해야 합니다.");
+      console.log(headers);
+      return;
+    }
+
+    parsedStores = rows.slice(headerRowIndex + 1)
+      .map(function(r){
+        const excelBrand = brandCol >= 0 ? String(r[brandCol] || "").trim() : "";
+        return {
+          brand: excelBrand || brand,
+          storeName: String(r[nameCol] || "").trim(),
+          address: String(r[addressCol] || "").trim(),
+          storeCode: codeCol >= 0 ? String(r[codeCol] || "").trim() : "",
+          lat: latCol >= 0 ? toNumberOrNull(r[latCol]) : null,
+          lng: lngCol >= 0 ? toNumberOrNull(r[lngCol]) : null,
+          sourceFile: file.name,
+          createdAtText: new Date().toISOString()
+        };
+      })
+      .filter(function(r){ return r.storeName && r.address; });
+
+    const info = document.getElementById("rbcStore3UploadInfo");
+    if(info) info.textContent = file.name + " / " + parsedStores.length.toLocaleString() + "개 점포 읽음";
+
+    renderRows(parsedStores.slice(0,100));
+    drawMarkers(parsedStores.slice(0,100));
+  }
+
+  async function uploadStores(){
+    if(!parsedStores.length){
+      alert("먼저 엑셀 읽기를 하세요.");
+      return;
+    }
+
+    if(!confirm(parsedStores.length.toLocaleString() + "개 점포를 Firestore " + COLLECTION_NAME + " 컬렉션에 저장할까요?")){
+      return;
+    }
+
+    setStatus("Firestore 저장 중...");
+
+    const batchSize = 400;
+    let saved = 0;
+
+    for(let i=0;i<parsedStores.length;i+=batchSize){
+      const batch = db.batch();
+      const chunk = parsedStores.slice(i, i + batchSize);
+
+      chunk.forEach(function(store){
+        const idBase = makeStoreDocId(store);
+        const ref = db.collection(COLLECTION_NAME).doc(idBase);
+
+        batch.set(ref, {
+          ...store,
+          idBase,
+          searchKey: norm((store.brand || "") + (store.storeName || "") + (store.address || "")),
+          geocodeFailed: false,
+          geocodeFailedReason: firebase.firestore.FieldValue.delete(),
+          geocodeFailedAt: firebase.firestore.FieldValue.delete(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, {merge:true});
+      });
+
+      await batch.commit();
+      saved += chunk.length;
+      setStatus("Firestore 저장 중... " + saved.toLocaleString() + " / " + parsedStores.length.toLocaleString());
+    }
+
+    setStatus("저장 완료 · " + saved.toLocaleString() + "개");
+    allStores = [];
+    alert("저장 완료");
   }
 
   function search(){
@@ -5231,6 +5438,69 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     renderRows(rows);
     drawMarkers(rows);
+  }
+
+  async function deleteByName(){
+    await ensureStoresLoaded();
+
+    const input = document.getElementById("rbcStore3DeleteName");
+    const name = input ? input.value.trim() : "";
+    if(!name){
+      alert("삭제할 점포명을 입력하세요.");
+      return;
+    }
+
+    const key = norm(name);
+    let matches = allStores.filter(function(s){
+      return norm(s.storeName || s.store || "") === key;
+    });
+
+    if(!matches.length){
+      matches = allStores.filter(function(s){
+        return norm(s.storeName || s.store || "").includes(key);
+      });
+    }
+
+    if(!matches.length){
+      alert("해당 점포명을 찾지 못했습니다.");
+      return;
+    }
+
+    const preview = matches.slice(0,10).map(function(s){
+      return "- " + (s.brand || "") + " " + (s.storeName || s.store || "") + " / " + (s.address || "");
+    }).join("\n");
+
+    if(!confirm(
+      "아래 점포 " + matches.length.toLocaleString() + "개를 삭제할까요?\n\n" +
+      preview +
+      (matches.length > 10 ? "\n...외 " + (matches.length - 10) + "개" : "") +
+      "\n\n이 작업은 Firestore에서 실제 삭제됩니다."
+    )){
+      return;
+    }
+
+    let deleted = 0;
+    for(let i=0;i<matches.length;i+=400){
+      const batch = db.batch();
+      const chunk = matches.slice(i,i+400);
+      chunk.forEach(function(s){
+        if(s.id){
+          batch.delete(db.collection(COLLECTION_NAME).doc(s.id));
+        }
+      });
+      await batch.commit();
+      deleted += chunk.length;
+      setStatus("점포 삭제 중... " + deleted.toLocaleString() + " / " + matches.length.toLocaleString());
+    }
+
+    alert("삭제 완료: " + deleted.toLocaleString() + "개");
+    if(input) input.value = "";
+    allStores = allStores.filter(function(s){
+      return !matches.some(function(m){ return m.id === s.id; });
+    });
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
   async function focus(index){
@@ -5356,6 +5626,174 @@ window.debugTeamScheduleDate = async function(dateStr){
     if(marker) openInfo(marker, store);
   }
 
+  async function geocodeOne(store){
+    const response = await fetch(GEOCODE_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({address:store.address})
+    });
+
+    if(!response.ok) throw new Error("Geocoding HTTP " + response.status);
+
+    const data = await response.json();
+
+    if(data.ok && Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng))){
+      await db.collection(COLLECTION_NAME).doc(store.id).set({
+        lat:Number(data.lat),
+        lng:Number(data.lng),
+        geocodeFailed:false,
+        geocodeFailedReason:firebase.firestore.FieldValue.delete(),
+        geocodeFailedAt:firebase.firestore.FieldValue.delete(),
+        geocodedAt:firebase.firestore.FieldValue.serverTimestamp()
+      }, {merge:true});
+
+      store.lat = Number(data.lat);
+      store.lng = Number(data.lng);
+      store.geocodeFailed = false;
+      return {ok:true};
+    }
+
+    const reason = data && (data.reason || data.message) ? (data.reason || data.message) : "NO_RESULT";
+    await markGeocodeFailed(store, reason);
+    return {ok:false, reason};
+  }
+
+  async function markGeocodeFailed(store, reason){
+    if(!store || !store.id) return;
+
+    const safeReason = String(reason || "UNKNOWN").slice(0,200);
+
+    await db.collection(COLLECTION_NAME).doc(store.id).set({
+      geocodeFailed:true,
+      geocodeFailedReason:safeReason,
+      geocodeFailedAt:firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true});
+
+    store.geocodeFailed = true;
+    store.geocodeFailedReason = safeReason;
+  }
+
+  async function geocodeVisible(){
+    const targets = currentRows.filter(function(s){
+      return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+    }).slice(0,50);
+
+    if(!targets.length){
+      alert("현재 목록에서 새로 좌표 변환할 점포가 없습니다.");
+      return;
+    }
+
+    if(!confirm("현재 목록 중 " + targets.length + "개를 좌표 변환할까요?")) return;
+
+    let success = 0, fail = 0;
+
+    for(let i=0;i<targets.length;i++){
+      const store = targets[i];
+      setStatus("현재 목록 좌표 변환 중... " + (i+1) + " / " + targets.length + " · " + (store.storeName || ""));
+      try{
+        const r = await geocodeOne(store);
+        if(r.ok) success++;
+        else fail++;
+      }catch(err){
+        await markGeocodeFailed(store, err && err.message ? err.message : "ERROR");
+        fail++;
+      }
+      await new Promise(resolve => setTimeout(resolve,120));
+    }
+
+    renderRows(currentRows);
+    drawMarkers(currentRows);
+    alert("좌표 변환 완료\n성공: " + success + "개\n실패: " + fail + "개");
+  }
+
+  async function geocodeAll(){
+    await ensureStoresLoaded();
+
+    let pending = allStores.filter(function(s){
+      return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+    });
+
+    if(!pending.length){
+      alert("전체 미변환 대상이 없습니다.");
+      return;
+    }
+
+    if(!confirm("전체 미변환 점포 " + pending.length.toLocaleString() + "개를 자동 변환할까요?")) return;
+
+    stopGeocodeRequested = false;
+    let success = 0, fail = 0, processed = 0;
+
+    while(!stopGeocodeRequested){
+      pending = allStores.filter(function(s){
+        return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+      }).slice(0,50);
+
+      if(!pending.length) break;
+
+      renderRows(pending);
+
+      for(let i=0;i<pending.length;i++){
+        if(stopGeocodeRequested) break;
+        const store = pending[i];
+        processed++;
+        setStatus("전체 좌표 변환 중... 처리 " + processed.toLocaleString() + " / 성공 " + success + " / 실패 " + fail + " · " + (store.storeName || ""));
+        try{
+          const r = await geocodeOne(store);
+          if(r.ok) success++;
+          else fail++;
+        }catch(err){
+          await markGeocodeFailed(store, err && err.message ? err.message : "ERROR");
+          fail++;
+        }
+        await new Promise(resolve => setTimeout(resolve,120));
+      }
+    }
+
+    const done = allStores.filter(hasLatLng).length;
+    const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
+    setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString() + " / 실패 " + failed.toLocaleString());
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+
+    alert("전체 좌표 변환 종료\n성공: " + success.toLocaleString() + "개\n실패: " + fail.toLocaleString() + "개");
+  }
+
+  function stopGeocode(){
+    stopGeocodeRequested = true;
+    setStatus("전체 변환 중지 요청됨...");
+  }
+
+  async function downloadFailed(){
+    await loadXlsxScript();
+    await ensureStoresLoaded();
+
+    const rows = allStores
+      .filter(function(s){ return !hasLatLng(s); })
+      .map(function(s,i){
+        return {
+          No:i+1,
+          brand:s.brand || "",
+          storeName:s.storeName || s.store || "",
+          address:s.address || "",
+          storeCode:s.storeCode || "",
+          geocodeFailed:s.geocodeFailed ? "Y" : "",
+          geocodeFailedReason:s.geocodeFailedReason || "",
+          id:s.id || ""
+        };
+      });
+
+    if(!rows.length){
+      alert("좌표가 없는 점포가 없습니다.");
+      return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "좌표 미변환 점포");
+    const date = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, "ravebic_좌표_미변환_" + rows.length + "개_" + date + ".xlsx");
+  }
+
   function summary(){
     const total = allStores.length;
     const done = allStores.filter(hasLatLng).length;
@@ -5385,6 +5823,13 @@ window.debugTeamScheduleDate = async function(dateStr){
   window.rbcStore3FocusNearby = focusNearby;
   window.rbcStore3Summary = summary;
   window.rbcStore3ShowAllOnMap = showAllOnMap;
+  window.rbcStore3ParseExcel = parseExcel;
+  window.rbcStore3UploadStores = uploadStores;
+  window.rbcStore3DeleteByName = deleteByName;
+  window.rbcStore3GeocodeVisible = geocodeVisible;
+  window.rbcStore3GeocodeAll = geocodeAll;
+  window.rbcStore3StopGeocode = stopGeocode;
+  window.rbcStore3DownloadFailed = downloadFailed;
 
   const previousShowRbcPage = window.showRbcPage;
 
@@ -5430,8 +5875,7 @@ window.debugTeamScheduleDate = async function(dateStr){
           },200);
         }
       }).catch(function(err){
-        const status = document.getElementById("rbcStore3Status");
-        if(status) status.textContent = "지도 로딩 실패";
+        setStatus("지도 로딩 실패");
         console.error(err);
       });
     }else{
@@ -6499,7 +6943,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 
 
-<!-- RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 -->
+<!-- RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V2_EXCEL_DELETE -->
 <style>
 #rbcStoreSearchPage3{
   display:none;
@@ -6538,6 +6982,18 @@ window.debugTeamScheduleDate = async function(dateStr){
   margin:14px 0;
 }
 .rbc-store3-row{
+  display:grid;
+  grid-template-columns:1fr auto;
+  gap:10px;
+  align-items:center;
+}
+.rbc-store3-row2{
+  display:grid;
+  grid-template-columns:220px 1fr;
+  gap:10px;
+  align-items:center;
+}
+.rbc-store3-row3{
   display:grid;
   grid-template-columns:1fr auto;
   gap:10px;
@@ -6590,17 +7046,22 @@ window.debugTeamScheduleDate = async function(dateStr){
   font-size:12px;
   font-weight:900;
 }
+.rbc-store3-danger{
+  background:#dc2626!important;
+  color:white!important;
+}
 @media(max-width:768px){
-  .rbc-store3-row{grid-template-columns:1fr}
+  .rbc-store3-row,.rbc-store3-row2,.rbc-store3-row3{grid-template-columns:1fr}
   .rbc-store3-map{height:360px}
 }
 </style>
 
 <script>
-/* RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V1 */
+/* RAVEBIC_ADMIN_STORE_SEARCH_PAGE3_V2_EXCEL_DELETE */
 (function(){
   const COLLECTION_NAME = "stores_v2";
   const NAVER_CLIENT_ID = "oglmjsekyv";
+  const GEOCODE_URL = "https://asia-northeast3-ravebic-app.cloudfunctions.net/geocodeAddress";
 
   let pageReady = false;
   let mapReady = false;
@@ -6612,6 +7073,8 @@ window.debugTeamScheduleDate = async function(dateStr){
   let allStores = [];
   let currentRows = [];
   let currentNearby = [];
+  let parsedStores = [];
+  let stopGeocodeRequested = false;
 
   function esc(v){
     return String(v == null ? "" : v).replace(/[&<>'"]/g,function(s){
@@ -6649,6 +7112,33 @@ window.debugTeamScheduleDate = async function(dateStr){
     return (m/1000).toFixed(2) + "km";
   }
 
+  function setStatus(msg){
+    const status = document.getElementById("rbcStore3Status");
+    if(status) status.textContent = msg;
+  }
+
+  function findColumn(headers, candidates){
+    for(const c of candidates){
+      const target = norm(c).toLowerCase();
+      const idx = headers.findIndex(h => norm(h).toLowerCase().includes(target));
+      if(idx >= 0) return idx;
+    }
+    return -1;
+  }
+
+  function toNumberOrNull(v){
+    if(v === null || v === undefined || v === "") return null;
+    const n = Number(String(v).replace(/,/g,"").trim());
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function makeStoreDocId(store){
+    if(store.storeCode){
+      return String(store.storeCode).trim();
+    }
+    return norm((store.brand || "") + "_" + (store.storeName || store.store || "")).slice(0,120);
+  }
+
   function ensurePageHtml(){
     const wrap = document.querySelector(".wrap");
     if(!wrap) return;
@@ -6680,6 +7170,36 @@ window.debugTeamScheduleDate = async function(dateStr){
               </thead>
               <tbody id="rbcStore3NearbyTbody"><tr><td colspan="7">기준 점포를 선택하세요.</td></tr></tbody>
             </table>
+          </div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">점포 엑셀 추가 / 좌표 변환</h3>
+          <div class="small" style="margin-bottom:10px">신규 점포는 엑셀로 읽고 Firestore 저장하면 기존 점포는 점포코드 기준으로 덮어쓰기됩니다. 저장 후 좌표 변환 버튼을 사용하세요.</div>
+          <div class="rbc-store3-row2">
+            <select id="rbcStore3Brand">
+              <option value="세븐일레븐">세븐일레븐</option>
+              <option value="이마트24">이마트24</option>
+            </select>
+            <input id="rbcStore3FileInput" type="file" accept=".xlsx,.xls,.csv">
+          </div>
+          <div class="btns">
+            <button class="blue" type="button" onclick="rbcStore3ParseExcel()">엑셀 읽기</button>
+            <button class="green" type="button" onclick="rbcStore3UploadStores()">Firestore 저장</button>
+            <button class="blue" type="button" onclick="rbcStore3GeocodeVisible()">현재 목록 좌표 변환</button>
+            <button class="green" type="button" onclick="rbcStore3GeocodeAll()">전체 미변환 자동 변환</button>
+            <button class="gray" type="button" onclick="rbcStore3StopGeocode()">전체 변환 중지</button>
+            <button class="gray" type="button" onclick="rbcStore3DownloadFailed()">실패 점포 엑셀 다운로드</button>
+          </div>
+          <div id="rbcStore3UploadInfo" class="small">아직 읽은 파일이 없습니다.</div>
+        </div>
+
+        <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">점포 삭제</h3>
+          <div class="small" style="margin-bottom:10px">점포명을 입력하고 삭제 버튼을 누르면 같은 이름의 점포를 삭제합니다. 중복 점포명이 있으면 한 번 더 확인합니다.</div>
+          <div class="rbc-store3-row3">
+            <input id="rbcStore3DeleteName" placeholder="삭제할 점포명 입력">
+            <button class="rbc-store3-danger" type="button" onclick="rbcStore3DeleteByName()">삭제</button>
           </div>
         </div>
 
@@ -6751,27 +7271,41 @@ window.debugTeamScheduleDate = async function(dateStr){
     if(b3) b3.onclick = function(){ showRbcPage(3); };
   }
 
-  function loadNaverMapScript(){
+  function loadScriptOnce(src, testFn, dataKey){
     return new Promise(function(resolve,reject){
-      if(window.naver && window.naver.maps){
+      if(testFn && testFn()){
         resolve();
         return;
       }
-
-      const existing = document.querySelector('script[data-rbc-store3-map="Y"]');
+      const existing = document.querySelector('script[data-rbc-key="'+dataKey+'"]');
       if(existing){
         existing.addEventListener("load", resolve);
         existing.addEventListener("error", reject);
         return;
       }
-
       const script = document.createElement("script");
-      script.dataset.rbcStore3Map = "Y";
-      script.src = "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(NAVER_CLIENT_ID);
+      script.dataset.rbcKey = dataKey;
+      script.src = src;
       script.onload = resolve;
       script.onerror = reject;
       document.head.appendChild(script);
     });
+  }
+
+  function loadNaverMapScript(){
+    return loadScriptOnce(
+      "https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=" + encodeURIComponent(NAVER_CLIENT_ID),
+      function(){ return window.naver && window.naver.maps; },
+      "store3-map"
+    );
+  }
+
+  function loadXlsxScript(){
+    return loadScriptOnce(
+      "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
+      function(){ return window.XLSX; },
+      "xlsx"
+    );
   }
 
   async function initMap(){
@@ -6823,7 +7357,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     const bounds = new naver.maps.LatLngBounds();
 
-    valid.forEach(function(store,idx){
+    valid.forEach(function(store){
       const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
       const marker = new naver.maps.Marker({position:pos,map:storeMap,title:store.storeName || store.store || ""});
       naver.maps.Event.addListener(marker, "click", function(){
@@ -6879,8 +7413,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     ensurePageHtml();
     await initMap();
 
-    const status = document.getElementById("rbcStore3Status");
-    if(status) status.textContent = "점포 불러오는 중...";
+    setStatus("점포 불러오는 중...");
 
     allStores = [];
     let lastDoc = null;
@@ -6899,15 +7432,133 @@ window.debugTeamScheduleDate = async function(dateStr){
 
       lastDoc = snap.docs[snap.docs.length - 1];
 
-      if(status) status.textContent = "점포 불러오는 중... " + allStores.length.toLocaleString() + "개";
+      setStatus("점포 불러오는 중... " + allStores.length.toLocaleString() + "개");
       if(snap.size < pageSize) break;
     }
 
     const done = allStores.filter(hasLatLng).length;
-    if(status) status.textContent = "전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString();
+    setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString());
 
     renderRows(allStores.slice(0,100));
     drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+  }
+
+  async function ensureStoresLoaded(){
+    if(allStores && allStores.length) return allStores;
+    await loadStores();
+    return allStores;
+  }
+
+  async function parseExcel(){
+    await loadXlsxScript();
+
+    const file = document.getElementById("rbcStore3FileInput").files[0];
+    const brand = document.getElementById("rbcStore3Brand").value;
+
+    if(!file){
+      alert("엑셀 파일을 선택하세요.");
+      return;
+    }
+
+    const buffer = await file.arrayBuffer();
+    const wb = XLSX.read(buffer, {type:"array"});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
+
+    if(rows.length < 2){
+      alert("엑셀 데이터가 부족합니다.");
+      return;
+    }
+
+    let headerRowIndex = 0;
+    for(let i=0;i<Math.min(rows.length,10);i++){
+      const rowText = rows[i].join(" ");
+      if(rowText.includes("점포") || rowText.includes("주소") || rowText.includes("상호") || rowText.includes("storeName") || rowText.includes("address")){
+        headerRowIndex = i;
+        break;
+      }
+    }
+
+    const headers = rows[headerRowIndex].map(function(v){ return String(v == null ? "" : v).trim(); });
+
+    const brandCol = findColumn(headers, ["brand","브랜드"]);
+    const nameCol = findColumn(headers, ["점포명","점포","상호","매장명","점명","storeName","name"]);
+    const addressCol = findColumn(headers, ["주소","소재지","점포주소","매장주소","address"]);
+    const codeCol = findColumn(headers, ["점포코드","코드","점코드","storeCode","storeCo"]);
+    const latCol = findColumn(headers, ["위도","lat","latitude"]);
+    const lngCol = findColumn(headers, ["경도","lng","lon","longitude"]);
+
+    if(nameCol < 0 || addressCol < 0){
+      alert("점포명 또는 주소 컬럼을 찾지 못했습니다. 엑셀 헤더명을 확인해야 합니다.");
+      console.log(headers);
+      return;
+    }
+
+    parsedStores = rows.slice(headerRowIndex + 1)
+      .map(function(r){
+        const excelBrand = brandCol >= 0 ? String(r[brandCol] || "").trim() : "";
+        return {
+          brand: excelBrand || brand,
+          storeName: String(r[nameCol] || "").trim(),
+          address: String(r[addressCol] || "").trim(),
+          storeCode: codeCol >= 0 ? String(r[codeCol] || "").trim() : "",
+          lat: latCol >= 0 ? toNumberOrNull(r[latCol]) : null,
+          lng: lngCol >= 0 ? toNumberOrNull(r[lngCol]) : null,
+          sourceFile: file.name,
+          createdAtText: new Date().toISOString()
+        };
+      })
+      .filter(function(r){ return r.storeName && r.address; });
+
+    const info = document.getElementById("rbcStore3UploadInfo");
+    if(info) info.textContent = file.name + " / " + parsedStores.length.toLocaleString() + "개 점포 읽음";
+
+    renderRows(parsedStores.slice(0,100));
+    drawMarkers(parsedStores.slice(0,100));
+  }
+
+  async function uploadStores(){
+    if(!parsedStores.length){
+      alert("먼저 엑셀 읽기를 하세요.");
+      return;
+    }
+
+    if(!confirm(parsedStores.length.toLocaleString() + "개 점포를 Firestore " + COLLECTION_NAME + " 컬렉션에 저장할까요?")){
+      return;
+    }
+
+    setStatus("Firestore 저장 중...");
+
+    const batchSize = 400;
+    let saved = 0;
+
+    for(let i=0;i<parsedStores.length;i+=batchSize){
+      const batch = db.batch();
+      const chunk = parsedStores.slice(i, i + batchSize);
+
+      chunk.forEach(function(store){
+        const idBase = makeStoreDocId(store);
+        const ref = db.collection(COLLECTION_NAME).doc(idBase);
+
+        batch.set(ref, {
+          ...store,
+          idBase,
+          searchKey: norm((store.brand || "") + (store.storeName || "") + (store.address || "")),
+          geocodeFailed: false,
+          geocodeFailedReason: firebase.firestore.FieldValue.delete(),
+          geocodeFailedAt: firebase.firestore.FieldValue.delete(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, {merge:true});
+      });
+
+      await batch.commit();
+      saved += chunk.length;
+      setStatus("Firestore 저장 중... " + saved.toLocaleString() + " / " + parsedStores.length.toLocaleString());
+    }
+
+    setStatus("저장 완료 · " + saved.toLocaleString() + "개");
+    allStores = [];
+    alert("저장 완료");
   }
 
   function search(){
@@ -6929,6 +7580,69 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     renderRows(rows);
     drawMarkers(rows);
+  }
+
+  async function deleteByName(){
+    await ensureStoresLoaded();
+
+    const input = document.getElementById("rbcStore3DeleteName");
+    const name = input ? input.value.trim() : "";
+    if(!name){
+      alert("삭제할 점포명을 입력하세요.");
+      return;
+    }
+
+    const key = norm(name);
+    let matches = allStores.filter(function(s){
+      return norm(s.storeName || s.store || "") === key;
+    });
+
+    if(!matches.length){
+      matches = allStores.filter(function(s){
+        return norm(s.storeName || s.store || "").includes(key);
+      });
+    }
+
+    if(!matches.length){
+      alert("해당 점포명을 찾지 못했습니다.");
+      return;
+    }
+
+    const preview = matches.slice(0,10).map(function(s){
+      return "- " + (s.brand || "") + " " + (s.storeName || s.store || "") + " / " + (s.address || "");
+    }).join("\n");
+
+    if(!confirm(
+      "아래 점포 " + matches.length.toLocaleString() + "개를 삭제할까요?\n\n" +
+      preview +
+      (matches.length > 10 ? "\n...외 " + (matches.length - 10) + "개" : "") +
+      "\n\n이 작업은 Firestore에서 실제 삭제됩니다."
+    )){
+      return;
+    }
+
+    let deleted = 0;
+    for(let i=0;i<matches.length;i+=400){
+      const batch = db.batch();
+      const chunk = matches.slice(i,i+400);
+      chunk.forEach(function(s){
+        if(s.id){
+          batch.delete(db.collection(COLLECTION_NAME).doc(s.id));
+        }
+      });
+      await batch.commit();
+      deleted += chunk.length;
+      setStatus("점포 삭제 중... " + deleted.toLocaleString() + " / " + matches.length.toLocaleString());
+    }
+
+    alert("삭제 완료: " + deleted.toLocaleString() + "개");
+    if(input) input.value = "";
+    allStores = allStores.filter(function(s){
+      return !matches.some(function(m){ return m.id === s.id; });
+    });
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
   async function focus(index){
@@ -7054,6 +7768,174 @@ window.debugTeamScheduleDate = async function(dateStr){
     if(marker) openInfo(marker, store);
   }
 
+  async function geocodeOne(store){
+    const response = await fetch(GEOCODE_URL, {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({address:store.address})
+    });
+
+    if(!response.ok) throw new Error("Geocoding HTTP " + response.status);
+
+    const data = await response.json();
+
+    if(data.ok && Number.isFinite(Number(data.lat)) && Number.isFinite(Number(data.lng))){
+      await db.collection(COLLECTION_NAME).doc(store.id).set({
+        lat:Number(data.lat),
+        lng:Number(data.lng),
+        geocodeFailed:false,
+        geocodeFailedReason:firebase.firestore.FieldValue.delete(),
+        geocodeFailedAt:firebase.firestore.FieldValue.delete(),
+        geocodedAt:firebase.firestore.FieldValue.serverTimestamp()
+      }, {merge:true});
+
+      store.lat = Number(data.lat);
+      store.lng = Number(data.lng);
+      store.geocodeFailed = false;
+      return {ok:true};
+    }
+
+    const reason = data && (data.reason || data.message) ? (data.reason || data.message) : "NO_RESULT";
+    await markGeocodeFailed(store, reason);
+    return {ok:false, reason};
+  }
+
+  async function markGeocodeFailed(store, reason){
+    if(!store || !store.id) return;
+
+    const safeReason = String(reason || "UNKNOWN").slice(0,200);
+
+    await db.collection(COLLECTION_NAME).doc(store.id).set({
+      geocodeFailed:true,
+      geocodeFailedReason:safeReason,
+      geocodeFailedAt:firebase.firestore.FieldValue.serverTimestamp()
+    }, {merge:true});
+
+    store.geocodeFailed = true;
+    store.geocodeFailedReason = safeReason;
+  }
+
+  async function geocodeVisible(){
+    const targets = currentRows.filter(function(s){
+      return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+    }).slice(0,50);
+
+    if(!targets.length){
+      alert("현재 목록에서 새로 좌표 변환할 점포가 없습니다.");
+      return;
+    }
+
+    if(!confirm("현재 목록 중 " + targets.length + "개를 좌표 변환할까요?")) return;
+
+    let success = 0, fail = 0;
+
+    for(let i=0;i<targets.length;i++){
+      const store = targets[i];
+      setStatus("현재 목록 좌표 변환 중... " + (i+1) + " / " + targets.length + " · " + (store.storeName || ""));
+      try{
+        const r = await geocodeOne(store);
+        if(r.ok) success++;
+        else fail++;
+      }catch(err){
+        await markGeocodeFailed(store, err && err.message ? err.message : "ERROR");
+        fail++;
+      }
+      await new Promise(resolve => setTimeout(resolve,120));
+    }
+
+    renderRows(currentRows);
+    drawMarkers(currentRows);
+    alert("좌표 변환 완료\n성공: " + success + "개\n실패: " + fail + "개");
+  }
+
+  async function geocodeAll(){
+    await ensureStoresLoaded();
+
+    let pending = allStores.filter(function(s){
+      return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+    });
+
+    if(!pending.length){
+      alert("전체 미변환 대상이 없습니다.");
+      return;
+    }
+
+    if(!confirm("전체 미변환 점포 " + pending.length.toLocaleString() + "개를 자동 변환할까요?")) return;
+
+    stopGeocodeRequested = false;
+    let success = 0, fail = 0, processed = 0;
+
+    while(!stopGeocodeRequested){
+      pending = allStores.filter(function(s){
+        return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+      }).slice(0,50);
+
+      if(!pending.length) break;
+
+      renderRows(pending);
+
+      for(let i=0;i<pending.length;i++){
+        if(stopGeocodeRequested) break;
+        const store = pending[i];
+        processed++;
+        setStatus("전체 좌표 변환 중... 처리 " + processed.toLocaleString() + " / 성공 " + success + " / 실패 " + fail + " · " + (store.storeName || ""));
+        try{
+          const r = await geocodeOne(store);
+          if(r.ok) success++;
+          else fail++;
+        }catch(err){
+          await markGeocodeFailed(store, err && err.message ? err.message : "ERROR");
+          fail++;
+        }
+        await new Promise(resolve => setTimeout(resolve,120));
+      }
+    }
+
+    const done = allStores.filter(hasLatLng).length;
+    const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
+    setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString() + " / 실패 " + failed.toLocaleString());
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+
+    alert("전체 좌표 변환 종료\n성공: " + success.toLocaleString() + "개\n실패: " + fail.toLocaleString() + "개");
+  }
+
+  function stopGeocode(){
+    stopGeocodeRequested = true;
+    setStatus("전체 변환 중지 요청됨...");
+  }
+
+  async function downloadFailed(){
+    await loadXlsxScript();
+    await ensureStoresLoaded();
+
+    const rows = allStores
+      .filter(function(s){ return !hasLatLng(s); })
+      .map(function(s,i){
+        return {
+          No:i+1,
+          brand:s.brand || "",
+          storeName:s.storeName || s.store || "",
+          address:s.address || "",
+          storeCode:s.storeCode || "",
+          geocodeFailed:s.geocodeFailed ? "Y" : "",
+          geocodeFailedReason:s.geocodeFailedReason || "",
+          id:s.id || ""
+        };
+      });
+
+    if(!rows.length){
+      alert("좌표가 없는 점포가 없습니다.");
+      return;
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "좌표 미변환 점포");
+    const date = new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb, "ravebic_좌표_미변환_" + rows.length + "개_" + date + ".xlsx");
+  }
+
   function summary(){
     const total = allStores.length;
     const done = allStores.filter(hasLatLng).length;
@@ -7083,6 +7965,13 @@ window.debugTeamScheduleDate = async function(dateStr){
   window.rbcStore3FocusNearby = focusNearby;
   window.rbcStore3Summary = summary;
   window.rbcStore3ShowAllOnMap = showAllOnMap;
+  window.rbcStore3ParseExcel = parseExcel;
+  window.rbcStore3UploadStores = uploadStores;
+  window.rbcStore3DeleteByName = deleteByName;
+  window.rbcStore3GeocodeVisible = geocodeVisible;
+  window.rbcStore3GeocodeAll = geocodeAll;
+  window.rbcStore3StopGeocode = stopGeocode;
+  window.rbcStore3DownloadFailed = downloadFailed;
 
   const previousShowRbcPage = window.showRbcPage;
 
@@ -7128,8 +8017,7 @@ window.debugTeamScheduleDate = async function(dateStr){
           },200);
         }
       }).catch(function(err){
-        const status = document.getElementById("rbcStore3Status");
-        if(status) status.textContent = "지도 로딩 실패";
+        setStatus("지도 로딩 실패");
         console.error(err);
       });
     }else{
