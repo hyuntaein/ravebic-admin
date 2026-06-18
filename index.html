@@ -8302,4 +8302,177 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_DUPLICATE_AUDIT_REMOVE_AND_ARCHIVE_BACKUP_SETTING_V1 -->
+<style>
+.rbc-archive-backup-setting-box{
+  margin-top:12px;
+  padding:12px;
+  border:1px solid #cfe0f8;
+  background:#f8fbff;
+  border-radius:13px;
+}
+.rbc-archive-backup-setting-row{
+  display:grid;
+  grid-template-columns:160px 1fr 1fr auto;
+  gap:10px;
+  align-items:center;
+}
+.rbc-archive-backup-setting-row input,
+.rbc-archive-backup-setting-row select{
+  width:100%;
+  padding:10px;
+  border:1px solid #cbd5e1;
+  border-radius:10px;
+}
+@media(max-width:768px){
+  .rbc-archive-backup-setting-row{grid-template-columns:1fr}
+}
+</style>
+
+<script>
+(function(){
+  if(window.__RAVEBIC_DUPLICATE_AUDIT_REMOVE_AND_ARCHIVE_BACKUP_SETTING_V1__) return;
+  window.__RAVEBIC_DUPLICATE_AUDIT_REMOVE_AND_ARCHIVE_BACKUP_SETTING_V1__ = true;
+
+  function removeDuplicateAuditBoxes(){
+    const boxes = Array.from(document.querySelectorAll('.rbc-auto-correction-audit-box, #rbcAutoCorrectionAuditBox'));
+    const unique = [];
+    boxes.forEach(function(el){
+      if(unique.indexOf(el) < 0) unique.push(el);
+    });
+
+    if(unique.length <= 1) return;
+
+    unique.forEach(function(el, idx){
+      if(idx > 0 && el.parentNode){
+        el.parentNode.removeChild(el);
+      }
+    });
+  }
+
+  function ensureArchiveAutoBackupSetting(){
+    const box = document.getElementById('rbcArchiveBackupBox') || Array.from(document.querySelectorAll('div')).find(function(el){
+      const h = el.querySelector && el.querySelector('h2');
+      return h && (h.textContent || '').indexOf('데이터 아카이브 관리') >= 0;
+    });
+
+    if(!box) return;
+    if(document.getElementById('rbcArchiveAutoBackupSettingBox')) return;
+
+    const setting = document.createElement('div');
+    setting.id = 'rbcArchiveAutoBackupSettingBox';
+    setting.className = 'rbc-archive-backup-setting-box';
+    setting.innerHTML =
+      '<h3 style="margin:0 0 10px;color:#123f7a">자동백업 설정</h3>' +
+      '<div class="small" style="margin-bottom:10px">' +
+        '설정값을 Firestore에 저장합니다. 실제 자동 실행은 Firebase Functions 스케줄러가 이 설정을 기준으로 사용하도록 연결하면 됩니다.' +
+      '</div>' +
+      '<div class="rbc-archive-backup-setting-row">' +
+        '<select id="rbcArchiveAutoBackupEnabled">' +
+          '<option value="Y">자동백업 사용</option>' +
+          '<option value="N">자동백업 중지</option>' +
+        '</select>' +
+        '<input id="rbcArchiveAutoBackupTime" type="time" value="22:30">' +
+        '<select id="rbcArchiveAutoBackupTarget">' +
+          '<option value="archive">ARCHIVE 첨부파일</option>' +
+          '<option value="all">전체 제출자료</option>' +
+        '</select>' +
+        '<button class="green" type="button" onclick="rbcSaveArchiveAutoBackupSetting()">설정 저장</button>' +
+      '</div>' +
+      '<div class="btns" style="margin-top:10px">' +
+        '<button class="gray" type="button" onclick="rbcLoadArchiveAutoBackupSetting()">설정 불러오기</button>' +
+      '</div>' +
+      '<div id="rbcArchiveAutoBackupSettingStatus" class="rbc-archive-status">자동백업 설정을 저장하거나 불러오세요.</div>';
+
+    const status = document.getElementById('rbcArchiveBackupStatus');
+    if(status && status.parentNode === box){
+      status.parentNode.insertBefore(setting, status.nextSibling);
+    }else{
+      box.appendChild(setting);
+    }
+
+    setTimeout(function(){
+      if(typeof window.rbcLoadArchiveAutoBackupSetting === 'function'){
+        window.rbcLoadArchiveAutoBackupSetting(false);
+      }
+    },300);
+  }
+
+  window.rbcSaveArchiveAutoBackupSetting = async function(){
+    const enabled = document.getElementById('rbcArchiveAutoBackupEnabled')?.value || 'Y';
+    const time = document.getElementById('rbcArchiveAutoBackupTime')?.value || '22:30';
+    const target = document.getElementById('rbcArchiveAutoBackupTarget')?.value || 'archive';
+    const status = document.getElementById('rbcArchiveAutoBackupSettingStatus');
+
+    if(status) status.innerHTML = '자동백업 설정 저장 중...';
+
+    try{
+      await db.collection('settings').doc('archiveAutoBackup').set({
+        enabled: enabled === 'Y',
+        time: time,
+        target: target,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, {merge:true});
+
+      if(status){
+        status.innerHTML =
+          '자동백업 설정 저장 완료<br>' +
+          '상태: ' + (enabled === 'Y' ? '사용' : '중지') + '<br>' +
+          '시간: ' + time + '<br>' +
+          '대상: ' + (target === 'archive' ? 'ARCHIVE 첨부파일' : '전체 제출자료');
+      }
+      alert('자동백업 설정 저장 완료');
+    }catch(e){
+      console.error(e);
+      if(status) status.innerHTML = '자동백업 설정 저장 실패: ' + (e && e.message ? e.message : e);
+      alert('자동백업 설정 저장 실패');
+    }
+  };
+
+  window.rbcLoadArchiveAutoBackupSetting = async function(showAlert){
+    const status = document.getElementById('rbcArchiveAutoBackupSettingStatus');
+    try{
+      const snap = await db.collection('settings').doc('archiveAutoBackup').get();
+      if(!snap.exists){
+        if(status) status.innerHTML = '저장된 자동백업 설정이 없습니다. 기본값은 사용 / 22:30 / ARCHIVE 첨부파일입니다.';
+        if(showAlert !== false) alert('저장된 자동백업 설정이 없습니다.');
+        return;
+      }
+
+      const data = snap.data() || {};
+      const enabledEl = document.getElementById('rbcArchiveAutoBackupEnabled');
+      const timeEl = document.getElementById('rbcArchiveAutoBackupTime');
+      const targetEl = document.getElementById('rbcArchiveAutoBackupTarget');
+
+      if(enabledEl) enabledEl.value = data.enabled === false ? 'N' : 'Y';
+      if(timeEl) timeEl.value = data.time || '22:30';
+      if(targetEl) targetEl.value = data.target || 'archive';
+
+      if(status){
+        status.innerHTML =
+          '자동백업 설정 불러옴<br>' +
+          '상태: ' + (data.enabled === false ? '중지' : '사용') + '<br>' +
+          '시간: ' + (data.time || '22:30') + '<br>' +
+          '대상: ' + ((data.target || 'archive') === 'archive' ? 'ARCHIVE 첨부파일' : '전체 제출자료');
+      }
+    }catch(e){
+      console.error(e);
+      if(status) status.innerHTML = '자동백업 설정 불러오기 실패: ' + (e && e.message ? e.message : e);
+    }
+  };
+
+  function bootPatch(){
+    removeDuplicateAuditBoxes();
+    ensureArchiveAutoBackupSetting();
+  }
+
+  document.addEventListener('DOMContentLoaded', bootPatch);
+  setTimeout(bootPatch,300);
+  setTimeout(bootPatch,1000);
+  setTimeout(bootPatch,2500);
+  setInterval(removeDuplicateAuditBoxes,2000);
+})();
+</script>
+
 </body></html>
