@@ -8040,4 +8040,266 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_PAGE_ORDER_UPDATE_V1_20260618 -->
+<style>
+#rbcBottomPageTabs{
+  margin:18px 0 6px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+#rbcBottomPageTabs .rbc-page-tab{
+  min-width:150px;
+}
+#rbcRiskBox{display:none!important}
+</style>
+<script>
+(function(){
+  if(window.__RAVEBIC_PAGE_ORDER_UPDATE_V1_20260618__) return;
+  window.__RAVEBIC_PAGE_ORDER_UPDATE_V1_20260618__ = true;
+
+  var previousShow = window.showRbcPage;
+
+  function byTitle(txt){
+    return Array.from(document.querySelectorAll('.section,.team-analysis,.pin-manager,.rbc-monthly-box,.rbc-risk-box,.rbc-score-box,.rbc-archive-box,#rbcAutoCorrectionAuditBox,#rbcArchiveBox,#rbcArchiveBackupBox')).find(function(el){
+      var h = el.querySelector('h2');
+      return h && (h.textContent || '').indexOf(txt) >= 0;
+    }) || null;
+  }
+
+  function findUpload(){
+    return byTitle('업로드 파일 분석') || byTitle('이마트24 업로드파일 분석');
+  }
+
+  function findSchedule(){
+    return byTitle('구글 일정 승인 시스템');
+  }
+
+  function mainTableWrap(){
+    var tb=document.getElementById('tbody');
+    return tb && tb.closest('table') ? tb.closest('table').parentElement : null;
+  }
+
+  function mainBtnRow(){
+    return Array.from(document.querySelectorAll('.btns')).find(function(b){
+      return (b.innerText||'').indexOf('검색/필터 적용')>=0 || !!b.querySelector('button[onclick*="applyFilters"]');
+    }) || null;
+  }
+
+  function isPage3(el){
+    return el && el.id === 'rbcStoreSearchPage3';
+  }
+
+  function ensureTabs(){
+    var wrap=document.querySelector('.wrap');
+    if(!wrap) return;
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs){
+      tabs=document.createElement('div');
+      tabs.id='rbcPageTabs';
+      tabs.className='rbc-page-tabs';
+      var after=wrap.querySelector('.cards') || document.getElementById('conn') || wrap.querySelector('.sub');
+      if(after && after.nextSibling) wrap.insertBefore(tabs, after.nextSibling);
+      else wrap.insertBefore(tabs, wrap.firstChild);
+    }
+
+    function ensureBtn(id,label,page){
+      var b=document.getElementById(id);
+      if(!b){
+        b=document.createElement('button');
+        b.id=id;
+        b.className='rbc-page-tab';
+        b.type='button';
+        b.textContent=label;
+        tabs.appendChild(b);
+      }
+      b.onclick=function(e){
+        if(e) e.preventDefault();
+        window.__rbcCurrentPage=page;
+        window.showRbcPage(page,{manual:true});
+        return false;
+      };
+      return b;
+    }
+
+    ensureBtn('rbcPage1Btn','페이지1 제출관리',1);
+    ensureBtn('rbcPage2Btn','페이지2 분석/직원관리',2);
+    if(document.getElementById('rbcStoreSearchPage3') || document.getElementById('rbcPage3Btn')){
+      ensureBtn('rbcPage3Btn','페이지3 가까운 점포검색',3);
+    }
+
+    var bottom=document.getElementById('rbcBottomPageTabs');
+    if(!bottom){
+      bottom=document.createElement('div');
+      bottom.id='rbcBottomPageTabs';
+      bottom.className='rbc-page-tabs';
+      wrap.appendChild(bottom);
+    }
+    bottom.innerHTML='';
+    [
+      ['페이지1 제출관리',1],
+      ['페이지2 분석/직원관리',2],
+      ['페이지3 가까운 점포검색',3]
+    ].forEach(function(x){
+      if(x[1]===3 && !document.getElementById('rbcStoreSearchPage3') && !document.getElementById('rbcPage3Btn')) return;
+      var b=document.createElement('button');
+      b.className='rbc-page-tab';
+      b.type='button';
+      b.textContent=x[0];
+      b.onclick=function(){
+        window.__rbcCurrentPage=x[1];
+        window.showRbcPage(x[1],{manual:true});
+      };
+      bottom.appendChild(b);
+    });
+  }
+
+  function moveInOrder(){
+    var wrap=document.querySelector('.wrap');
+    if(!wrap) return;
+    ensureTabs();
+
+    var tabs=document.getElementById('rbcPageTabs');
+    var bottom=document.getElementById('rbcBottomPageTabs');
+    var risk=document.getElementById('rbcRiskBox');
+    if(risk) risk.style.display='none';
+
+    var page1 = [
+      document.getElementById('rbcAlertCenterBox'),
+      document.getElementById('teamAnalysisBox'),
+      document.querySelector('.filters'),
+      mainBtnRow(),
+      mainTableWrap(),
+      document.querySelector('.pagination-bar'),
+      document.getElementById('rbcAutoCorrectionAuditBox'),
+      findSchedule(),
+      findUpload()
+    ].filter(Boolean);
+
+    var page2 = [
+      document.getElementById('rbcScoreBox'),
+      document.getElementById('rbcMonthlyBox'),
+      document.querySelector('.pin-manager'),
+      document.getElementById('rbcArchiveBox'),
+      document.getElementById('rbcArchiveBackupBox')
+    ].filter(Boolean);
+
+    var anchor = tabs && tabs.nextSibling ? tabs.nextSibling : null;
+    page1.concat(page2).forEach(function(el){
+      if(el && el.parentElement===wrap && el!==bottom){
+        wrap.insertBefore(el, bottom || null);
+      }
+    });
+
+    if(bottom && bottom.parentElement===wrap) wrap.appendChild(bottom);
+  }
+
+  function alwaysVisible(el){
+    return !!(el && (
+      el.id==='rbcPageTabs' ||
+      el.id==='rbcBottomPageTabs' ||
+      el.classList.contains('admin-main-title') ||
+      el.classList.contains('admin-logout-btn') ||
+      el.classList.contains('sub') ||
+      el.id==='conn' ||
+      el.classList.contains('cards')
+    ));
+  }
+
+  function page1Item(el){
+    return !!(el && (
+      el.id==='rbcAlertCenterBox' ||
+      el.id==='teamAnalysisBox' ||
+      el.id==='rbcAutoCorrectionAuditBox' ||
+      el.classList.contains('filters') ||
+      el.classList.contains('pagination-bar') ||
+      el===mainBtnRow() ||
+      el===mainTableWrap() ||
+      el===findSchedule() ||
+      el===findUpload()
+    ));
+  }
+
+  function page2Item(el){
+    return !!(el && (
+      el.id==='rbcScoreBox' ||
+      el.id==='rbcMonthlyBox' ||
+      el.id==='rbcArchiveBox' ||
+      el.id==='rbcArchiveBackupBox' ||
+      el.classList.contains('pin-manager')
+    ));
+  }
+
+  window.showRbcPage=function(page,opts){
+    page=Number(page)||1;
+    var wrap=document.querySelector('.wrap');
+    if(!wrap) return;
+
+    if(page===3){
+      if(typeof previousShow==='function'){
+        previousShow(3,opts||{});
+      }
+      ensureTabs();
+      ['rbcPage1Btn','rbcPage2Btn','rbcPage3Btn'].forEach(function(id,i){
+        var b=document.getElementById(id);
+        if(b) b.classList.toggle('active', id==='rbcPage3Btn');
+      });
+      Array.from(document.querySelectorAll('#rbcBottomPageTabs .rbc-page-tab')).forEach(function(b,i){
+        b.classList.toggle('active', i===2);
+      });
+      try{sessionStorage.setItem('ravebicAdminCurrentPage','3');}catch(e){}
+      return;
+    }
+
+    moveInOrder();
+
+    Array.from(wrap.children).forEach(function(el){
+      if(alwaysVisible(el)) return;
+      if(isPage3(el)){ el.style.display='none'; return; }
+      if(el.id==='rbcRiskBox'){ el.style.display='none'; return; }
+
+      if(page===1){
+        el.style.display = page1Item(el) ? '' : 'none';
+      }else{
+        el.style.display = page2Item(el) ? '' : 'none';
+      }
+    });
+
+    var p1=document.getElementById('rbcPage1Btn');
+    var p2=document.getElementById('rbcPage2Btn');
+    var p3=document.getElementById('rbcPage3Btn');
+    if(p1) p1.classList.toggle('active',page===1);
+    if(p2) p2.classList.toggle('active',page===2);
+    if(p3) p3.classList.toggle('active',false);
+
+    Array.from(document.querySelectorAll('#rbcBottomPageTabs .rbc-page-tab')).forEach(function(b,i){
+      b.classList.toggle('active', (page===1&&i===0) || (page===2&&i===1));
+    });
+
+    window.__rbcCurrentPage=page;
+    try{sessionStorage.setItem('ravebicAdminCurrentPage',String(page));}catch(e){}
+
+    if(page===1 && typeof rbcLoadAlertCenter==='function') setTimeout(rbcLoadAlertCenter,150);
+    if(page===2 && typeof rbcLoadScore==='function') setTimeout(rbcLoadScore,150);
+  };
+
+  function boot(){
+    ensureTabs();
+    moveInOrder();
+    var saved=1;
+    try{saved=Number(sessionStorage.getItem('ravebicAdminCurrentPage')||'1')||1;}catch(e){}
+    if(saved===3 && !document.getElementById('rbcStoreSearchPage3')) saved=1;
+    window.showRbcPage(saved===2?2:(saved===3?3:1));
+  }
+
+  document.addEventListener('DOMContentLoaded',boot);
+  setTimeout(boot,250);
+  setTimeout(boot,900);
+  setTimeout(boot,1800);
+  setTimeout(boot,3500);
+})();
+</script>
+
 </body></html>
