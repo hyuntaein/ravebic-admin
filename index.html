@@ -8303,175 +8303,175 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 
 
-<!-- RAVEBIC_DUPLICATE_AUDIT_REMOVE_AND_ARCHIVE_BACKUP_SETTING_V1 -->
-<style>
-.rbc-archive-backup-setting-box{
-  margin-top:12px;
-  padding:12px;
-  border:1px solid #cfe0f8;
-  background:#f8fbff;
-  border-radius:13px;
-}
-.rbc-archive-backup-setting-row{
-  display:grid;
-  grid-template-columns:160px 1fr 1fr auto;
-  gap:10px;
-  align-items:center;
-}
-.rbc-archive-backup-setting-row input,
-.rbc-archive-backup-setting-row select{
-  width:100%;
-  padding:10px;
-  border:1px solid #cbd5e1;
-  border-radius:10px;
-}
-@media(max-width:768px){
-  .rbc-archive-backup-setting-row{grid-template-columns:1fr}
-}
-</style>
 
+
+
+<!-- RAVEBIC_ARCHIVE_AUTO_BACKUP_MONTH_STYLE_V2 -->
+<style>
+#rbcArchiveAutoBackupSettingBox{margin-top:12px;padding:13px;border:1px solid #bfdbfe;background:#f8fbff;border-radius:14px}
+.rbc-archive-auto-grid{display:grid;grid-template-columns:150px 120px 1fr auto auto;gap:10px;align-items:center;margin-top:10px}
+.rbc-archive-auto-grid input,.rbc-archive-auto-grid select{width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:10px}
+.rbc-archive-auto-status{margin-top:10px;padding:10px;border:1px solid #dbeafe;background:#fff;border-radius:12px;color:#0b3b77;font-size:13px;line-height:1.55}
+@media(max-width:768px){.rbc-archive-auto-grid{grid-template-columns:1fr}}
+</style>
 <script>
 (function(){
-  if(window.__RAVEBIC_DUPLICATE_AUDIT_REMOVE_AND_ARCHIVE_BACKUP_SETTING_V1__) return;
-  window.__RAVEBIC_DUPLICATE_AUDIT_REMOVE_AND_ARCHIVE_BACKUP_SETTING_V1__ = true;
+  if(window.__RAVEBIC_ARCHIVE_AUTO_BACKUP_MONTH_STYLE_V2__) return;
+  window.__RAVEBIC_ARCHIVE_AUTO_BACKUP_MONTH_STYLE_V2__ = true;
 
-  function removeDuplicateAuditBoxes(){
-    const boxes = Array.from(document.querySelectorAll('.rbc-auto-correction-audit-box, #rbcAutoCorrectionAuditBox'));
-    const unique = [];
-    boxes.forEach(function(el){
-      if(unique.indexOf(el) < 0) unique.push(el);
-    });
-
-    if(unique.length <= 1) return;
-
-    unique.forEach(function(el, idx){
-      if(idx > 0 && el.parentNode){
-        el.parentNode.removeChild(el);
-      }
+  function esc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
     });
   }
 
-  function ensureArchiveAutoBackupSetting(){
-    const box = document.getElementById('rbcArchiveBackupBox') || Array.from(document.querySelectorAll('div')).find(function(el){
-      const h = el.querySelector && el.querySelector('h2');
-      return h && (h.textContent || '').indexOf('데이터 아카이브 관리') >= 0;
-    });
+  function removeWrongBackupBox(){
+    var old=document.getElementById('rbcArchiveAutoBackupSettingBox');
+    if(old && old.dataset.monthStyle!=='Y') old.remove();
+  }
 
-    if(!box) return;
+  function ensureMonthBackupBox(){
+    removeWrongBackupBox();
+
+    var archiveBox=document.getElementById('rbcArchiveBox');
+    if(!archiveBox) return;
     if(document.getElementById('rbcArchiveAutoBackupSettingBox')) return;
 
-    const setting = document.createElement('div');
-    setting.id = 'rbcArchiveAutoBackupSettingBox';
-    setting.className = 'rbc-archive-backup-setting-box';
-    setting.innerHTML =
-      '<h3 style="margin:0 0 10px;color:#123f7a">자동백업 설정</h3>' +
-      '<div class="small" style="margin-bottom:10px">' +
-        '설정값을 Firestore에 저장합니다. 실제 자동 실행은 Firebase Functions 스케줄러가 이 설정을 기준으로 사용하도록 연결하면 됩니다.' +
-      '</div>' +
-      '<div class="rbc-archive-backup-setting-row">' +
-        '<select id="rbcArchiveAutoBackupEnabled">' +
-          '<option value="Y">자동백업 사용</option>' +
-          '<option value="N">자동백업 중지</option>' +
-        '</select>' +
-        '<input id="rbcArchiveAutoBackupTime" type="time" value="22:30">' +
-        '<select id="rbcArchiveAutoBackupTarget">' +
-          '<option value="archive">ARCHIVE 첨부파일</option>' +
-          '<option value="all">전체 제출자료</option>' +
-        '</select>' +
-        '<button class="green" type="button" onclick="rbcSaveArchiveAutoBackupSetting()">설정 저장</button>' +
-      '</div>' +
-      '<div class="btns" style="margin-top:10px">' +
-        '<button class="gray" type="button" onclick="rbcLoadArchiveAutoBackupSetting()">설정 불러오기</button>' +
-      '</div>' +
-      '<div id="rbcArchiveAutoBackupSettingStatus" class="rbc-archive-status">자동백업 설정을 저장하거나 불러오세요.</div>';
+    var mainMonths=document.getElementById('rbcArchiveMonths');
+    var currentMonths=(mainMonths && mainMonths.value) ? mainMonths.value : '13';
 
-    const status = document.getElementById('rbcArchiveBackupStatus');
-    if(status && status.parentNode === box){
-      status.parentNode.insertBefore(setting, status.nextSibling);
-    }else{
-      box.appendChild(setting);
-    }
+    var box=document.createElement('div');
+    box.id='rbcArchiveAutoBackupSettingBox';
+    box.dataset.monthStyle='Y';
+    box.innerHTML =
+      '<h3 style="margin:0 0 8px;color:#123f7a">자동백업 설정</h3>'+
+      '<div class="small" style="line-height:1.55">예전 방식처럼 <b>개월수</b>를 정하면, 그 개월수보다 오래된 제출자료를 자동백업 대상으로 설정합니다. 예: 13개월이면 13개월 이전 자료를 archiveSubmissions로 복사하고 원본은 숨김 처리합니다.</div>'+
+      '<div class="rbc-archive-auto-grid">'+
+        '<select id="rbcArchiveAutoBackupEnabled"><option value="Y">자동백업 사용</option><option value="N">자동백업 중지</option></select>'+
+        '<input id="rbcArchiveAutoBackupMonths" type="number" min="1" value="'+esc(currentMonths)+'">'+
+        '<span class="small">개월 이전 자료 자동백업</span>'+
+        '<button class="green" type="button" onclick="rbcSaveArchiveAutoBackupMonthSetting()">설정 저장</button>'+
+        '<button class="gray" type="button" onclick="rbcLoadArchiveAutoBackupMonthSetting()">불러오기</button>'+
+      '</div>'+
+      '<div class="btns" style="margin-top:10px">'+
+        '<button class="blue" type="button" onclick="rbcArchiveAutoBackupSimulation()">자동백업 대상 확인</button>'+
+        '<button class="green" type="button" onclick="rbcArchiveAutoBackupRunNow()">지금 자동백업 실행</button>'+
+      '</div>'+
+      '<div id="rbcArchiveAutoBackupSettingStatus" class="rbc-archive-auto-status">자동백업 설정을 저장하거나 불러오세요.</div>';
+
+    var controls=archiveBox.querySelector('.rbc-archive-controls');
+    if(controls && controls.parentNode) controls.parentNode.insertBefore(box, controls.nextSibling);
+    else archiveBox.appendChild(box);
 
     setTimeout(function(){
-      if(typeof window.rbcLoadArchiveAutoBackupSetting === 'function'){
-        window.rbcLoadArchiveAutoBackupSetting(false);
-      }
+      if(typeof rbcLoadArchiveAutoBackupMonthSetting==='function') rbcLoadArchiveAutoBackupMonthSetting(false);
     },300);
   }
 
-  window.rbcSaveArchiveAutoBackupSetting = async function(){
-    const enabled = document.getElementById('rbcArchiveAutoBackupEnabled')?.value || 'Y';
-    const time = document.getElementById('rbcArchiveAutoBackupTime')?.value || '22:30';
-    const target = document.getElementById('rbcArchiveAutoBackupTarget')?.value || 'archive';
-    const status = document.getElementById('rbcArchiveAutoBackupSettingStatus');
+  window.rbcSaveArchiveAutoBackupMonthSetting = async function(){
+    var enabled=document.getElementById('rbcArchiveAutoBackupEnabled')?.value || 'Y';
+    var months=Math.max(1, parseInt(document.getElementById('rbcArchiveAutoBackupMonths')?.value || '13',10) || 13);
+    var status=document.getElementById('rbcArchiveAutoBackupSettingStatus');
 
-    if(status) status.innerHTML = '자동백업 설정 저장 중...';
+    if(status) status.innerHTML='자동백업 설정 저장 중...';
 
     try{
       await db.collection('settings').doc('archiveAutoBackup').set({
-        enabled: enabled === 'Y',
-        time: time,
-        target: target,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        enabled: enabled==='Y',
+        months: months,
+        mode: 'months_before_archive',
+        targetCollection: 'submissions',
+        archiveCollection: 'archiveSubmissions',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAtText: new Date().toISOString()
       }, {merge:true});
 
+      var mainMonths=document.getElementById('rbcArchiveMonths');
+      if(mainMonths) mainMonths.value=months;
+
       if(status){
-        status.innerHTML =
-          '자동백업 설정 저장 완료<br>' +
-          '상태: ' + (enabled === 'Y' ? '사용' : '중지') + '<br>' +
-          '시간: ' + time + '<br>' +
-          '대상: ' + (target === 'archive' ? 'ARCHIVE 첨부파일' : '전체 제출자료');
+        status.innerHTML='<b>자동백업 설정 저장 완료</b><br>상태: '+(enabled==='Y'?'사용':'중지')+'<br>기준: '+months+'개월 이전 자료<br>방식: archiveSubmissions로 복사 후 원본 archived:true 숨김';
       }
       alert('자동백업 설정 저장 완료');
     }catch(e){
       console.error(e);
-      if(status) status.innerHTML = '자동백업 설정 저장 실패: ' + (e && e.message ? e.message : e);
+      if(status) status.innerHTML='<span style="color:#991b1b">자동백업 설정 저장 실패: '+esc(e.message||e)+'</span>';
       alert('자동백업 설정 저장 실패');
     }
   };
 
-  window.rbcLoadArchiveAutoBackupSetting = async function(showAlert){
-    const status = document.getElementById('rbcArchiveAutoBackupSettingStatus');
+  window.rbcLoadArchiveAutoBackupMonthSetting = async function(showAlert){
+    var status=document.getElementById('rbcArchiveAutoBackupSettingStatus');
     try{
-      const snap = await db.collection('settings').doc('archiveAutoBackup').get();
+      var snap=await db.collection('settings').doc('archiveAutoBackup').get();
       if(!snap.exists){
-        if(status) status.innerHTML = '저장된 자동백업 설정이 없습니다. 기본값은 사용 / 22:30 / ARCHIVE 첨부파일입니다.';
-        if(showAlert !== false) alert('저장된 자동백업 설정이 없습니다.');
+        if(status) status.innerHTML='저장된 자동백업 설정이 없습니다. 기본값은 사용 / 13개월 이전 자료입니다.';
+        if(showAlert!==false) alert('저장된 자동백업 설정이 없습니다.');
         return;
       }
 
-      const data = snap.data() || {};
-      const enabledEl = document.getElementById('rbcArchiveAutoBackupEnabled');
-      const timeEl = document.getElementById('rbcArchiveAutoBackupTime');
-      const targetEl = document.getElementById('rbcArchiveAutoBackupTarget');
+      var data=snap.data() || {};
+      var months=Math.max(1, parseInt(data.months || data.archiveMonths || data.keepMonths || 13,10) || 13);
 
-      if(enabledEl) enabledEl.value = data.enabled === false ? 'N' : 'Y';
-      if(timeEl) timeEl.value = data.time || '22:30';
-      if(targetEl) targetEl.value = data.target || 'archive';
+      var enabledEl=document.getElementById('rbcArchiveAutoBackupEnabled');
+      var monthsEl=document.getElementById('rbcArchiveAutoBackupMonths');
+      var mainMonths=document.getElementById('rbcArchiveMonths');
+
+      if(enabledEl) enabledEl.value=data.enabled===false?'N':'Y';
+      if(monthsEl) monthsEl.value=months;
+      if(mainMonths) mainMonths.value=months;
 
       if(status){
-        status.innerHTML =
-          '자동백업 설정 불러옴<br>' +
-          '상태: ' + (data.enabled === false ? '중지' : '사용') + '<br>' +
-          '시간: ' + (data.time || '22:30') + '<br>' +
-          '대상: ' + ((data.target || 'archive') === 'archive' ? 'ARCHIVE 첨부파일' : '전체 제출자료');
+        status.innerHTML='<b>자동백업 설정 불러옴</b><br>상태: '+(data.enabled===false?'중지':'사용')+'<br>기준: '+months+'개월 이전 자료<br>마지막 수정: '+esc(data.updatedAtText || '-');
       }
     }catch(e){
       console.error(e);
-      if(status) status.innerHTML = '자동백업 설정 불러오기 실패: ' + (e && e.message ? e.message : e);
+      if(status) status.innerHTML='<span style="color:#991b1b">자동백업 설정 불러오기 실패: '+esc(e.message||e)+'</span>';
     }
   };
 
-  function bootPatch(){
-    removeDuplicateAuditBoxes();
-    ensureArchiveAutoBackupSetting();
+  window.rbcArchiveAutoBackupSimulation = async function(){
+    var months=Math.max(1, parseInt(document.getElementById('rbcArchiveAutoBackupMonths')?.value || '13',10) || 13);
+    var mainMonths=document.getElementById('rbcArchiveMonths');
+    if(mainMonths) mainMonths.value=months;
+
+    if(typeof rbcArchiveSimulation==='function') await rbcArchiveSimulation();
+    else alert('아카이브 시뮬레이션 기능을 찾지 못했습니다.');
+  };
+
+  window.rbcArchiveAutoBackupRunNow = async function(){
+    var enabled=document.getElementById('rbcArchiveAutoBackupEnabled')?.value || 'Y';
+    if(enabled!=='Y'){
+      alert('자동백업이 중지 상태입니다. 사용으로 바꾸고 설정 저장 후 실행하세요.');
+      return;
+    }
+
+    var months=Math.max(1, parseInt(document.getElementById('rbcArchiveAutoBackupMonths')?.value || '13',10) || 13);
+    var mainMonths=document.getElementById('rbcArchiveMonths');
+    if(mainMonths) mainMonths.value=months;
+
+    if(!confirm(months+'개월 이전 자료를 지금 archiveSubmissions로 백업하고 원본은 숨김 처리할까요?')) return;
+
+    if(typeof rbcArchiveRun==='function') await rbcArchiveRun();
+    else alert('아카이브 실행 기능을 찾지 못했습니다.');
+  };
+
+  var prevShow=window.showRbcPage;
+  if(typeof prevShow==='function' && !window.__RAVEBIC_ARCHIVE_SHOWPAGE_MONTH_PATCH__){
+    window.__RAVEBIC_ARCHIVE_SHOWPAGE_MONTH_PATCH__=true;
+    window.showRbcPage=function(page){
+      prevShow.apply(this, arguments);
+      if(Number(page)===2){
+        setTimeout(ensureMonthBackupBox,100);
+        setTimeout(ensureMonthBackupBox,500);
+      }
+    };
   }
 
-  document.addEventListener('DOMContentLoaded', bootPatch);
-  setTimeout(bootPatch,300);
-  setTimeout(bootPatch,1000);
-  setTimeout(bootPatch,2500);
-  setInterval(removeDuplicateAuditBoxes,2000);
+  document.addEventListener('DOMContentLoaded', ensureMonthBackupBox);
+  setTimeout(ensureMonthBackupBox,300);
+  setTimeout(ensureMonthBackupBox,1000);
+  setTimeout(ensureMonthBackupBox,2500);
 })();
 </script>
 
