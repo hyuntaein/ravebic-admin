@@ -4623,6 +4623,8 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   function hasLatLng(s){
     if(!s) return false;
+    if(s.lat === null || s.lat === undefined || String(s.lat).trim() === '') return false;
+    if(s.lng === null || s.lng === undefined || String(s.lng).trim() === '') return false;
     const lat = Number(s.lat);
     const lng = Number(s.lng);
     return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -5349,7 +5351,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   async function geocodeVisible(){
     const targets = currentRows.filter(function(s){
-      return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+      return s && s.address && !hasLatLng(s) && !s.geocodeFailed;
     }).slice(0,50);
 
     if(!targets.length){
@@ -5363,6 +5365,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     for(let i=0;i<targets.length;i++){
       const store = targets[i];
+      if(!store.id) store.id = makeStoreDocId(store);
       setStatus("현재 목록 좌표 변환 중... " + (i+1) + " / " + targets.length + " · " + (store.storeName || ""));
       try{
         const r = await geocodeOne(store);
@@ -6439,6 +6442,8 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   function hasLatLng(s){
     if(!s) return false;
+    if(s.lat === null || s.lat === undefined || String(s.lat).trim() === '') return false;
+    if(s.lng === null || s.lng === undefined || String(s.lng).trim() === '') return false;
     const lat = Number(s.lat);
     const lng = Number(s.lng);
     return Number.isFinite(lat) && Number.isFinite(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
@@ -7165,7 +7170,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   async function geocodeVisible(){
     const targets = currentRows.filter(function(s){
-      return s.id && s.address && !hasLatLng(s) && !s.geocodeFailed;
+      return s && s.address && !hasLatLng(s) && !s.geocodeFailed;
     }).slice(0,50);
 
     if(!targets.length){
@@ -7179,6 +7184,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     for(let i=0;i<targets.length;i++){
       const store = targets[i];
+      if(!store.id) store.id = makeStoreDocId(store);
       setStatus("현재 목록 좌표 변환 중... " + (i+1) + " / " + targets.length + " · " + (store.storeName || ""));
       try{
         const r = await geocodeOne(store);
@@ -7839,6 +7845,8 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   function rbcStore3HasLatLng(s){
     if(!s) return false;
+    if(s.lat === null || s.lat === undefined || String(s.lat).trim() === '') return false;
+    if(s.lng === null || s.lng === undefined || String(s.lng).trim() === '') return false;
     var lat = Number(s.lat);
     var lng = Number(s.lng);
     return Number.isFinite(lat) && Number.isFinite(lng) &&
