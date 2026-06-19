@@ -8475,4 +8475,167 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_STORE3_COORDINATE_EXPORT_ONLY_V1 -->
+<script>
+/* RAVEBIC_STORE3_COORDINATE_EXPORT_ONLY_V1
+   페이지3 기존 기능은 건드리지 않고, 좌표 설정된 점포 전체 엑셀 다운로드 버튼만 추가합니다.
+*/
+(function(){
+  if(window.__RAVEBIC_STORE3_COORDINATE_EXPORT_ONLY_V1__) return;
+  window.__RAVEBIC_STORE3_COORDINATE_EXPORT_ONLY_V1__ = true;
+
+  function rbcStore3ExportEsc(v){
+    return String(v == null ? "" : v);
+  }
+
+  function rbcStore3HasLatLng(s){
+    if(!s) return false;
+    var lat = Number(s.lat);
+    var lng = Number(s.lng);
+    return Number.isFinite(lat) && Number.isFinite(lng) &&
+      lat >= -90 && lat <= 90 &&
+      lng >= -180 && lng <= 180;
+  }
+
+  async function rbcStore3LoadAllStoresForExport(){
+    if(!window.db){
+      throw new Error("Firebase DB 연결을 찾지 못했습니다.");
+    }
+
+    var rows = [];
+    var lastDoc = null;
+    var pageSize = 1000;
+    var collectionName = "stores_v2";
+
+    while(true){
+      var query = db.collection(collectionName)
+        .orderBy(firebase.firestore.FieldPath.documentId())
+        .limit(pageSize);
+
+      if(lastDoc) query = query.startAfter(lastDoc);
+
+      var snap = await query.get();
+      if(snap.empty) break;
+
+      snap.forEach(function(doc){
+        rows.push({id: doc.id, ...doc.data()});
+      });
+
+      lastDoc = snap.docs[snap.docs.length - 1];
+      if(snap.size < pageSize) break;
+    }
+
+    return rows;
+  }
+
+  window.rbcStore3DownloadCoordinateExcel = async function(){
+    try{
+      if(!window.XLSX){
+        alert("엑셀 라이브러리를 불러오지 못했습니다. 새로고침 후 다시 시도해주세요.");
+        return;
+      }
+
+      var btn = document.getElementById("rbcStore3DownloadCoordinateBtn");
+      if(btn){
+        btn.disabled = true;
+        btn.textContent = "엑셀 생성 중...";
+      }
+
+      var rows = await rbcStore3LoadAllStoresForExport();
+      var doneRows = rows.filter(rbcStore3HasLatLng);
+
+      if(!doneRows.length){
+        alert("좌표가 설정된 점포가 없습니다.");
+        return;
+      }
+
+      doneRows.sort(function(a,b){
+        return rbcStore3ExportEsc(a.brand).localeCompare(rbcStore3ExportEsc(b.brand), "ko") ||
+          rbcStore3ExportEsc(a.storeName || a.store).localeCompare(rbcStore3ExportEsc(b.storeName || b.store), "ko");
+      });
+
+      var excelRows = doneRows.map(function(s, i){
+        return {
+          No: i + 1,
+          브랜드: s.brand || "",
+          점포명: s.storeName || s.store || "",
+          주소: s.address || "",
+          위도: Number(s.lat),
+          경도: Number(s.lng),
+          점포코드: s.storeCode || "",
+          문서ID: s.id || "",
+          원본파일: s.sourceFile || "",
+          좌표변환일: s.geocodedAtText || "",
+          검색키: s.searchKey || ""
+        };
+      });
+
+      var ws = XLSX.utils.json_to_sheet(excelRows);
+      ws["!cols"] = [
+        {wch:8}, {wch:14}, {wch:28}, {wch:55}, {wch:14}, {wch:14},
+        {wch:18}, {wch:28}, {wch:28}, {wch:22}, {wch:40}
+      ];
+
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "좌표완료 점포");
+
+      var date = new Date().toISOString().slice(0,10);
+      XLSX.writeFile(wb, "RAVEBIC_좌표완료_점포전체_" + doneRows.length + "개_" + date + ".xlsx");
+
+      alert("좌표완료 점포 " + doneRows.length.toLocaleString() + "개 엑셀 다운로드를 시작했습니다.");
+
+    }catch(e){
+      console.error(e);
+      alert("좌표완료 점포 엑셀 다운로드 실패:\n\n" + (e.message || e));
+    }finally{
+      var btn = document.getElementById("rbcStore3DownloadCoordinateBtn");
+      if(btn){
+        btn.disabled = false;
+        btn.textContent = "좌표완료 점포 전체 엑셀 다운로드";
+      }
+    }
+  };
+
+  function addCoordinateExportButton(){
+    if(document.getElementById("rbcStore3DownloadCoordinateBtn")) return;
+
+    var page3 = document.getElementById("rbcStoreSearchPage3");
+    if(!page3) return;
+
+    var targetBtns = null;
+
+    var cards = Array.from(page3.querySelectorAll(".rbc-store3-card"));
+    for(var i=0;i<cards.length;i++){
+      var txt = cards[i].innerText || "";
+      if(txt.indexOf("점포 검색") >= 0){
+        targetBtns = cards[i].querySelector(".btns");
+        break;
+      }
+    }
+
+    if(!targetBtns){
+      targetBtns = page3.querySelector(".btns");
+    }
+
+    if(!targetBtns) return;
+
+    var btn = document.createElement("button");
+    btn.id = "rbcStore3DownloadCoordinateBtn";
+    btn.className = "green";
+    btn.type = "button";
+    btn.textContent = "좌표완료 점포 전체 엑셀 다운로드";
+    btn.onclick = window.rbcStore3DownloadCoordinateExcel;
+
+    targetBtns.appendChild(btn);
+  }
+
+  document.addEventListener("DOMContentLoaded", addCoordinateExportButton);
+  setTimeout(addCoordinateExportButton, 500);
+  setTimeout(addCoordinateExportButton, 1500);
+  setTimeout(addCoordinateExportButton, 3000);
+  setInterval(addCoordinateExportButton, 3000);
+})();
+</script>
+
 </body></html>
