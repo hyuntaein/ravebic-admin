@@ -9851,3 +9851,250 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 
 </body></html>
+
+<!-- RAVEBIC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625 -->
+<script>
+(function(){
+  if(window.__RBC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625__) return;
+  window.__RBC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625__ = true;
+
+  var IMPORT_FUNCTION_URLS = [
+    'https://us-central1-ravebic-app.cloudfunctions.net/importGoogleScheduleToFirestore',
+    'https://asia-northeast3-ravebic-app.cloudfunctions.net/importGoogleScheduleToFirestore'
+  ];
+
+  function escRbc(v){
+    return String(v == null ? '' : v).replace(/[&<>\'\"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+  function ymdRbc(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function addDaysRbc(d,n){
+    var x=new Date(d); x.setDate(x.getDate()+n); return x;
+  }
+  function todayYmdRbc(){ return ymdRbc(new Date()); }
+
+  async function callImportFunction(){
+    var errors=[];
+    for(var i=0;i<IMPORT_FUNCTION_URLS.length;i++){
+      var base=IMPORT_FUNCTION_URLS[i];
+      var urls=[base, base+'?source=admin&ts='+Date.now()];
+      for(var u=0;u<urls.length;u++){
+        try{
+          var res=await fetch(urls[u], {method:'GET', mode:'cors', cache:'no-store'});
+          var text=await res.text();
+          var json=null;
+          try{ json=JSON.parse(text); }catch(parseErr){}
+          if(!res.ok){ throw new Error('HTTP '+res.status+' '+text.slice(0,160)); }
+          return {
+            ok:true,
+            count:Number((json && (json.count||json.imported||json.saved||json.total)) || 0),
+            message:(json && (json.message||json.status)) || 'Firebase Function 일정 반영 완료',
+            raw:json || text
+          };
+        }catch(e){ errors.push(base+': '+(e.message||e)); }
+      }
+    }
+    return {ok:false,count:0,message:errors.join(' / ') || 'Function 호출 실패'};
+  }
+
+  async function countSchedulesByDate(dateStr){
+    try{
+      var snap=await db.collection('teamSchedules').where('scheduleDate','==',dateStr).get();
+      return snap.size || 0;
+    }catch(e){ return 0; }
+  }
+
+  async function countLatestSchedules(){
+    try{
+      var rows = typeof window.loadTeamScheduleRows === 'function' ? await window.loadTeamScheduleRows() : [];
+      var dates = Array.from(new Set((rows||[]).map(function(r){return String(r.scheduleDate||'').trim();}).filter(Boolean))).sort();
+      if(!dates.length) return {count:0, latest:'', dates:[]};
+      var latest = dates[dates.length-1];
+      var count = rows.filter(function(r){return String(r.scheduleDate||'')===latest;}).length;
+      return {count:count, latest:latest, dates:dates};
+    }catch(e){ return {count:0, latest:'', dates:[]}; }
+  }
+
+  function ensureYesterdayTabRbc(){
+    var tabBox=document.querySelector('.team-analysis-tabs');
+    var todayBtn=document.getElementById('teamTodayTab');
+    if(tabBox && todayBtn && !document.getElementById('teamYesterdayTab')){
+      var b=document.createElement('button');
+      b.id='teamYesterdayTab';
+      b.className='team-analysis-tab';
+      b.type='button';
+      b.textContent='어제 분석표';
+      b.onclick=function(){ window.showTeamAnalysisMode('yesterday'); };
+      tabBox.insertBefore(b,todayBtn);
+    }
+  }
+
+  async function renderOneDayWithFallback(offset,label){
+    var thead=document.getElementById('teamAnalysisThead');
+    var tbody=document.getElementById('teamAnalysisTbody');
+    var summary=document.getElementById('teamAnalysisSummary');
+    if(!thead || !tbody) return;
+
+    var target=addDaysRbc(new Date(), offset);
+    var dateStr=ymdRbc(target);
+    var displayDate=dateStr;
+    var usedFallback=false;
+
+    thead.innerHTML='<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
+
+    var scheduleRows = await window.loadTeamScheduleRows(dateStr);
+
+    if((!scheduleRows || !scheduleRows.length) && offset===0){
+      var latestInfo = await countLatestSchedules();
+      if(latestInfo.latest && latestInfo.latest !== dateStr){
+        scheduleRows = await window.loadTeamScheduleRows(latestInfo.latest);
+        displayDate = latestInfo.latest;
+        usedFallback = true;
+      }
+    }
+
+    var rows = (typeof buildTeamDayDataFromRows === 'function') ? buildTeamDayDataFromRows(scheduleRows||[], displayDate) : [];
+    var totalPlanned=rows.reduce(function(s,r){return s+r.planned;},0);
+    var totalSubmitted=rows.reduce(function(s,r){return s+r.submitted;},0);
+    var totalMissing=rows.reduce(function(s,r){return s+r.missing;},0);
+
+    if(summary){
+      summary.innerHTML =
+        '<span class="team-chip total">예정 '+totalPlanned+'건</span>'+ 
+        '<span class="team-chip ok">제출 '+totalSubmitted+'건</span>'+ 
+        '<span class="team-chip miss">미제출 '+totalMissing+'건</span>'+ 
+        '<span class="team-chip warn">기준일 '+displayDate+(usedFallback?' · 최신 저장일':'')+'</span>';
+    }
+
+    if(!rows.length){
+      var info = await countLatestSchedules();
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900;line-height:1.75;">'+
+        label+'('+dateStr+') 일정 0건입니다.<br>'+ 
+        '현재 Firestore에 확인된 최신 일정일: '+escRbc(info.latest || '없음')+' / 최신일 일정 '+Number(info.count||0)+'건<br>'+ 
+        '아래 [직원용 일정표 승인 반영]을 누르면 서버 Function으로 금주 일정 반영을 다시 시도합니다.'+
+        '</td></tr>';
+      return;
+    }
+
+    var after7 = offset===0 ? (new Date().getHours() >= 19) : true;
+    tbody.innerHTML = rows.map(function(r){
+      var status='정상', cls='ok', trCls='team-row-ok';
+      if(r.missing>0 && after7){status='미제출';cls='danger';trCls='team-row-danger';}
+      else if(r.missing>0){status='진행중';cls='warn';trCls='team-row-warn';}
+      var storeHtml=(r.stores||[]).map(function(s){
+        var brand=(typeof brandShortForTeam==='function') ? brandShortForTeam(s.brand) : (s.brand||'');
+        return '· '+escRbc(brand)+' / '+escRbc(s.store);
+      }).join('<br>');
+      return '<tr class="'+trCls+'">'+
+        '<td><b>'+escRbc(r.leader)+'</b></td>'+ 
+        '<td>'+r.planned+'건</td>'+ 
+        '<td>'+r.submitted+'건</td>'+ 
+        '<td>'+r.missing+'건</td>'+ 
+        '<td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td>'+ 
+        '<td><div class="team-store-list">'+storeHtml+'</div></td>'+ 
+        '<td><span class="team-status-badge '+cls+'">'+status+'</span></td>'+ 
+      '</tr>';
+    }).join('');
+
+    if(usedFallback){
+      tbody.insertAdjacentHTML('afterbegin','<tr><td colspan="7" style="text-align:center;padding:12px;color:#b45309;font-weight:900;background:#fff7ed;">오늘('+dateStr+') 일정이 없어 Firestore에 저장된 최신 일정일('+displayDate+')을 임시 표시 중입니다. 금주 일정 반영은 승인 버튼으로 다시 시도하세요.</td></tr>');
+    }
+  }
+
+  window.renderTeamTodayAnalysis=function(){return renderOneDayWithFallback(0,'오늘');};
+  window.renderTeamYesterdayAnalysis=function(){return renderOneDayWithFallback(-1,'어제');};
+  var previousWeekRenderer = window.renderTeamWeekAnalysis;
+
+  window.loadTeamScheduleAnalysis=async function(){
+    ensureYesterdayTabRbc();
+    var tbody=document.getElementById('teamAnalysisTbody');
+    if(tbody) tbody.innerHTML='<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
+    var mode=window.teamAnalysisMode || (typeof teamAnalysisMode!=='undefined' ? teamAnalysisMode : 'today');
+    if(mode==='yesterday') return window.renderTeamYesterdayAnalysis();
+    if(mode==='week' && typeof previousWeekRenderer==='function') return previousWeekRenderer();
+    return window.renderTeamTodayAnalysis();
+  };
+
+  window.showTeamAnalysisMode=function(mode){
+    ensureYesterdayTabRbc();
+    if(mode!=='yesterday' && mode!=='today' && mode!=='week') mode='today';
+    window.teamAnalysisMode=mode;
+    try{ teamAnalysisMode=mode; }catch(e){}
+    var y=document.getElementById('teamYesterdayTab');
+    var t=document.getElementById('teamTodayTab');
+    var w=document.getElementById('teamWeekTab');
+    if(y) y.classList.toggle('active',mode==='yesterday');
+    if(t) t.classList.toggle('active',mode==='today');
+    if(w) w.classList.toggle('active',mode==='week');
+    window.loadTeamScheduleAnalysis();
+  };
+
+  window.rbcImportGoogleScheduleRowsFromAppsScript=async function(){
+    var result = await callImportFunction();
+    if(result && result.ok) return result;
+    var todayCount = await countSchedulesByDate(todayYmdRbc());
+    if(todayCount>0) return {ok:true,count:todayCount,message:'오늘 일정이 이미 Firestore에 있습니다.'};
+    var latestInfo = await countLatestSchedules();
+    if(latestInfo.count>0){
+      return {ok:true,count:latestInfo.count,message:'새 반영은 실패했지만 기존 최신 일정('+latestInfo.latest+')을 사용합니다.', latest:latestInfo.latest, stale:true};
+    }
+    return result;
+  };
+
+  window.approveGoogleSchedule=async function(){
+    var status=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    var approver=window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태';
+    try{
+      if(status) status.textContent='직원용 일정 승인 저장 및 서버 일정 반영 중...';
+      var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl!=='undefined' ? latestGoogleSchedulePdfUrl : ''));
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName:(typeof latestGoogleScheduleSheetName!=='undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
+        range:(typeof latestGoogleScheduleRange!=='undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        pdfUrl:url,
+        scheduleUrl:url,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText:new Date().toISOString(),
+        approvedBy:approver,
+        source:'admin_schedule_server_function_fix_v4'
+      }, {merge:true});
+
+      var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
+      if(!result || !result.ok) throw new Error((result && result.message) || '서버 일정 반영 실패');
+
+      if(info){
+        info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+escRbc(approver)+'<br>분석 일정 확인: '+Number(result.count||0)+'건'+(result.stale ? '<br><b style="color:#b45309">새 반영 실패 · 기존 최신 일정 사용</b>' : '');
+      }
+      if(status){
+        status.textContent = result.stale ? '승인 저장 완료 · 기존 최신 일정 '+Number(result.count||0)+'건 사용 중' : '승인 완료 · 분석 일정 '+Number(result.count||0)+'건 반영/확인';
+      }
+      if(typeof loadApprovedInfo==='function') loadApprovedInfo();
+      if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
+      if(typeof rbcLoadScore==='function') rbcLoadScore();
+
+      alert(result.stale ?
+        ('직원용 일정 승인 주소는 저장했습니다.\n\n다만 새 일정 서버 반영은 실패해서 기존 최신 일정 '+Number(result.count||0)+'건을 임시 사용합니다.\nFirebase Functions의 importGoogleScheduleToFirestore 로그를 확인해야 합니다.') :
+        ('직원용 일정 승인 저장 및 분석표 반영 완료\n\nteamSchedules '+Number(result.count||0)+'건 확인했습니다.')
+      );
+    }catch(e){
+      var latest=await countLatestSchedules();
+      if(status) status.textContent='승인 주소 저장은 완료 · 분석 일정 서버 반영 실패';
+      if(info) info.innerHTML='마지막 승인 시도: '+new Date().toLocaleString()+'<br>승인자: '+escRbc(approver)+'<br>서버 반영 실패: '+escRbc(e.message||e)+'<br>기존 최신 일정: '+escRbc(latest.latest||'없음')+' / '+Number(latest.count||0)+'건';
+      if(typeof loadTeamScheduleAnalysis==='function') await loadTeamScheduleAnalysis();
+      alert('직원용 일정표 승인 주소는 저장했습니다.\n\n하지만 분석용 일정 서버 반영은 실패했습니다:\n'+(e.message||e)+'\n\nFirebase Functions에 importGoogleScheduleToFirestore 함수가 배포되어 있고 CORS 허용이 되어야 관리자앱에서 자동 반영됩니다.');
+    }
+  };
+
+  function bootRbc(){
+    ensureYesterdayTabRbc();
+    setTimeout(function(){ if(typeof window.loadTeamScheduleAnalysis==='function') window.loadTeamScheduleAnalysis(); },250);
+  }
+  document.addEventListener('DOMContentLoaded',bootRbc);
+  setTimeout(bootRbc,700);
+  setTimeout(bootRbc,2000);
+})();
+</script>
