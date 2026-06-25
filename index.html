@@ -8397,4 +8397,277 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_TEAM_SCHEDULE_NO_EMPTY_FORCE_PATCH_V2 -->
+<script>
+/*
+  RAVEBIC_TEAM_SCHEDULE_NO_EMPTY_FORCE_PATCH_V2
+  - 직원PIN 명부에 없는 팀장도 일정표에 실제 이름이 있으면 분석표에 표시합니다.
+  - teamSchedules 날짜 필드가 여러 형식이어도 오늘/어제/이번주로 맞춰 읽습니다.
+  - 오늘 데이터가 0건이면, Firestore 원본 teamSchedules 개수와 날짜 목록을 화면 문구에 함께 표시해 원인을 바로 확인합니다.
+*/
+(function(){
+  if(window.__RAVEBIC_TEAM_SCHEDULE_NO_EMPTY_FORCE_PATCH_V2__) return;
+  window.__RAVEBIC_TEAM_SCHEDULE_NO_EMPTY_FORCE_PATCH_V2__ = true;
+
+  function pad2(n){ return String(n).padStart(2,'0'); }
+  function ymd(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+  function esc(v){
+    if(typeof window.esc === 'function') return window.esc(v);
+    return String(v||'').replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});
+  }
+  function normName(v){ return String(v||'').replace(/\s+/g,'').trim(); }
+  function badText(v){
+    return /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정|미팅|회의|연차/.test(String(v||'').replace(/\s+/g,''));
+  }
+  function parseDateAny(v){
+    if(!v && v !== 0) return '';
+    try{ if(v && typeof v.toDate === 'function') return ymd(v.toDate()); }catch(e){}
+    if(v instanceof Date && !isNaN(v.getTime())) return ymd(v);
+    var s = String(v||'').trim();
+    if(!s) return '';
+    var m = s.match(/(20\d{2})\s*[.\/\-년]\s*(\d{1,2})\s*[.\/\-월]\s*(\d{1,2})/);
+    if(m) return m[1]+'-'+pad2(m[2])+'-'+pad2(m[3]);
+    m = s.match(/(20\d{2})(\d{2})(\d{2})/);
+    if(m) return m[1]+'-'+m[2]+'-'+m[3];
+    m = s.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
+    if(m) return (new Date().getFullYear())+'-'+pad2(m[1])+'-'+pad2(m[2]);
+    m = s.match(/(^|\D)(\d{1,2})\s*[.\/\-]\s*(\d{1,2})(\D|$)/);
+    if(m) return (new Date().getFullYear())+'-'+pad2(m[2])+'-'+pad2(m[3]);
+    return '';
+  }
+  function scheduleDateOf(d){
+    var fields = ['scheduleDate','date','ymd','workDate','scheduledDate','targetDate','day','dateText','scheduleDateText','rawDate'];
+    for(var i=0;i<fields.length;i++){
+      var got = parseDateAny(d && d[fields[i]]);
+      if(got) return got;
+    }
+    // rawText 안에 날짜가 같이 들어온 경우
+    return parseDateAny([d && d.rawText, d && d.text, d && d.memo, d && d.note, d && d.sourceText].filter(Boolean).join(' '));
+  }
+  function rangeStart(v){
+    var m = String(v||'').match(/[A-Z]+(\d+)/i);
+    return m ? Number(m[1]) : 999999;
+  }
+  function resolveLeaderLoose(d, lastLeader){
+    d = d || {};
+    var candidates = [d.leader, d.name, d.staffName, d.manager, d.teamLeader, d.workerName, d.assignee];
+
+    if(typeof window.resolveRavebicScheduleLeader === 'function'){
+      try{
+        var strict = window.resolveRavebicScheduleLeader(d);
+        if(strict) return strict;
+      }catch(e){}
+    }
+
+    for(var i=0;i<candidates.length;i++){
+      var raw = String(candidates[i] || '').trim();
+      var n = normName(raw);
+      if(!n) continue;
+      if(badText(n)) continue;
+      if(/^[0-9\-:.,/]+$/.test(n)) continue;
+      if(n.length < 2 || n.length > 8) continue;
+      return raw;
+    }
+
+    // 병합셀 구조: 점포명만 있고 팀장칸이 비면 바로 앞 팀장 이어받기
+    var storeText = String(d.store || d.storeName || '').replace(/\s+/g,'');
+    var rawText = String(d.rawText || d.text || d.memo || d.note || '').replace(/\s+/g,'');
+    if(lastLeader && storeText && !badText(storeText) && !badText(rawText)) return lastLeader;
+
+    // rawText 안에 직원명부 이름이 들어간 경우
+    try{
+      var set = window.ravebicValidStaffNameSet;
+      if(set && set.size){
+        var joined = normName([d.rawText,d.text,d.memo,d.note,d.sourceText].filter(Boolean).join(' '));
+        var found = '';
+        set.forEach(function(name){ if(!found && joined.indexOf(name) >= 0) found = name; });
+        if(found) return found;
+      }
+    }catch(e){}
+
+    return '';
+  }
+
+  window.loadTeamScheduleRows = async function(dateStr){
+    try{
+      if(typeof loadRavebicValidStaffNames === 'function'){
+        try{ await loadRavebicValidStaffNames(true); }catch(e){}
+      }
+
+      var snap = await db.collection('teamSchedules').get();
+      var raw = [];
+      snap.forEach(function(doc){
+        var d = doc.data() || {};
+        raw.push({
+          id: doc.id,
+          data: d,
+          scheduleDate: scheduleDateOf(d),
+          sheetName: String(d.sheetName || '').trim(),
+          sourceRange: String(d.sourceRange || '').trim(),
+          leaderOrderIndex: Number(d.leaderOrderIndex || d.orderIndex || 999999),
+          rowIndex: Number(d.rowIndex || d.row || d.orderIndex || 999999)
+        });
+      });
+
+      raw.sort(function(a,b){
+        return String(a.scheduleDate).localeCompare(String(b.scheduleDate)) ||
+          String(a.sheetName).localeCompare(String(b.sheetName)) ||
+          (rangeStart(a.sourceRange) - rangeStart(b.sourceRange)) ||
+          (a.rowIndex - b.rowIndex) ||
+          String(a.id).localeCompare(String(b.id));
+      });
+
+      var rows = [];
+      var lastByDateSheet = {};
+      raw.forEach(function(item){
+        var d = item.data || {};
+        if(d.active === false) return;
+        if(!item.scheduleDate) return;
+
+        var key = item.scheduleDate + '|' + item.sheetName;
+        var leader = resolveLeaderLoose(d, lastByDateSheet[key]);
+        if(!leader) return;
+
+        var store = String(d.store || d.storeName || d.branch || d.shop || '').trim();
+        if(!store && d.rawText){
+          // rawText에서 탭/긴 공백 기준 마지막 후보를 점포명으로 사용
+          var parts = String(d.rawText).split(/\t| {2,}|\n/).map(function(x){return x.trim();}).filter(Boolean);
+          if(parts.length) store = parts[parts.length-1];
+        }
+        if(!store || badText(store)) return;
+
+        lastByDateSheet[key] = leader;
+        rows.push(Object.assign({}, d, {
+          id: item.id,
+          scheduleDate: item.scheduleDate,
+          leader: leader,
+          brand: String(d.brand || d.brandName || '').trim(),
+          store: store,
+          leaderOrderIndex: item.leaderOrderIndex,
+          rowIndex: item.rowIndex,
+          sourceRange: item.sourceRange,
+          sheetName: item.sheetName
+        }));
+      });
+
+      window.__rbcRawTeamScheduleCount = raw.length;
+      window.__rbcParsedTeamScheduleCount = rows.length;
+      window.__rbcTeamScheduleDates = Array.from(new Set(rows.map(function(r){return r.scheduleDate;}))).sort();
+
+      var result = dateStr ? rows.filter(function(r){return String(r.scheduleDate) === String(dateStr);}) : rows;
+      window.teamScheduleRows = result;
+      try{ teamScheduleRows = result; }catch(e){}
+      return result;
+    }catch(e){
+      console.error('NO_EMPTY_FORCE loadTeamScheduleRows failed', e);
+      window.__rbcTeamScheduleLoadError = e.message || String(e);
+      return [];
+    }
+  };
+
+  function ensureYesterdayTab(){
+    var tabBox = document.querySelector('#teamAnalysisBox .team-analysis-tabs');
+    var todayBtn = document.getElementById('teamTodayTab');
+    if(!tabBox || !todayBtn) return;
+    if(!document.getElementById('teamYesterdayTab')){
+      var b = document.createElement('button');
+      b.id = 'teamYesterdayTab';
+      b.className = 'team-analysis-tab';
+      b.type = 'button';
+      b.textContent = '어제 분석표';
+      b.onclick = function(){ showTeamAnalysisMode('yesterday'); };
+      tabBox.insertBefore(b, todayBtn);
+    }
+  }
+
+  function targetYmd(offset){
+    var d = new Date();
+    d.setDate(d.getDate()+offset);
+    return ymd(d);
+  }
+
+  async function renderSingle(offset, label){
+    var thead = document.getElementById('teamAnalysisThead');
+    var tbody = document.getElementById('teamAnalysisTbody');
+    var summary = document.getElementById('teamAnalysisSummary');
+    if(!thead || !tbody) return;
+    var dateStr = targetYmd(offset);
+    thead.innerHTML = '<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
+    var scheduleRows = await window.loadTeamScheduleRows(dateStr);
+    var rows = (typeof buildTeamDayDataFromRows === 'function') ? buildTeamDayDataFromRows(scheduleRows, dateStr) : [];
+    var totalPlanned = rows.reduce(function(s,r){return s+r.planned;},0);
+    var totalSubmitted = rows.reduce(function(s,r){return s+r.submitted;},0);
+    var totalMissing = rows.reduce(function(s,r){return s+r.missing;},0);
+    if(summary){
+      summary.innerHTML = '<span class="team-chip total">예정 '+totalPlanned+'건</span>'+
+        '<span class="team-chip ok">제출 '+totalSubmitted+'건</span>'+
+        '<span class="team-chip miss">미제출 '+totalMissing+'건</span>'+
+        '<span class="team-chip warn">기준일 '+dateStr+'</span>';
+    }
+    if(!rows.length){
+      var dates = (window.__rbcTeamScheduleDates || []).slice(-12).join(', ') || '날짜 없음';
+      var rawCount = window.__rbcRawTeamScheduleCount || 0;
+      var parsedCount = window.__rbcParsedTeamScheduleCount || 0;
+      var err = window.__rbcTeamScheduleLoadError ? '<br>오류: '+esc(window.__rbcTeamScheduleLoadError) : '';
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900;line-height:1.7;">'+
+        label+'('+dateStr+') 일정 0건입니다.<br>'+ 
+        'Firestore 원본 teamSchedules '+rawCount+'건 / 분석 가능 '+parsedCount+'건<br>'+ 
+        '확인된 일정 날짜: '+esc(dates)+err+'<br>'+ 
+        '구글 일정 승인 시스템에서 [직원용 일정표 승인 반영]을 한 번 눌러주세요.'+
+        '</td></tr>';
+      return;
+    }
+    var after7 = offset === 0 ? (new Date().getHours() >= 19) : true;
+    tbody.innerHTML = rows.map(function(r){
+      var status='정상', cls='ok', trCls='team-row-ok';
+      if(r.missing>0 && after7){ status='미제출'; cls='danger'; trCls='team-row-danger'; }
+      else if(r.missing>0){ status='진행중'; cls='warn'; trCls='team-row-warn'; }
+      var storeHtml = r.stores.map(function(s){
+        var b = typeof brandShortForTeam === 'function' ? brandShortForTeam(s.brand) : (s.brand || '');
+        return '· '+esc(b)+' / '+esc(s.store);
+      }).join('<br>');
+      return '<tr class="'+trCls+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+storeHtml+'</div></td><td><span class="team-status-badge '+cls+'">'+status+'</span></td></tr>';
+    }).join('');
+  }
+
+  window.renderTeamTodayAnalysis = function(){ return renderSingle(0, '오늘'); };
+  window.renderTeamYesterdayAnalysis = function(){ return renderSingle(-1, '어제'); };
+
+  window.showTeamAnalysisMode = function(mode){
+    ensureYesterdayTab();
+    if(mode !== 'yesterday' && mode !== 'today' && mode !== 'week') mode = 'today';
+    try{ teamAnalysisMode = mode; }catch(e){}
+    window.teamAnalysisMode = mode;
+    var yb = document.getElementById('teamYesterdayTab');
+    var tb = document.getElementById('teamTodayTab');
+    var wb = document.getElementById('teamWeekTab');
+    if(yb) yb.classList.toggle('active', mode === 'yesterday');
+    if(tb) tb.classList.toggle('active', mode === 'today');
+    if(wb) wb.classList.toggle('active', mode === 'week');
+    window.loadTeamScheduleAnalysis();
+  };
+
+  window.loadTeamScheduleAnalysis = async function(){
+    var tbody = document.getElementById('teamAnalysisTbody');
+    if(tbody) tbody.innerHTML = '<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
+    var mode = window.teamAnalysisMode || (typeof teamAnalysisMode !== 'undefined' ? teamAnalysisMode : 'today');
+    if(mode === 'yesterday') return window.renderTeamYesterdayAnalysis();
+    if(mode === 'week' && typeof renderTeamWeekAnalysis === 'function') return renderTeamWeekAnalysis();
+    return window.renderTeamTodayAnalysis();
+  };
+
+  // 알림센터도 보강된 loadTeamScheduleRows를 사용하므로 새로 계산만 호출
+  function boot(){
+    ensureYesterdayTab();
+    setTimeout(function(){ if(typeof window.loadTeamScheduleAnalysis === 'function') window.loadTeamScheduleAnalysis(); }, 200);
+    setTimeout(function(){ if(typeof window.rbcLoadAlertCenter === 'function') window.rbcLoadAlertCenter(); }, 500);
+  }
+  document.addEventListener('DOMContentLoaded', boot);
+  setTimeout(boot, 700);
+  setTimeout(boot, 1800);
+  setTimeout(boot, 3500);
+})();
+</script>
+
 </body></html>
