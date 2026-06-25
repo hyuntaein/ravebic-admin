@@ -5575,6 +5575,596 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_SCHEDULE_IMPORT_AND_ANALYSIS_FIX_V3 -->
+<script>
+/* RAVEBIC_SCHEDULE_IMPORT_AND_ANALYSIS_FIX_V3
+   - 직원용 일정표 승인 반영 버튼이 settings만 저장하고 끝나던 문제를 보강합니다.
+   - Apps Script에서 JSON/HTML 표를 읽을 수 있으면 teamSchedules에 실제 분석용 일정까지 저장합니다.
+   - 기존 배치와 페이지3 기능은 건드리지 않고 팀장 제출분석표/알림센터가 쓰는 함수만 마지막에 덮어씁니다.
+*/
+(function(){
+  function rbcEsc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+  function rbcNorm(v){
+    return String(v || '').replace(/\s+/g,'').replace(/[·ㆍ.\-_/]/g,'').trim();
+  }
+  function rbcYmd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function rbcToDateFromLoose(v){
+    var s = String(v || '').trim();
+    if(!s) return '';
+    var now = new Date();
+    var y = now.getFullYear();
+    var m;
+
+    m = s.match(/(20\d{2})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})/);
+    if(m){
+      return m[1]+'-'+String(Number(m[2])).padStart(2,'0')+'-'+String(Number(m[3])).padStart(2,'0');
+    }
+
+    m = s.match(/(?:^|[^\d])(\d{1,2})\s*[-./월]\s*(\d{1,2})\s*(?:일)?(?:$|[^\d])/);
+    if(m){
+      return y+'-'+String(Number(m[1])).padStart(2,'0')+'-'+String(Number(m[2])).padStart(2,'0');
+    }
+
+    return '';
+  }
+  function rbcGetAnyDate(d){
+    d = d || {};
+    var direct = d.scheduleDate || d.date || d.workDate || d.ymd || d.targetDate || d.scheduleYmd || d.day;
+    var parsed = rbcToDateFromLoose(direct);
+    if(parsed) return parsed;
+
+    var joined = [
+      d.scheduleDateText, d.dateText, d.rawText, d.text, d.memo, d.note,
+      d.sourceText, d.sheetName, d.sourceRange
+    ].filter(Boolean).join(' ');
+    return rbcToDateFromLoose(joined);
+  }
+
+  async function rbcStaffSet(){
+    try{
+      if(typeof loadRavebicValidStaffNames === 'function'){
+        await loadRavebicValidStaffNames(true);
+        if(window.ravebicValidStaffNameSet && window.ravebicValidStaffNameSet.size){
+          return window.ravebicValidStaffNameSet;
+        }
+      }
+      var snap = await db.collection('staffPins').get();
+      var set = new Set();
+      snap.forEach(function(doc){
+        var d = doc.data() || {};
+        if(d.active === false) return;
+        var n = String(d.name || doc.id || '').replace(/\s+/g,'').trim();
+        if(n) set.add(n);
+      });
+      return set;
+    }catch(e){
+      return new Set();
+    }
+  }
+
+  function rbcResolveLeaderFromFields(d, staffSet){
+    d = d || {};
+    var fields = [
+      d.leader, d.name, d.staffName, d.manager, d.teamLeader, d.worker,
+      d.rawText, d.text, d.memo, d.note, d.sourceText
+    ];
+
+    for(var i=0;i<fields.length;i++){
+      var raw = String(fields[i] || '').trim();
+      var n = raw.replace(/\s+/g,'').trim();
+      if(!n) continue;
+      if(staffSet && staffSet.size){
+        if(staffSet.has(n)) return raw;
+        var found = '';
+        staffSet.forEach(function(staff){
+          if(found) return;
+          if(n.indexOf(staff) >= 0 || staff.indexOf(n) >= 0) found = staff;
+        });
+        if(found) return found;
+      }else if(raw && !/양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/.test(n)){
+        return raw;
+      }
+    }
+    return '';
+  }
+
+  function rbcResolveBrand(v){
+    var s = String(v || '');
+    if(/세븐|7\s*eleven|seven/i.test(s)) return '세븐일레븐';
+    if(/이마트|emart|e-?mart/i.test(s)) return '이마트24';
+    return String(v || '').trim();
+  }
+
+  function rbcResolveStoreFromFields(d){
+    d = d || {};
+    var fields = [d.store, d.storeName, d.shop, d.location, d.branch, d.rawText, d.text, d.memo, d.note];
+    var bad = /팀장|세븐|이마트|정기실사|인수실사|양수도|폐점|휴무|교육|차량|마감|수정|업무|사무실|^\d{1,2}[\/.-]\d{1,2}/;
+    for(var i=0;i<fields.length;i++){
+      var raw = String(fields[i] || '').trim();
+      if(!raw) continue;
+      if(raw.length > 80) continue;
+      if(bad.test(raw.replace(/\s+/g,''))) continue;
+      return raw;
+    }
+    return String(d.store || d.storeName || '').trim();
+  }
+
+  function rbcNormalizeScheduleRow(d, id, staffSet, lastCtx){
+    d = d || {};
+    var scheduleDate = rbcGetAnyDate(d) || (lastCtx && lastCtx.date) || '';
+    var leader = rbcResolveLeaderFromFields(d, staffSet) || (lastCtx && lastCtx.leader) || '';
+    var brand = rbcResolveBrand(d.brand || d.brandName || d.company || d.rawText || d.text || '') || (lastCtx && lastCtx.brand) || '';
+    var store = rbcResolveStoreFromFields(d);
+
+    if(scheduleDate && lastCtx) lastCtx.date = scheduleDate;
+    if(leader && lastCtx) lastCtx.leader = leader;
+    if(brand && lastCtx) lastCtx.brand = brand;
+
+    var rawText = String([d.rawText,d.text,d.memo,d.note].filter(Boolean).join(' '));
+    if(!store && rawText){
+      var parts = rawText.split(/\s{2,}|[|,]/).map(function(x){return x.trim();}).filter(Boolean);
+      for(var i=0;i<parts.length;i++){
+        if(!/팀장|세븐|이마트|휴무|교육|업무|마감|수정/.test(parts[i])){
+          store = parts[i];
+          break;
+        }
+      }
+    }
+
+    if(!scheduleDate || !leader || !store) return null;
+
+    return {
+      id:id || '',
+      scheduleDate:scheduleDate,
+      leader:String(leader).trim(),
+      brand:String(brand || '').trim(),
+      store:String(store || '').trim(),
+      rawText:rawText || String(d.rawText || ''),
+      sourceRange:String(d.sourceRange || ''),
+      sheetName:String(d.sheetName || ''),
+      rowIndex:Number(d.rowIndex || d.orderIndex || d.row || 999999),
+      leaderOrderIndex:Number(d.leaderOrderIndex || d.orderIndex || 999999),
+      active:d.active === false ? false : true
+    };
+  }
+
+  async function rbcReadAllTeamScheduleRows(){
+    var staffSet = await rbcStaffSet();
+    var snap = await db.collection('teamSchedules').get();
+    var raw = [];
+    snap.forEach(function(doc){
+      raw.push({id:doc.id, data:doc.data() || {}});
+    });
+
+    raw.sort(function(a,b){
+      var ad = rbcGetAnyDate(a.data), bd = rbcGetAnyDate(b.data);
+      return String(ad).localeCompare(String(bd)) ||
+             String(a.data.sheetName || '').localeCompare(String(b.data.sheetName || '')) ||
+             Number(a.data.rowIndex || a.data.orderIndex || 999999) - Number(b.data.rowIndex || b.data.orderIndex || 999999) ||
+             String(a.id).localeCompare(String(b.id));
+    });
+
+    var rows = [];
+    var ctx = {date:'', leader:'', brand:''};
+    raw.forEach(function(item){
+      var n = rbcNormalizeScheduleRow(item.data, item.id, staffSet, ctx);
+      if(n && n.active !== false) rows.push(n);
+    });
+
+    window.__rbcRawTeamScheduleCount = raw.length;
+    window.__rbcParsedTeamScheduleCount = rows.length;
+    window.__rbcTeamScheduleDates = Array.from(new Set(rows.map(function(r){return r.scheduleDate;}))).sort();
+    window.teamScheduleRows = rows;
+    try{ teamScheduleRows = rows; }catch(e){}
+    return rows;
+  }
+
+  window.loadTeamScheduleRows = async function(dateStr){
+    try{
+      var rows = await rbcReadAllTeamScheduleRows();
+      if(dateStr){
+        rows = rows.filter(function(r){ return String(r.scheduleDate || '').trim() === String(dateStr).trim(); });
+      }
+      return rows;
+    }catch(e){
+      console.error('RAVEBIC schedule rows load failed', e);
+      window.__rbcTeamScheduleLoadError = e.message || String(e);
+      window.__rbcRawTeamScheduleCount = 0;
+      window.__rbcParsedTeamScheduleCount = 0;
+      window.__rbcTeamScheduleDates = [];
+      return [];
+    }
+  };
+
+  function rbcCandidateUrls(base){
+    var url = String(base || '');
+    if(!url) return [];
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return [
+      url + sep + 'rbcJson=1&v=' + Date.now(),
+      url + sep + 'action=json&v=' + Date.now(),
+      url + sep + 'mode=json&v=' + Date.now(),
+      url + sep + 'format=json&v=' + Date.now(),
+      url + sep + 'output=json&v=' + Date.now(),
+      url + sep + 'api=1&v=' + Date.now(),
+      url + sep + 'raw=1&v=' + Date.now(),
+      url + sep + 'v=' + Date.now()
+    ];
+  }
+
+  function rbcPickRowsFromJson(json){
+    if(!json) return [];
+    if(Array.isArray(json)) return json;
+    var keys = ['rows','data','items','schedules','teamSchedules','scheduleRows','values','result'];
+    for(var i=0;i<keys.length;i++){
+      if(Array.isArray(json[keys[i]])) return json[keys[i]];
+    }
+    if(json.data && typeof json.data === 'object'){
+      for(var k in json.data){
+        if(Array.isArray(json.data[k])) return json.data[k];
+      }
+    }
+    return [];
+  }
+
+  function rbcRowsFromAoa(aoa){
+    var out = [];
+    var last = {date:'', leader:'', brand:''};
+    var staffSet = window.ravebicValidStaffNameSet || new Set();
+
+    aoa.forEach(function(row, idx){
+      row = (row || []).map(function(v){return String(v == null ? '' : v).trim();});
+      if(!row.some(Boolean)) return;
+      var joined = row.join(' ');
+      var d = rbcToDateFromLoose(joined);
+      if(d) last.date = d;
+
+      var brand = rbcResolveBrand(joined);
+      if(brand) last.brand = brand;
+
+      var leader = '';
+      if(staffSet && staffSet.size){
+        var flat = joined.replace(/\s+/g,'');
+        staffSet.forEach(function(n){
+          if(!leader && flat.indexOf(n) >= 0) leader = n;
+        });
+      }
+      if(leader) last.leader = leader;
+
+      var store = '';
+      for(var i=0;i<row.length;i++){
+        var c = row[i];
+        if(!c) continue;
+        var cn = c.replace(/\s+/g,'');
+        if(rbcToDateFromLoose(c)) continue;
+        if(leader && cn.indexOf(leader) >= 0) continue;
+        if(/세븐|이마트|팀장|정기실사|인수실사|양수도|폐점|휴무|교육|차량|마감|수정|업무|사무실|전화|연락|비고/.test(cn)) continue;
+        if(c.length > 2){
+          store = c;
+          break;
+        }
+      }
+
+      if(last.date && last.leader && store){
+        out.push({
+          scheduleDate:last.date,
+          leader:last.leader,
+          brand:last.brand,
+          store:store,
+          rawText:joined,
+          rowIndex:idx
+        });
+      }
+    });
+    return out;
+  }
+
+  function rbcRowsFromHtml(html){
+    var out = [];
+    try{
+      var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      var tables = Array.from(doc.querySelectorAll('table'));
+      tables.forEach(function(table){
+        var aoa = Array.from(table.querySelectorAll('tr')).map(function(tr){
+          return Array.from(tr.querySelectorAll('th,td')).map(function(td){return td.textContent.trim();});
+        });
+        out = out.concat(rbcRowsFromAoa(aoa));
+      });
+      if(out.length) return out;
+
+      var lines = String(html || '').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]*>/g,'\n').split(/\n+/).map(function(x){return x.trim();}).filter(Boolean);
+      return rbcRowsFromAoa(lines.map(function(x){return x.split(/\s{2,}|\t|[|]/);}));
+    }catch(e){
+      return [];
+    }
+  }
+
+  async function rbcFetchScheduleRowsFromAppsScript(){
+    var base = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl !== 'undefined' ? latestGoogleSchedulePdfUrl : ''));
+    var urls = rbcCandidateUrls(base);
+    var lastErr = '';
+
+    for(var i=0;i<urls.length;i++){
+      try{
+        var res = await fetch(urls[i], {method:'GET', cache:'no-store', redirect:'follow'});
+        var text = await res.text();
+        if(!res.ok){
+          lastErr = 'HTTP '+res.status;
+          continue;
+        }
+
+        var rows = [];
+        try{
+          var json = JSON.parse(text);
+          rows = rbcPickRowsFromJson(json);
+        }catch(jsonErr){
+          var match = text.match(/\{[\s\S]*\}/);
+          if(match){
+            try{ rows = rbcPickRowsFromJson(JSON.parse(match[0])); }catch(e){}
+          }
+        }
+
+        if(rows && rows.length){
+          return {ok:true, rows:rows, url:urls[i], mode:'json'};
+        }
+
+        rows = rbcRowsFromHtml(text);
+        if(rows && rows.length){
+          return {ok:true, rows:rows, url:urls[i], mode:'html'};
+        }
+
+        lastErr = '일정 행을 찾지 못함';
+      }catch(e){
+        lastErr = e.message || String(e);
+      }
+    }
+
+    return {ok:false, rows:[], message:lastErr || 'Apps Script에서 일정 데이터를 읽지 못했습니다.'};
+  }
+
+  window.rbcImportGoogleScheduleRowsFromAppsScript = async function(){
+    var status = document.getElementById('googleScheduleStatus');
+    if(status) status.textContent = '구글 일정 원본을 분석용 데이터로 변환 중...';
+
+    var staffSet = await rbcStaffSet();
+    var fetched = await rbcFetchScheduleRowsFromAppsScript();
+    if(!fetched.ok){
+      return {ok:false, count:0, message:fetched.message || '일정 원본 읽기 실패'};
+    }
+
+    var lastCtx = {date:'', leader:'', brand:''};
+    var normalized = [];
+    fetched.rows.forEach(function(r, idx){
+      var obj;
+      if(Array.isArray(r)){
+        obj = {rawText:r.join(' '), rowIndex:idx};
+        var rowObj = rbcRowsFromAoa([r])[0];
+        if(rowObj) obj = Object.assign(obj, rowObj);
+      }else{
+        obj = Object.assign({}, r, {rowIndex:Number(r.rowIndex || r.orderIndex || idx)});
+      }
+      var n = rbcNormalizeScheduleRow(obj, '', staffSet, lastCtx);
+      if(n) normalized.push(n);
+    });
+
+    var seen = {};
+    normalized = normalized.filter(function(r){
+      var key = [r.scheduleDate, r.leader, r.brand, rbcNorm(r.store)].join('|');
+      if(seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+
+    if(!normalized.length){
+      return {ok:false, count:0, message:'읽은 원본은 있으나 팀장/날짜/점포를 분석하지 못했습니다.'};
+    }
+
+    var batchSize = 450;
+    var count = 0;
+    for(var i=0;i<normalized.length;i+=batchSize){
+      var batch = db.batch();
+      normalized.slice(i,i+batchSize).forEach(function(r, j){
+        var docId = [
+          r.scheduleDate,
+          rbcNorm(r.leader),
+          rbcNorm(r.brand || 'brand'),
+          rbcNorm(r.store),
+          String(i+j).padStart(4,'0')
+        ].join('_').slice(0,140);
+        var ref = db.collection('teamSchedules').doc(docId);
+        batch.set(ref, {
+          scheduleDate:r.scheduleDate,
+          leader:r.leader,
+          brand:r.brand,
+          store:r.store,
+          rawText:r.rawText || '',
+          sourceRange:r.sourceRange || '',
+          sheetName:r.sheetName || 'GoogleSchedule',
+          rowIndex:r.rowIndex || (i+j),
+          leaderOrderIndex:r.leaderOrderIndex || 999999,
+          active:true,
+          importedAt:firebase.firestore.FieldValue.serverTimestamp(),
+          importedAtText:new Date().toISOString(),
+          importSource:'admin_apps_script_'+fetched.mode
+        }, {merge:true});
+        count++;
+      });
+      await batch.commit();
+    }
+
+    await window.loadTeamScheduleRows();
+    if(status) status.textContent = '승인 완료 · 분석 일정 '+count+'건 반영';
+    return {ok:true, count:count, url:fetched.url, mode:fetched.mode};
+  };
+
+  var oldApprove = window.approveGoogleSchedule;
+  window.approveGoogleSchedule = async function(){
+    var status = document.getElementById('googleScheduleStatus');
+    var info = document.getElementById('lastApprovedInfo');
+    try{
+      if(status) status.textContent = '일정 승인 및 분석 반영 중...';
+
+      var url = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl !== 'undefined' ? latestGoogleSchedulePdfUrl : ''));
+
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName:(typeof latestGoogleScheduleSheetName !== 'undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
+        range:(typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        pdfUrl:url,
+        scheduleUrl:url,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText:new Date().toISOString(),
+        approvedBy:(window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태'),
+        source:'admin_app_schedule_import_v3'
+      }, {merge:true});
+
+      var result = await window.rbcImportGoogleScheduleRowsFromAppsScript();
+
+      if(info){
+        info.innerHTML =
+          '마지막 승인: '+new Date().toLocaleString()+
+          '<br>승인자: '+rbcEsc(window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태')+
+          '<br>'+(result.ok ? '분석 일정 반영: '+result.count+'건' : '직원용 일정 승인 저장 완료 / 분석 반영 실패: '+rbcEsc(result.message || ''));
+      }
+
+      if(typeof loadApprovedInfo === 'function') loadApprovedInfo();
+      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+
+      if(result.ok){
+        alert('일정 승인 반영 완료\n\n분석 일정 '+result.count+'건을 teamSchedules에 반영했습니다.');
+      }else{
+        alert('직원용 일정표 승인 주소는 저장했습니다.\n\n다만 분석용 일정 반영은 실패했습니다:\n'+(result.message || '일정 행을 읽지 못했습니다.')+'\n\nApps Script가 JSON 또는 HTML 표 형태로 일정을 반환해야 분석표에 들어갑니다.');
+      }
+    }catch(e){
+      if(status) status.textContent = '일정 승인 반영 실패';
+      alert('일정 승인 반영 실패:\n\n'+(e.message || e));
+      if(typeof oldApprove === 'function'){
+        try{return await oldApprove.apply(this, arguments);}catch(ignore){}
+      }
+    }
+  };
+
+  // 어제/오늘/이번주 버튼이 항상 보이도록 보강
+  function ensureYesterdayTab(){
+    var tabBox = document.querySelector('.team-analysis-tabs');
+    var todayBtn = document.getElementById('teamTodayTab');
+    if(tabBox && todayBtn && !document.getElementById('teamYesterdayTab')){
+      var b = document.createElement('button');
+      b.id = 'teamYesterdayTab';
+      b.className = 'team-analysis-tab';
+      b.type = 'button';
+      b.textContent = '어제 분석표';
+      b.onclick = function(){ showTeamAnalysisMode('yesterday'); };
+      tabBox.insertBefore(b, todayBtn);
+    }
+  }
+
+  async function renderSingleTeamDay(offset, label){
+    var thead = document.getElementById('teamAnalysisThead');
+    var tbody = document.getElementById('teamAnalysisTbody');
+    var summary = document.getElementById('teamAnalysisSummary');
+    if(!thead || !tbody) return;
+    var d = new Date();
+    d.setDate(d.getDate()+offset);
+    var dateStr = rbcYmd(d);
+
+    thead.innerHTML = '<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
+
+    var scheduleRows = await window.loadTeamScheduleRows(dateStr);
+    var rows = (typeof buildTeamDayDataFromRows === 'function') ? buildTeamDayDataFromRows(scheduleRows, dateStr) : [];
+
+    var totalPlanned = rows.reduce(function(s,r){return s+r.planned;},0);
+    var totalSubmitted = rows.reduce(function(s,r){return s+r.submitted;},0);
+    var totalMissing = rows.reduce(function(s,r){return s+r.missing;},0);
+
+    if(summary){
+      summary.innerHTML =
+        '<span class="team-chip total">예정 '+totalPlanned+'건</span>'+
+        '<span class="team-chip ok">제출 '+totalSubmitted+'건</span>'+
+        '<span class="team-chip miss">미제출 '+totalMissing+'건</span>'+
+        '<span class="team-chip warn">기준일 '+dateStr+'</span>';
+    }
+
+    if(!rows.length){
+      var allDates = (window.__rbcTeamScheduleDates || []);
+      var recent = allDates.slice(-14).join(', ') || '날짜 없음';
+      tbody.innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900;line-height:1.75;">'+
+        label+'('+dateStr+') 일정 0건입니다.<br>'+
+        'Firestore 원본 teamSchedules '+(window.__rbcRawTeamScheduleCount || 0)+'건 / 분석 가능 '+(window.__rbcParsedTeamScheduleCount || 0)+'건<br>'+
+        '확인된 일정 날짜: '+rbcEsc(recent)+'<br>'+
+        '위 날짜에 금주 날짜가 없으면 [구글 일정 승인 시스템]의 [직원용 일정표 승인 반영]을 눌러 금주 일정을 가져와야 합니다.'+
+        '</td></tr>';
+      return;
+    }
+
+    var after7 = offset === 0 ? (new Date().getHours() >= 19) : true;
+    tbody.innerHTML = rows.map(function(r){
+      var status='정상', cls='ok', trCls='team-row-ok';
+      if(r.missing>0 && after7){ status='미제출'; cls='danger'; trCls='team-row-danger'; }
+      else if(r.missing>0){ status='진행중'; cls='warn'; trCls='team-row-warn'; }
+      var storeHtml = (r.stores || []).map(function(s){
+        var b = typeof brandShortForTeam === 'function' ? brandShortForTeam(s.brand) : (s.brand || '');
+        return '· '+rbcEsc(b)+' / '+rbcEsc(s.store);
+      }).join('<br>');
+      return '<tr class="'+trCls+'">'+
+        '<td><b>'+rbcEsc(r.leader)+'</b></td>'+
+        '<td>'+r.planned+'건</td>'+
+        '<td>'+r.submitted+'건</td>'+
+        '<td>'+r.missing+'건</td>'+
+        '<td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td>'+
+        '<td><div class="team-store-list">'+storeHtml+'</div></td>'+
+        '<td><span class="team-status-badge '+cls+'">'+status+'</span></td>'+
+        '</tr>';
+    }).join('');
+  }
+
+  window.renderTeamTodayAnalysis = function(){ return renderSingleTeamDay(0, '오늘'); };
+  window.renderTeamYesterdayAnalysis = function(){ return renderSingleTeamDay(-1, '어제'); };
+
+  var oldWeek = window.renderTeamWeekAnalysis || (typeof renderTeamWeekAnalysis === 'function' ? renderTeamWeekAnalysis : null);
+  window.loadTeamScheduleAnalysis = async function(){
+    ensureYesterdayTab();
+    var tbody = document.getElementById('teamAnalysisTbody');
+    if(tbody) tbody.innerHTML = '<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
+    var mode = window.teamAnalysisMode || (typeof teamAnalysisMode !== 'undefined' ? teamAnalysisMode : 'today');
+    if(mode === 'yesterday') return window.renderTeamYesterdayAnalysis();
+    if(mode === 'week' && typeof oldWeek === 'function') return oldWeek();
+    return window.renderTeamTodayAnalysis();
+  };
+
+  window.showTeamAnalysisMode = function(mode){
+    ensureYesterdayTab();
+    if(mode !== 'yesterday' && mode !== 'today' && mode !== 'week') mode='today';
+    window.teamAnalysisMode = mode;
+    try{ teamAnalysisMode = mode; }catch(e){}
+    var yb=document.getElementById('teamYesterdayTab');
+    var tb=document.getElementById('teamTodayTab');
+    var wb=document.getElementById('teamWeekTab');
+    if(yb) yb.classList.toggle('active', mode==='yesterday');
+    if(tb) tb.classList.toggle('active', mode==='today');
+    if(wb) wb.classList.toggle('active', mode==='week');
+    window.loadTeamScheduleAnalysis();
+  };
+
+  function boot(){
+    ensureYesterdayTab();
+    setTimeout(function(){ if(typeof window.loadTeamScheduleAnalysis === 'function') window.loadTeamScheduleAnalysis(); }, 250);
+    setTimeout(function(){ if(typeof window.rbcLoadAlertCenter === 'function') window.rbcLoadAlertCenter(); }, 700);
+  }
+  document.addEventListener('DOMContentLoaded', boot);
+  setTimeout(boot, 800);
+  setTimeout(boot, 2200);
+})();
+</script>
+
 </body></html>
 
 <!-- RAVEBIC_ULTRA_STABLE_FIX_20260616_PAGINATION_PAGE_SCHEDULE -->
@@ -8667,6 +9257,596 @@ window.debugTeamScheduleDate = async function(dateStr){
   setTimeout(boot, 700);
   setTimeout(boot, 1800);
   setTimeout(boot, 3500);
+})();
+</script>
+
+
+<!-- RAVEBIC_SCHEDULE_IMPORT_AND_ANALYSIS_FIX_V3 -->
+<script>
+/* RAVEBIC_SCHEDULE_IMPORT_AND_ANALYSIS_FIX_V3
+   - 직원용 일정표 승인 반영 버튼이 settings만 저장하고 끝나던 문제를 보강합니다.
+   - Apps Script에서 JSON/HTML 표를 읽을 수 있으면 teamSchedules에 실제 분석용 일정까지 저장합니다.
+   - 기존 배치와 페이지3 기능은 건드리지 않고 팀장 제출분석표/알림센터가 쓰는 함수만 마지막에 덮어씁니다.
+*/
+(function(){
+  function rbcEsc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+  function rbcNorm(v){
+    return String(v || '').replace(/\s+/g,'').replace(/[·ㆍ.\-_/]/g,'').trim();
+  }
+  function rbcYmd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function rbcToDateFromLoose(v){
+    var s = String(v || '').trim();
+    if(!s) return '';
+    var now = new Date();
+    var y = now.getFullYear();
+    var m;
+
+    m = s.match(/(20\d{2})\s*[-./년]\s*(\d{1,2})\s*[-./월]\s*(\d{1,2})/);
+    if(m){
+      return m[1]+'-'+String(Number(m[2])).padStart(2,'0')+'-'+String(Number(m[3])).padStart(2,'0');
+    }
+
+    m = s.match(/(?:^|[^\d])(\d{1,2})\s*[-./월]\s*(\d{1,2})\s*(?:일)?(?:$|[^\d])/);
+    if(m){
+      return y+'-'+String(Number(m[1])).padStart(2,'0')+'-'+String(Number(m[2])).padStart(2,'0');
+    }
+
+    return '';
+  }
+  function rbcGetAnyDate(d){
+    d = d || {};
+    var direct = d.scheduleDate || d.date || d.workDate || d.ymd || d.targetDate || d.scheduleYmd || d.day;
+    var parsed = rbcToDateFromLoose(direct);
+    if(parsed) return parsed;
+
+    var joined = [
+      d.scheduleDateText, d.dateText, d.rawText, d.text, d.memo, d.note,
+      d.sourceText, d.sheetName, d.sourceRange
+    ].filter(Boolean).join(' ');
+    return rbcToDateFromLoose(joined);
+  }
+
+  async function rbcStaffSet(){
+    try{
+      if(typeof loadRavebicValidStaffNames === 'function'){
+        await loadRavebicValidStaffNames(true);
+        if(window.ravebicValidStaffNameSet && window.ravebicValidStaffNameSet.size){
+          return window.ravebicValidStaffNameSet;
+        }
+      }
+      var snap = await db.collection('staffPins').get();
+      var set = new Set();
+      snap.forEach(function(doc){
+        var d = doc.data() || {};
+        if(d.active === false) return;
+        var n = String(d.name || doc.id || '').replace(/\s+/g,'').trim();
+        if(n) set.add(n);
+      });
+      return set;
+    }catch(e){
+      return new Set();
+    }
+  }
+
+  function rbcResolveLeaderFromFields(d, staffSet){
+    d = d || {};
+    var fields = [
+      d.leader, d.name, d.staffName, d.manager, d.teamLeader, d.worker,
+      d.rawText, d.text, d.memo, d.note, d.sourceText
+    ];
+
+    for(var i=0;i<fields.length;i++){
+      var raw = String(fields[i] || '').trim();
+      var n = raw.replace(/\s+/g,'').trim();
+      if(!n) continue;
+      if(staffSet && staffSet.size){
+        if(staffSet.has(n)) return raw;
+        var found = '';
+        staffSet.forEach(function(staff){
+          if(found) return;
+          if(n.indexOf(staff) >= 0 || staff.indexOf(n) >= 0) found = staff;
+        });
+        if(found) return found;
+      }else if(raw && !/양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/.test(n)){
+        return raw;
+      }
+    }
+    return '';
+  }
+
+  function rbcResolveBrand(v){
+    var s = String(v || '');
+    if(/세븐|7\s*eleven|seven/i.test(s)) return '세븐일레븐';
+    if(/이마트|emart|e-?mart/i.test(s)) return '이마트24';
+    return String(v || '').trim();
+  }
+
+  function rbcResolveStoreFromFields(d){
+    d = d || {};
+    var fields = [d.store, d.storeName, d.shop, d.location, d.branch, d.rawText, d.text, d.memo, d.note];
+    var bad = /팀장|세븐|이마트|정기실사|인수실사|양수도|폐점|휴무|교육|차량|마감|수정|업무|사무실|^\d{1,2}[\/.-]\d{1,2}/;
+    for(var i=0;i<fields.length;i++){
+      var raw = String(fields[i] || '').trim();
+      if(!raw) continue;
+      if(raw.length > 80) continue;
+      if(bad.test(raw.replace(/\s+/g,''))) continue;
+      return raw;
+    }
+    return String(d.store || d.storeName || '').trim();
+  }
+
+  function rbcNormalizeScheduleRow(d, id, staffSet, lastCtx){
+    d = d || {};
+    var scheduleDate = rbcGetAnyDate(d) || (lastCtx && lastCtx.date) || '';
+    var leader = rbcResolveLeaderFromFields(d, staffSet) || (lastCtx && lastCtx.leader) || '';
+    var brand = rbcResolveBrand(d.brand || d.brandName || d.company || d.rawText || d.text || '') || (lastCtx && lastCtx.brand) || '';
+    var store = rbcResolveStoreFromFields(d);
+
+    if(scheduleDate && lastCtx) lastCtx.date = scheduleDate;
+    if(leader && lastCtx) lastCtx.leader = leader;
+    if(brand && lastCtx) lastCtx.brand = brand;
+
+    var rawText = String([d.rawText,d.text,d.memo,d.note].filter(Boolean).join(' '));
+    if(!store && rawText){
+      var parts = rawText.split(/\s{2,}|[|,]/).map(function(x){return x.trim();}).filter(Boolean);
+      for(var i=0;i<parts.length;i++){
+        if(!/팀장|세븐|이마트|휴무|교육|업무|마감|수정/.test(parts[i])){
+          store = parts[i];
+          break;
+        }
+      }
+    }
+
+    if(!scheduleDate || !leader || !store) return null;
+
+    return {
+      id:id || '',
+      scheduleDate:scheduleDate,
+      leader:String(leader).trim(),
+      brand:String(brand || '').trim(),
+      store:String(store || '').trim(),
+      rawText:rawText || String(d.rawText || ''),
+      sourceRange:String(d.sourceRange || ''),
+      sheetName:String(d.sheetName || ''),
+      rowIndex:Number(d.rowIndex || d.orderIndex || d.row || 999999),
+      leaderOrderIndex:Number(d.leaderOrderIndex || d.orderIndex || 999999),
+      active:d.active === false ? false : true
+    };
+  }
+
+  async function rbcReadAllTeamScheduleRows(){
+    var staffSet = await rbcStaffSet();
+    var snap = await db.collection('teamSchedules').get();
+    var raw = [];
+    snap.forEach(function(doc){
+      raw.push({id:doc.id, data:doc.data() || {}});
+    });
+
+    raw.sort(function(a,b){
+      var ad = rbcGetAnyDate(a.data), bd = rbcGetAnyDate(b.data);
+      return String(ad).localeCompare(String(bd)) ||
+             String(a.data.sheetName || '').localeCompare(String(b.data.sheetName || '')) ||
+             Number(a.data.rowIndex || a.data.orderIndex || 999999) - Number(b.data.rowIndex || b.data.orderIndex || 999999) ||
+             String(a.id).localeCompare(String(b.id));
+    });
+
+    var rows = [];
+    var ctx = {date:'', leader:'', brand:''};
+    raw.forEach(function(item){
+      var n = rbcNormalizeScheduleRow(item.data, item.id, staffSet, ctx);
+      if(n && n.active !== false) rows.push(n);
+    });
+
+    window.__rbcRawTeamScheduleCount = raw.length;
+    window.__rbcParsedTeamScheduleCount = rows.length;
+    window.__rbcTeamScheduleDates = Array.from(new Set(rows.map(function(r){return r.scheduleDate;}))).sort();
+    window.teamScheduleRows = rows;
+    try{ teamScheduleRows = rows; }catch(e){}
+    return rows;
+  }
+
+  window.loadTeamScheduleRows = async function(dateStr){
+    try{
+      var rows = await rbcReadAllTeamScheduleRows();
+      if(dateStr){
+        rows = rows.filter(function(r){ return String(r.scheduleDate || '').trim() === String(dateStr).trim(); });
+      }
+      return rows;
+    }catch(e){
+      console.error('RAVEBIC schedule rows load failed', e);
+      window.__rbcTeamScheduleLoadError = e.message || String(e);
+      window.__rbcRawTeamScheduleCount = 0;
+      window.__rbcParsedTeamScheduleCount = 0;
+      window.__rbcTeamScheduleDates = [];
+      return [];
+    }
+  };
+
+  function rbcCandidateUrls(base){
+    var url = String(base || '');
+    if(!url) return [];
+    var sep = url.indexOf('?') >= 0 ? '&' : '?';
+    return [
+      url + sep + 'rbcJson=1&v=' + Date.now(),
+      url + sep + 'action=json&v=' + Date.now(),
+      url + sep + 'mode=json&v=' + Date.now(),
+      url + sep + 'format=json&v=' + Date.now(),
+      url + sep + 'output=json&v=' + Date.now(),
+      url + sep + 'api=1&v=' + Date.now(),
+      url + sep + 'raw=1&v=' + Date.now(),
+      url + sep + 'v=' + Date.now()
+    ];
+  }
+
+  function rbcPickRowsFromJson(json){
+    if(!json) return [];
+    if(Array.isArray(json)) return json;
+    var keys = ['rows','data','items','schedules','teamSchedules','scheduleRows','values','result'];
+    for(var i=0;i<keys.length;i++){
+      if(Array.isArray(json[keys[i]])) return json[keys[i]];
+    }
+    if(json.data && typeof json.data === 'object'){
+      for(var k in json.data){
+        if(Array.isArray(json.data[k])) return json.data[k];
+      }
+    }
+    return [];
+  }
+
+  function rbcRowsFromAoa(aoa){
+    var out = [];
+    var last = {date:'', leader:'', brand:''};
+    var staffSet = window.ravebicValidStaffNameSet || new Set();
+
+    aoa.forEach(function(row, idx){
+      row = (row || []).map(function(v){return String(v == null ? '' : v).trim();});
+      if(!row.some(Boolean)) return;
+      var joined = row.join(' ');
+      var d = rbcToDateFromLoose(joined);
+      if(d) last.date = d;
+
+      var brand = rbcResolveBrand(joined);
+      if(brand) last.brand = brand;
+
+      var leader = '';
+      if(staffSet && staffSet.size){
+        var flat = joined.replace(/\s+/g,'');
+        staffSet.forEach(function(n){
+          if(!leader && flat.indexOf(n) >= 0) leader = n;
+        });
+      }
+      if(leader) last.leader = leader;
+
+      var store = '';
+      for(var i=0;i<row.length;i++){
+        var c = row[i];
+        if(!c) continue;
+        var cn = c.replace(/\s+/g,'');
+        if(rbcToDateFromLoose(c)) continue;
+        if(leader && cn.indexOf(leader) >= 0) continue;
+        if(/세븐|이마트|팀장|정기실사|인수실사|양수도|폐점|휴무|교육|차량|마감|수정|업무|사무실|전화|연락|비고/.test(cn)) continue;
+        if(c.length > 2){
+          store = c;
+          break;
+        }
+      }
+
+      if(last.date && last.leader && store){
+        out.push({
+          scheduleDate:last.date,
+          leader:last.leader,
+          brand:last.brand,
+          store:store,
+          rawText:joined,
+          rowIndex:idx
+        });
+      }
+    });
+    return out;
+  }
+
+  function rbcRowsFromHtml(html){
+    var out = [];
+    try{
+      var doc = new DOMParser().parseFromString(String(html || ''), 'text/html');
+      var tables = Array.from(doc.querySelectorAll('table'));
+      tables.forEach(function(table){
+        var aoa = Array.from(table.querySelectorAll('tr')).map(function(tr){
+          return Array.from(tr.querySelectorAll('th,td')).map(function(td){return td.textContent.trim();});
+        });
+        out = out.concat(rbcRowsFromAoa(aoa));
+      });
+      if(out.length) return out;
+
+      var lines = String(html || '').replace(/<br\s*\/?>/gi,'\n').replace(/<[^>]*>/g,'\n').split(/\n+/).map(function(x){return x.trim();}).filter(Boolean);
+      return rbcRowsFromAoa(lines.map(function(x){return x.split(/\s{2,}|\t|[|]/);}));
+    }catch(e){
+      return [];
+    }
+  }
+
+  async function rbcFetchScheduleRowsFromAppsScript(){
+    var base = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl !== 'undefined' ? latestGoogleSchedulePdfUrl : ''));
+    var urls = rbcCandidateUrls(base);
+    var lastErr = '';
+
+    for(var i=0;i<urls.length;i++){
+      try{
+        var res = await fetch(urls[i], {method:'GET', cache:'no-store', redirect:'follow'});
+        var text = await res.text();
+        if(!res.ok){
+          lastErr = 'HTTP '+res.status;
+          continue;
+        }
+
+        var rows = [];
+        try{
+          var json = JSON.parse(text);
+          rows = rbcPickRowsFromJson(json);
+        }catch(jsonErr){
+          var match = text.match(/\{[\s\S]*\}/);
+          if(match){
+            try{ rows = rbcPickRowsFromJson(JSON.parse(match[0])); }catch(e){}
+          }
+        }
+
+        if(rows && rows.length){
+          return {ok:true, rows:rows, url:urls[i], mode:'json'};
+        }
+
+        rows = rbcRowsFromHtml(text);
+        if(rows && rows.length){
+          return {ok:true, rows:rows, url:urls[i], mode:'html'};
+        }
+
+        lastErr = '일정 행을 찾지 못함';
+      }catch(e){
+        lastErr = e.message || String(e);
+      }
+    }
+
+    return {ok:false, rows:[], message:lastErr || 'Apps Script에서 일정 데이터를 읽지 못했습니다.'};
+  }
+
+  window.rbcImportGoogleScheduleRowsFromAppsScript = async function(){
+    var status = document.getElementById('googleScheduleStatus');
+    if(status) status.textContent = '구글 일정 원본을 분석용 데이터로 변환 중...';
+
+    var staffSet = await rbcStaffSet();
+    var fetched = await rbcFetchScheduleRowsFromAppsScript();
+    if(!fetched.ok){
+      return {ok:false, count:0, message:fetched.message || '일정 원본 읽기 실패'};
+    }
+
+    var lastCtx = {date:'', leader:'', brand:''};
+    var normalized = [];
+    fetched.rows.forEach(function(r, idx){
+      var obj;
+      if(Array.isArray(r)){
+        obj = {rawText:r.join(' '), rowIndex:idx};
+        var rowObj = rbcRowsFromAoa([r])[0];
+        if(rowObj) obj = Object.assign(obj, rowObj);
+      }else{
+        obj = Object.assign({}, r, {rowIndex:Number(r.rowIndex || r.orderIndex || idx)});
+      }
+      var n = rbcNormalizeScheduleRow(obj, '', staffSet, lastCtx);
+      if(n) normalized.push(n);
+    });
+
+    var seen = {};
+    normalized = normalized.filter(function(r){
+      var key = [r.scheduleDate, r.leader, r.brand, rbcNorm(r.store)].join('|');
+      if(seen[key]) return false;
+      seen[key] = true;
+      return true;
+    });
+
+    if(!normalized.length){
+      return {ok:false, count:0, message:'읽은 원본은 있으나 팀장/날짜/점포를 분석하지 못했습니다.'};
+    }
+
+    var batchSize = 450;
+    var count = 0;
+    for(var i=0;i<normalized.length;i+=batchSize){
+      var batch = db.batch();
+      normalized.slice(i,i+batchSize).forEach(function(r, j){
+        var docId = [
+          r.scheduleDate,
+          rbcNorm(r.leader),
+          rbcNorm(r.brand || 'brand'),
+          rbcNorm(r.store),
+          String(i+j).padStart(4,'0')
+        ].join('_').slice(0,140);
+        var ref = db.collection('teamSchedules').doc(docId);
+        batch.set(ref, {
+          scheduleDate:r.scheduleDate,
+          leader:r.leader,
+          brand:r.brand,
+          store:r.store,
+          rawText:r.rawText || '',
+          sourceRange:r.sourceRange || '',
+          sheetName:r.sheetName || 'GoogleSchedule',
+          rowIndex:r.rowIndex || (i+j),
+          leaderOrderIndex:r.leaderOrderIndex || 999999,
+          active:true,
+          importedAt:firebase.firestore.FieldValue.serverTimestamp(),
+          importedAtText:new Date().toISOString(),
+          importSource:'admin_apps_script_'+fetched.mode
+        }, {merge:true});
+        count++;
+      });
+      await batch.commit();
+    }
+
+    await window.loadTeamScheduleRows();
+    if(status) status.textContent = '승인 완료 · 분석 일정 '+count+'건 반영';
+    return {ok:true, count:count, url:fetched.url, mode:fetched.mode};
+  };
+
+  var oldApprove = window.approveGoogleSchedule;
+  window.approveGoogleSchedule = async function(){
+    var status = document.getElementById('googleScheduleStatus');
+    var info = document.getElementById('lastApprovedInfo');
+    try{
+      if(status) status.textContent = '일정 승인 및 분석 반영 중...';
+
+      var url = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl !== 'undefined' ? latestGoogleSchedulePdfUrl : ''));
+
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName:(typeof latestGoogleScheduleSheetName !== 'undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
+        range:(typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        pdfUrl:url,
+        scheduleUrl:url,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText:new Date().toISOString(),
+        approvedBy:(window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태'),
+        source:'admin_app_schedule_import_v3'
+      }, {merge:true});
+
+      var result = await window.rbcImportGoogleScheduleRowsFromAppsScript();
+
+      if(info){
+        info.innerHTML =
+          '마지막 승인: '+new Date().toLocaleString()+
+          '<br>승인자: '+rbcEsc(window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태')+
+          '<br>'+(result.ok ? '분석 일정 반영: '+result.count+'건' : '직원용 일정 승인 저장 완료 / 분석 반영 실패: '+rbcEsc(result.message || ''));
+      }
+
+      if(typeof loadApprovedInfo === 'function') loadApprovedInfo();
+      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+
+      if(result.ok){
+        alert('일정 승인 반영 완료\n\n분석 일정 '+result.count+'건을 teamSchedules에 반영했습니다.');
+      }else{
+        alert('직원용 일정표 승인 주소는 저장했습니다.\n\n다만 분석용 일정 반영은 실패했습니다:\n'+(result.message || '일정 행을 읽지 못했습니다.')+'\n\nApps Script가 JSON 또는 HTML 표 형태로 일정을 반환해야 분석표에 들어갑니다.');
+      }
+    }catch(e){
+      if(status) status.textContent = '일정 승인 반영 실패';
+      alert('일정 승인 반영 실패:\n\n'+(e.message || e));
+      if(typeof oldApprove === 'function'){
+        try{return await oldApprove.apply(this, arguments);}catch(ignore){}
+      }
+    }
+  };
+
+  // 어제/오늘/이번주 버튼이 항상 보이도록 보강
+  function ensureYesterdayTab(){
+    var tabBox = document.querySelector('.team-analysis-tabs');
+    var todayBtn = document.getElementById('teamTodayTab');
+    if(tabBox && todayBtn && !document.getElementById('teamYesterdayTab')){
+      var b = document.createElement('button');
+      b.id = 'teamYesterdayTab';
+      b.className = 'team-analysis-tab';
+      b.type = 'button';
+      b.textContent = '어제 분석표';
+      b.onclick = function(){ showTeamAnalysisMode('yesterday'); };
+      tabBox.insertBefore(b, todayBtn);
+    }
+  }
+
+  async function renderSingleTeamDay(offset, label){
+    var thead = document.getElementById('teamAnalysisThead');
+    var tbody = document.getElementById('teamAnalysisTbody');
+    var summary = document.getElementById('teamAnalysisSummary');
+    if(!thead || !tbody) return;
+    var d = new Date();
+    d.setDate(d.getDate()+offset);
+    var dateStr = rbcYmd(d);
+
+    thead.innerHTML = '<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
+
+    var scheduleRows = await window.loadTeamScheduleRows(dateStr);
+    var rows = (typeof buildTeamDayDataFromRows === 'function') ? buildTeamDayDataFromRows(scheduleRows, dateStr) : [];
+
+    var totalPlanned = rows.reduce(function(s,r){return s+r.planned;},0);
+    var totalSubmitted = rows.reduce(function(s,r){return s+r.submitted;},0);
+    var totalMissing = rows.reduce(function(s,r){return s+r.missing;},0);
+
+    if(summary){
+      summary.innerHTML =
+        '<span class="team-chip total">예정 '+totalPlanned+'건</span>'+
+        '<span class="team-chip ok">제출 '+totalSubmitted+'건</span>'+
+        '<span class="team-chip miss">미제출 '+totalMissing+'건</span>'+
+        '<span class="team-chip warn">기준일 '+dateStr+'</span>';
+    }
+
+    if(!rows.length){
+      var allDates = (window.__rbcTeamScheduleDates || []);
+      var recent = allDates.slice(-14).join(', ') || '날짜 없음';
+      tbody.innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900;line-height:1.75;">'+
+        label+'('+dateStr+') 일정 0건입니다.<br>'+
+        'Firestore 원본 teamSchedules '+(window.__rbcRawTeamScheduleCount || 0)+'건 / 분석 가능 '+(window.__rbcParsedTeamScheduleCount || 0)+'건<br>'+
+        '확인된 일정 날짜: '+rbcEsc(recent)+'<br>'+
+        '위 날짜에 금주 날짜가 없으면 [구글 일정 승인 시스템]의 [직원용 일정표 승인 반영]을 눌러 금주 일정을 가져와야 합니다.'+
+        '</td></tr>';
+      return;
+    }
+
+    var after7 = offset === 0 ? (new Date().getHours() >= 19) : true;
+    tbody.innerHTML = rows.map(function(r){
+      var status='정상', cls='ok', trCls='team-row-ok';
+      if(r.missing>0 && after7){ status='미제출'; cls='danger'; trCls='team-row-danger'; }
+      else if(r.missing>0){ status='진행중'; cls='warn'; trCls='team-row-warn'; }
+      var storeHtml = (r.stores || []).map(function(s){
+        var b = typeof brandShortForTeam === 'function' ? brandShortForTeam(s.brand) : (s.brand || '');
+        return '· '+rbcEsc(b)+' / '+rbcEsc(s.store);
+      }).join('<br>');
+      return '<tr class="'+trCls+'">'+
+        '<td><b>'+rbcEsc(r.leader)+'</b></td>'+
+        '<td>'+r.planned+'건</td>'+
+        '<td>'+r.submitted+'건</td>'+
+        '<td>'+r.missing+'건</td>'+
+        '<td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td>'+
+        '<td><div class="team-store-list">'+storeHtml+'</div></td>'+
+        '<td><span class="team-status-badge '+cls+'">'+status+'</span></td>'+
+        '</tr>';
+    }).join('');
+  }
+
+  window.renderTeamTodayAnalysis = function(){ return renderSingleTeamDay(0, '오늘'); };
+  window.renderTeamYesterdayAnalysis = function(){ return renderSingleTeamDay(-1, '어제'); };
+
+  var oldWeek = window.renderTeamWeekAnalysis || (typeof renderTeamWeekAnalysis === 'function' ? renderTeamWeekAnalysis : null);
+  window.loadTeamScheduleAnalysis = async function(){
+    ensureYesterdayTab();
+    var tbody = document.getElementById('teamAnalysisTbody');
+    if(tbody) tbody.innerHTML = '<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
+    var mode = window.teamAnalysisMode || (typeof teamAnalysisMode !== 'undefined' ? teamAnalysisMode : 'today');
+    if(mode === 'yesterday') return window.renderTeamYesterdayAnalysis();
+    if(mode === 'week' && typeof oldWeek === 'function') return oldWeek();
+    return window.renderTeamTodayAnalysis();
+  };
+
+  window.showTeamAnalysisMode = function(mode){
+    ensureYesterdayTab();
+    if(mode !== 'yesterday' && mode !== 'today' && mode !== 'week') mode='today';
+    window.teamAnalysisMode = mode;
+    try{ teamAnalysisMode = mode; }catch(e){}
+    var yb=document.getElementById('teamYesterdayTab');
+    var tb=document.getElementById('teamTodayTab');
+    var wb=document.getElementById('teamWeekTab');
+    if(yb) yb.classList.toggle('active', mode==='yesterday');
+    if(tb) tb.classList.toggle('active', mode==='today');
+    if(wb) wb.classList.toggle('active', mode==='week');
+    window.loadTeamScheduleAnalysis();
+  };
+
+  function boot(){
+    ensureYesterdayTab();
+    setTimeout(function(){ if(typeof window.loadTeamScheduleAnalysis === 'function') window.loadTeamScheduleAnalysis(); }, 250);
+    setTimeout(function(){ if(typeof window.rbcLoadAlertCenter === 'function') window.rbcLoadAlertCenter(); }, 700);
+  }
+  document.addEventListener('DOMContentLoaded', boot);
+  setTimeout(boot, 800);
+  setTimeout(boot, 2200);
 })();
 </script>
 
