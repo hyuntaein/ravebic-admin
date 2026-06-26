@@ -10999,3 +10999,228 @@ window.debugTeamScheduleDate = async function(dateStr){
   };
 })();
 </script>
+
+
+<!-- RAVEBIC_NO_DOCUMENT_AUTO_CORRECTION_SKIP_V1_20260626 -->
+<script>
+/*
+  RAVEBIC_NO_DOCUMENT_AUTO_CORRECTION_SKIP_V1_20260626
+  목적: 직원용에서 "서류없음"으로 들어온 제출 건은 정상 제출로 인정하고,
+        자동 보완요청 대상에서 제외되도록 표시합니다.
+  주의: 화면 배치/기존 버튼/기존 일정 반영 로직은 건드리지 않고, 판정 로직만 덮어씁니다.
+*/
+(function(){
+  if(window.__RBC_NO_DOCUMENT_AUTO_CORRECTION_SKIP_V1__) return;
+  window.__RBC_NO_DOCUMENT_AUTO_CORRECTION_SKIP_V1__ = true;
+
+  function norm(v){
+    return String(v == null ? '' : v).replace(/\s+/g,'').trim();
+  }
+  function ymd(d){
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function rdt(r){
+    if(typeof dtOf === 'function') return dtOf(r);
+    var v = r && (r.workDateText || r.inspectionDateText || r.inspectionDate || r.date || r.submittedAtText || 0);
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(v)) ? new Date(String(v)+'T12:00:00') : new Date(v);
+  }
+  function storeKey(v){
+    if(typeof normalizeStoreForTeam === 'function') return normalizeStoreForTeam(v);
+    return String(v||'').replace(/^\s*\d{2,5}\s*(노\s*)?/,'').replace(/\s+/g,'').replace(/[·ㆍ.\-_/]/g,'').trim();
+  }
+
+  window.rbcIsNoDocumentSubmission = function(r){
+    r = r || {};
+
+    var boolKeys = [
+      'noDocument','noDocuments','noDoc','noDocs','documentNone','documentsNone',
+      'paperNone','papersNone','noPaper','noPapers','noFile','noFiles','noAttachment',
+      'noAttachments','hasNoDocument','withoutDocument','withoutDocuments',
+      'fileNone','filesNone','attachmentNone','attachmentsNone','documentNotNeeded',
+      'documentsNotNeeded','noDocumentRequired','noAutoCorrection','autoCorrectionSkip'
+    ];
+
+    for(var i=0;i<boolKeys.length;i++){
+      var v = r[boolKeys[i]];
+      if(v === true || v === 'true' || v === 'Y' || v === 'y' || v === '1' || v === 1) return true;
+    }
+
+    var text = norm([
+      r.note, r.noteDetail, r.memo, r.memoText, r.comment, r.comments,
+      r.documentStatus, r.fileStatus, r.attachmentStatus, r.submitType,
+      r.specialNote, r.extraNote, r.reason, r.fileMemo, r.noDocumentReason
+    ].filter(Boolean).join(' '));
+
+    return /서류없음|서류무|서류미첨부|서류제외|서류해당없음|첨부없음|첨부파일없음|파일없음|사진없음|사진미첨부|문서없음|문서미첨부/.test(text);
+  };
+
+  window.rbcIsAutoCorrectionMessage = function(r){
+    r = r || {};
+    var text = norm([
+      r.correctionMessage, r.message, r.type, r.source, r.reason,
+      r.correctionReason, r.createdBy, r.sentBy
+    ].filter(Boolean).join(' '));
+    return /자동|auto|미제출|마감|서류제출|서류제출또는보완|제출또는보완/.test(text);
+  };
+
+  // 팀장 제출분석표에서 "서류없음" 제출은 정상 제출로 계산합니다.
+  window.countActualSubmissionsForTeam = function(leader, dateStr, brand, plannedStores){
+    var plannedSet = new Set();
+    (plannedStores || []).forEach(function(s){
+      var key = storeKey(s && (s.store || s));
+      if(key) plannedSet.add(key);
+    });
+
+    var submittedStores = new Set();
+    (allRows || []).forEach(function(r){
+      var d = rdt(r);
+      if(!d || isNaN(d.getTime())) return;
+
+      var sameDate = ymd(d) === String(dateStr || '');
+      var sameLeader = String(r.name || '').trim() === String(leader || '').trim();
+      var sameBrand = !brand || String(r.brand || '').trim() === String(brand || '').trim();
+      if(!sameDate || !sameLeader || !sameBrand) return;
+
+      var submitStore = storeKey(r.store);
+      if(!submitStore) return;
+
+      if(plannedSet.size){
+        var matched = false;
+        plannedSet.forEach(function(planStore){
+          if(submitStore === planStore || submitStore.includes(planStore) || planStore.includes(submitStore)) matched = true;
+        });
+        if(!matched) return;
+      }
+
+      // 파일이 0개여도 "서류없음"이면 제출로 인정합니다.
+      // 기존 정상 첨부 제출도 그대로 제출로 인정합니다.
+      submittedStores.add(submitStore);
+    });
+
+    if(plannedSet.size){
+      var count = 0;
+      plannedSet.forEach(function(planStore){
+        var found = false;
+        submittedStores.forEach(function(submitStore){
+          if(submitStore === planStore || submitStore.includes(planStore) || planStore.includes(submitStore)) found = true;
+        });
+        if(found) count++;
+      });
+      return count;
+    }
+    return submittedStores.size;
+  };
+
+  // 기존 buildTeamDayDataFromRows가 여러 번 덮어써져도 마지막에 한 번 더 정확한 계산으로 고정합니다.
+  window.buildTeamDayDataFromRows = function(rows, dateStr){
+    var map = {};
+    (rows || []).forEach(function(r){
+      if(String(r.scheduleDate || '').trim() !== String(dateStr || '').trim()) return;
+      var leader = String(r.leader || '').trim();
+      if(!leader) return;
+
+      if(!map[leader]){
+        map[leader] = {
+          leader: leader,
+          leaderOrderIndex: r.leaderOrderIndex || 999999,
+          planned: 0, submitted: 0, missing: 0,
+          seven: 0, emart: 0, etc: 0, stores: []
+        };
+      }
+      map[leader].planned++;
+      if(r.brand === '세븐일레븐') map[leader].seven++;
+      else if(r.brand === '이마트24') map[leader].emart++;
+      else map[leader].etc++;
+      map[leader].stores.push({brand:r.brand || '', store:r.store || ''});
+    });
+
+    Object.keys(map).forEach(function(leader){
+      var row = map[leader];
+      row.submitted = window.countActualSubmissionsForTeam(leader, dateStr, '', row.stores);
+      row.missing = Math.max(0, row.planned - row.submitted);
+    });
+
+    return Object.values(map).sort(function(a,b){
+      return (a.leaderOrderIndex || 999999) - (b.leaderOrderIndex || 999999) || String(a.leader).localeCompare(String(b.leader),'ko');
+    });
+  };
+
+  // Firestore에 "서류없음은 자동보완 제외" 표시를 남깁니다.
+  // 이미 자동 보완으로 바뀐 서류없음 건은 자동 메시지로 판단될 때만 확인완료로 되돌립니다.
+  window.rbcProtectNoDocumentSubmissions = async function(){
+    if(typeof db === 'undefined' || !Array.isArray(allRows)) return;
+
+    var targets = (allRows || []).filter(function(r){ return window.rbcIsNoDocumentSubmission(r); });
+    if(!targets.length) return;
+
+    try{
+      await db.collection('settings').doc('autoCorrectionRules').set({
+        skipNoDocumentSubmissions: true,
+        noDocumentKeywords: ['서류없음','서류 없음','첨부없음','첨부 없음','파일없음','사진없음'],
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAtText: new Date().toISOString(),
+        source: 'admin_no_document_auto_correction_skip_v1'
+      }, {merge:true});
+    }catch(e){ console.warn('autoCorrectionRules save skipped', e); }
+
+    var batch = db.batch();
+    var n = 0;
+
+    targets.slice(0, 450).forEach(function(r){
+      if(!r.id) return;
+      var update = {
+        noAutoCorrection: true,
+        autoCorrectionSkip: true,
+        noDocumentSubmission: true,
+        documentStatus: '서류없음',
+        noDocumentProtectedAtText: new Date().toISOString()
+      };
+
+      if((r.status || '') === '보완요청' && window.rbcIsAutoCorrectionMessage(r)){
+        update.status = '확인완료';
+        update.correctionResolved = true;
+        update.correctionRead = true;
+        update.autoCorrectionCanceled = true;
+        update.autoCorrectionCanceledAtText = new Date().toISOString();
+      }
+
+      batch.update(db.collection('submissions').doc(r.id), update);
+      n++;
+    });
+
+    if(n){
+      try{
+        await batch.commit();
+        targets.forEach(function(r){
+          r.noAutoCorrection = true;
+          r.autoCorrectionSkip = true;
+          r.noDocumentSubmission = true;
+          r.documentStatus = '서류없음';
+          if((r.status || '') === '보완요청' && window.rbcIsAutoCorrectionMessage(r)){
+            r.status = '확인완료';
+            r.correctionResolved = true;
+            r.correctionRead = true;
+          }
+        });
+      }catch(e){ console.warn('no document protection update skipped', e); }
+    }
+  };
+
+  var oldLoadData = window.loadData || (typeof loadData === 'function' ? loadData : null);
+  if(typeof oldLoadData === 'function' && !window.__RBC_NO_DOC_LOAD_WRAPPED__){
+    window.__RBC_NO_DOC_LOAD_WRAPPED__ = true;
+    window.loadData = async function(){
+      var result = await oldLoadData.apply(this, arguments);
+      try{ await window.rbcProtectNoDocumentSubmissions(); }catch(e){ console.warn(e); }
+      try{ if(typeof applyFilters === 'function') applyFilters(); }catch(e){}
+      return result;
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){ window.rbcProtectNoDocumentSubmissions(); }, 2500);
+    setTimeout(function(){ if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis(); }, 3200);
+  });
+  setTimeout(function(){ window.rbcProtectNoDocumentSubmissions(); }, 5000);
+})();
+</script>
