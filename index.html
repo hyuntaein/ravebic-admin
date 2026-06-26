@@ -10929,7 +10929,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     var last='';
     for(var i=0;i<urls.length;i++){
       try{
-        var text=await fetchTextTimeout(urls[i], i<direct.length?6500:8500);
+        var text=await fetchTextTimeout(urls[i], i<direct.length?45000:30000);
         var rows=[];
         try{rows=rowsFromJson(JSON.parse(text),set);}catch(e){}
         if(!rows.length) rows=rowsFromHtml(text,set);
@@ -10949,7 +10949,7 @@ window.debugTeamScheduleDate = async function(dateStr){
         var id=[r.scheduleDate,norm(r.leader),norm(r.brand||'brand'),norm(r.store),String(i+j).padStart(4,'0')].join('_').slice(0,150);
         batch.set(db.collection('teamSchedules').doc(id),{scheduleDate:r.scheduleDate,leader:r.leader,brand:r.brand||'',store:r.store,rawText:r.rawText||'',sheetName:r.sheetName||'GoogleSchedule',sourceRange:r.sourceRange||'',rowIndex:r.rowIndex||i+j,active:true,importedAt:firebase.firestore.FieldValue.serverTimestamp(),importedAtText:new Date().toISOString(),importSource:'admin_no_hang_fix_v6'},{merge:true});
       });
-      await withTimeout(batch.commit(),12000,'Firestore 저장');
+      await withTimeout(batch.commit(),30000,'Firestore 저장');
     }
     return clean.length;
   }
@@ -10964,11 +10964,11 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   window.rbcImportGoogleScheduleRowsFromAppsScript=async function(){
     var status=document.getElementById('googleScheduleStatus');
-    if(status) status.textContent='구글 일정 원본 분석 중... 최대 30초만 시도합니다.';
-    var fetched=await withTimeout(fetchRowsFast(),32000,'구글 일정 원본 분석');
+    if(status) status.textContent='구글 일정 원본 분석 중... 최대 120초까지 시도합니다.';
+    var fetched=await withTimeout(fetchRowsFast(),120000,'구글 일정 원본 분석');
     if(!fetched.ok) return {ok:false,count:0,message:fetched.message||'분석 실패'};
     var count=await saveRows(fetched.rows);
-    if(typeof loadTeamScheduleRows==='function') await withTimeout(loadTeamScheduleRows(),9000,'분석표 새로고침');
+    if(typeof loadTeamScheduleRows==='function') await withTimeout(loadTeamScheduleRows(),20000,'분석표 새로고침');
     if(status) status.textContent='승인 완료 · 분석 일정 '+count+'건 반영';
     return {ok:count>0,count:count,message:count>0?'반영 완료':'분석 일정 0건',url:fetched.url};
   };
@@ -10985,7 +10985,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
       if(!result.ok || !result.count) throw new Error(result.message||'분석 일정 0건');
       if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 일정 반영: '+Number(result.count||0)+'건';
-      if(typeof loadTeamScheduleAnalysis==='function') await withTimeout(loadTeamScheduleAnalysis(),9000,'제출분석표 새로고침').catch(function(){});
+      if(typeof loadTeamScheduleAnalysis==='function') await withTimeout(loadTeamScheduleAnalysis(),20000,'제출분석표 새로고침').catch(function(){});
       if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter();
       if(typeof rbcLoadScore==='function') rbcLoadScore();
       alert('일정 승인 및 분석표 반영 완료\n\nteamSchedules '+Number(result.count||0)+'건 반영했습니다.');
@@ -10994,7 +10994,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       if(status) status.textContent='승인 저장 완료 · 분석 일정 반영 실패';
       if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>직원용 일정 주소 저장 완료<br>분석 반영 실패: '+esc(e.message||e)+'<br>기존 최신 분석 일정: '+esc(li.latest||'없음')+' / '+Number(li.count||0)+'건';
       if(typeof loadTeamScheduleAnalysis==='function') loadTeamScheduleAnalysis();
-      alert('멈춤 현상은 막았습니다.\n\n직원용 일정 주소 저장은 완료됐지만, 분석표용 일정 읽기는 실패했습니다.\n원인: '+(e.message||e)+'\n\nApps Script가 표 데이터를 JSON/HTML 표 형태로 반환하지 않거나 CORS가 막힌 상태입니다.');
+      alert('시간초과 방지를 120초로 늘렸지만, 분석표용 일정 읽기는 실패했습니다.\n원인: '+(e.message||e)+'\n\nApps Script가 표 데이터를 JSON/HTML 표 형태로 반환하지 않거나 CORS가 막힌 상태입니다.');
     }
   };
 })();
