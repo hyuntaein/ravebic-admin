@@ -954,6 +954,55 @@ select.status-pending {
 <div class="pagination-bar"><button id="prevPageBtn" type="button" onclick="prevPage()">이전</button><span id="pageInfo" class="pagination-info">1 / 1 페이지</span><button id="nextPageBtn" type="button" onclick="nextPage()">다음</button><select id="pageSizeSelect" class="page-size-select" onchange="changePageSize(this.value)"><option value="10" selected>10개씩</option><option value="20">20개씩</option><option value="50">50개씩</option></select></div>
 
 
+
+
+<!-- RAVEBIC_CORRECTION_MESSAGE_AUDIT_PANEL_V1 -->
+<style>
+.rbc-correction-audit-box{margin:18px 0;padding:16px;border:1px solid #fecaca;background:#fff7f7;border-radius:18px}
+.rbc-correction-audit-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.rbc-correction-audit-head h2{margin:0;color:#991b1b;font-size:22px}
+.rbc-correction-audit-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
+.rbc-correction-audit-controls input{max-width:170px}
+.rbc-correction-audit-btn{background:#ef4444!important;color:#fff!important;border:0!important;border-radius:13px!important;padding:12px 15px!important;font-weight:900!important;cursor:pointer!important}
+.rbc-correction-audit-btn.gray{background:#64748b!important}
+.rbc-correction-audit-summary{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.rbc-correction-audit-chip{display:inline-block;padding:8px 11px;border-radius:999px;font-size:13px;font-weight:900;background:#fee2e2;color:#991b1b}
+.rbc-correction-audit-chip.ok{background:#dcfce7;color:#166534}.rbc-correction-audit-chip.info{background:#dbeafe;color:#1d4ed8}.rbc-correction-audit-chip.warn{background:#ffedd5;color:#9a3412}
+.rbc-correction-audit-table-wrap{overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-top:10px}
+.rbc-correction-audit-table{width:100%;border-collapse:collapse;font-size:13px}
+.rbc-correction-audit-table th,.rbc-correction-audit-table td{border-bottom:1px solid #e2e8f0;padding:9px;text-align:left;vertical-align:top}
+.rbc-correction-audit-table th{background:#fee2e2;color:#991b1b;white-space:nowrap}
+.rbc-correction-audit-small{font-size:12px;color:#64748b;line-height:1.45}
+@media(max-width:768px){.rbc-correction-audit-controls{display:grid;grid-template-columns:1fr}.rbc-correction-audit-controls input{max-width:none}}
+</style>
+
+<div class="rbc-correction-audit-box" id="rbcCorrectionAuditBox">
+  <div class="rbc-correction-audit-head">
+    <h2>보완메세지 발송 확인</h2>
+    <div>
+      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">발송내역 새로고침</button>
+      <button class="rbc-correction-audit-btn gray" type="button" onclick="rbcToggleCorrectionAudit()">접기/펼치기</button>
+    </div>
+  </div>
+  <div class="rbc-correction-audit-small" style="margin-top:8px">
+    밤 9시 이후 자동 발송된 보완메세지와 관리자가 직접 보낸 메세지를 확인합니다. 확인 대상: adminMessages, autoCorrectionLogs
+  </div>
+  <div id="rbcCorrectionAuditBody">
+    <div class="rbc-correction-audit-controls">
+      <input id="rbcCorrectionAuditDate" type="date">
+      <input id="rbcCorrectionAuditKeyword" placeholder="팀장명/점포명/메세지 검색">
+      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">조회</button>
+    </div>
+    <div id="rbcCorrectionAuditSummary" class="rbc-correction-audit-summary"><span class="rbc-correction-audit-chip info">대기</span></div>
+    <div class="rbc-correction-audit-table-wrap">
+      <table class="rbc-correction-audit-table">
+        <thead><tr><th>발송시간</th><th>대상</th><th>구분</th><th>메세지</th><th>읽음/상태</th><th>출처</th></tr></thead>
+        <tbody id="rbcCorrectionAuditTbody"><tr><td colspan="6">발송내역 새로고침을 눌러주세요.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div class="section">
 
   <h2>구글 일정 승인 시스템</h2>
@@ -11222,5 +11271,202 @@ window.debugTeamScheduleDate = async function(dateStr){
     setTimeout(function(){ if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis(); }, 3200);
   });
   setTimeout(function(){ window.rbcProtectNoDocumentSubmissions(); }, 5000);
+})();
+</script>
+
+
+<script>
+/* RAVEBIC_CORRECTION_MESSAGE_AUDIT_AND_DIRECT_COMPAT_V1
+   - 보완메세지 발송 확인 패널: adminMessages / autoCorrectionLogs 조회
+   - 직접 메세지: 직원용/팀장앱 호환 필드 보강
+   - 다른 배치와 기존 기능은 변경하지 않습니다.
+*/
+(function(){
+  if(window.__RBC_CORRECTION_MESSAGE_AUDIT_AND_DIRECT_COMPAT_V1__) return;
+  window.__RBC_CORRECTION_MESSAGE_AUDIT_AND_DIRECT_COMPAT_V1__ = true;
+
+  function escC(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+  function ymdC(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+  function dateOfC(r){
+    try{
+      if(r.createdAt && typeof r.createdAt.toDate === 'function') return r.createdAt.toDate();
+      if(r.sentAt && typeof r.sentAt.toDate === 'function') return r.sentAt.toDate();
+      if(r.requestedAt && typeof r.requestedAt.toDate === 'function') return r.requestedAt.toDate();
+      if(r.createdAtText) return new Date(r.createdAtText);
+      if(r.sentAtText) return new Date(r.sentAtText);
+      if(r.requestedAtText) return new Date(r.requestedAtText);
+      if(r.autoSentAtText) return new Date(r.autoSentAtText);
+      if(r.date) return new Date(r.date);
+    }catch(e){}
+    return new Date(0);
+  }
+  function targetOfC(r){return r.targetName || r.name || r.staffName || r.leader || r.recipientName || r.to || r.manager || '미지정';}
+  function msgOfC(r){return r.message || r.correctionMessage || r.text || r.body || r.content || r.note || r.reason || '';}
+  function typeOfC(r){
+    const t=String(r.type || r.messageType || r.kind || '').trim();
+    if(t) return t;
+    if(r.auto === true || r.isAuto === true || r.source === 'auto' || r.source === 'auto_correction') return 'auto';
+    return 'manual';
+  }
+  function statusOfC(r){
+    if(r.read === true || r.correctionRead === true) return '읽음';
+    if(r.status) return r.status;
+    if(r.read === false) return '안읽음';
+    return '-';
+  }
+
+  window.rbcToggleCorrectionAudit = function(){
+    const body=document.getElementById('rbcCorrectionAuditBody');
+    if(body) body.style.display = body.style.display === 'none' ? 'block' : 'none';
+  };
+
+  async function getCollectionSafe(name){
+    try{
+      const snap = await db.collection(name).get();
+      const rows=[];
+      snap.forEach(function(doc){ rows.push({id:doc.id, __source:name, ...(doc.data()||{})}); });
+      return rows;
+    }catch(e){
+      console.warn('correction audit collection skip', name, e);
+      return [];
+    }
+  }
+
+  window.rbcLoadCorrectionAudit = async function(){
+    const tbody=document.getElementById('rbcCorrectionAuditTbody');
+    const summary=document.getElementById('rbcCorrectionAuditSummary');
+    const dateEl=document.getElementById('rbcCorrectionAuditDate');
+    const keyEl=document.getElementById('rbcCorrectionAuditKeyword');
+    if(!tbody || typeof db === 'undefined') return;
+
+    if(dateEl && !dateEl.value) dateEl.value = ymdC(new Date());
+    const dateVal = dateEl ? dateEl.value : '';
+    const keyword = (keyEl ? keyEl.value : '').trim().toLowerCase();
+
+    tbody.innerHTML='<tr><td colspan="6">보완메세지 발송내역 불러오는 중...</td></tr>';
+    if(summary) summary.innerHTML='<span class="rbc-correction-audit-chip info">조회 중</span>';
+
+    try{
+      const rows = []
+        .concat(await getCollectionSafe('adminMessages'))
+        .concat(await getCollectionSafe('autoCorrectionLogs'));
+
+      const filtered = rows.filter(function(r){
+        const d=dateOfC(r);
+        if(dateVal && ymdC(d)!==dateVal) return false;
+        const hay=[targetOfC(r), msgOfC(r), typeOfC(r), r.store, r.brand, r.workType, r.__source].join(' ').toLowerCase();
+        if(keyword && !hay.includes(keyword)) return false;
+        return true;
+      }).sort(function(a,b){return dateOfC(b)-dateOfC(a);});
+
+      const autoCount=filtered.filter(function(r){return /auto|자동|night|9pm/i.test(typeOfC(r)+' '+r.source+' '+r.__source);}).length;
+      const unreadCount=filtered.filter(function(r){return r.read === false || r.correctionRead === false || String(r.status||'').toLowerCase()==='unread';}).length;
+
+      if(summary){
+        summary.innerHTML =
+          '<span class="rbc-correction-audit-chip info">전체 '+filtered.length+'건</span>'+ 
+          '<span class="rbc-correction-audit-chip warn">자동 '+autoCount+'건</span>'+ 
+          '<span class="rbc-correction-audit-chip">안읽음 '+unreadCount+'건</span>'+ 
+          '<span class="rbc-correction-audit-chip ok">기준일 '+escC(dateVal || '전체')+'</span>';
+      }
+
+      if(!filtered.length){
+        tbody.innerHTML='<tr><td colspan="6">조회된 보완메세지 발송내역이 없습니다.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML=filtered.slice(0,200).map(function(r){
+        const d=dateOfC(r);
+        return '<tr>'+ 
+          '<td>'+escC(d && !isNaN(d.getTime()) ? d.toLocaleString() : '-')+'</td>'+ 
+          '<td><b>'+escC(targetOfC(r))+'</b><br><span class="rbc-correction-audit-small">'+escC(r.store || r.storeName || '')+'</span></td>'+ 
+          '<td>'+escC(typeOfC(r))+'</td>'+ 
+          '<td>'+escC(msgOfC(r)).replace(/\n/g,'<br>')+'</td>'+ 
+          '<td>'+escC(statusOfC(r))+'</td>'+ 
+          '<td>'+escC(r.__source || r.source || '-')+'</td>'+ 
+        '</tr>';
+      }).join('');
+    }catch(e){
+      tbody.innerHTML='<tr><td colspan="6" style="color:#991b1b;font-weight:900">보완메세지 발송내역 조회 실패: '+escC(e.message||e)+'</td></tr>';
+      if(summary) summary.innerHTML='<span class="rbc-correction-audit-chip">조회 실패</span>';
+    }
+  };
+
+  window.sendAdminDirectMessageForce = async function(){
+    var nameEl = document.getElementById('adminDirectMessageTarget');
+    var textEl = document.getElementById('adminDirectMessageText');
+    var targetName = nameEl ? nameEl.value.trim() : '';
+    var message = textEl ? textEl.value.trim() : '';
+
+    if(!targetName){ alert('직원명을 입력하세요.'); return; }
+    if(!message){ alert('메세지 내용을 입력하세요.'); return; }
+
+    var base = {
+      targetName: targetName,
+      name: targetName,
+      staffName: targetName,
+      recipientName: targetName,
+      message: message,
+      correctionMessage: message,
+      title: '관리자 보완요청',
+      type: 'direct',
+      messageType: 'correction',
+      status: 'unread',
+      read: false,
+      correctionRead: false,
+      correctionResolved: false,
+      active: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAtText: new Date().toISOString(),
+      sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+      sentAtText: new Date().toISOString(),
+      sentBy: '관리자',
+      source: 'admin_direct_message_compat_v1'
+    };
+
+    try{
+      var docRef = await db.collection('adminMessages').add(base);
+
+      // 직원용/팀장앱 쪽이 다른 컬렉션을 읽는 경우도 대비해 호환 사본을 남깁니다.
+      // 실패해도 기본 adminMessages 저장은 유지됩니다.
+      var copy = Object.assign({}, base, {adminMessageId: docRef.id});
+      delete copy.createdAt;
+      delete copy.sentAt;
+      try{ await db.collection('employeeMessages').doc(docRef.id).set(Object.assign({}, copy, {createdAtText: base.createdAtText, sentAtText: base.sentAtText}), {merge:true}); }catch(e){ console.warn('employeeMessages copy skipped', e); }
+      try{ await db.collection('teamMessages').doc(docRef.id).set(Object.assign({}, copy, {createdAtText: base.createdAtText, sentAtText: base.sentAtText}), {merge:true}); }catch(e){ console.warn('teamMessages copy skipped', e); }
+      try{ await db.collection('adminMessageLogs').doc(docRef.id).set(Object.assign({}, copy, {createdAtText: base.createdAtText, sentAtText: base.sentAtText}), {merge:true}); }catch(e){ console.warn('adminMessageLogs copy skipped', e); }
+
+      alert(targetName + '님의 직원용/팀장앱 보완요청함에 메세지를 보냈습니다.');
+      var modal=document.getElementById('adminDirectMessageModal');
+      if(modal) modal.style.display='none';
+      if(typeof rbcLoadCorrectionAudit === 'function') setTimeout(rbcLoadCorrectionAudit, 300);
+    }catch(err){
+      alert('메세지 저장 실패:\n\n' + (err.message || err));
+    }
+  };
+
+  function placeAuditBox(){
+    const box=document.getElementById('rbcCorrectionAuditBox');
+    if(!box) return;
+    const sections=Array.from(document.querySelectorAll('.section'));
+    const schedule=sections.find(function(s){return (s.innerText||'').includes('구글 일정 승인 시스템');});
+    if(schedule && box.nextElementSibling !== schedule){
+      schedule.parentNode.insertBefore(box, schedule);
+    }
+    box.style.display='';
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    const dateEl=document.getElementById('rbcCorrectionAuditDate');
+    if(dateEl && !dateEl.value) dateEl.value=ymdC(new Date());
+    placeAuditBox();
+    setTimeout(rbcLoadCorrectionAudit, 1200);
+  });
+  setTimeout(placeAuditBox, 400);
+  setTimeout(placeAuditBox, 1500);
 })();
 </script>
