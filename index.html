@@ -10944,6 +10944,96 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 <!-- /RAVEBIC_SCHEDULE_EXCEL_FALLBACK_AND_MESSAGE_COMPAT_V9 -->
 
+
+<!-- RAVEBIC_SCHEDULE_EXCEL_ONLY_FINAL_OVERRIDE_V10 -->
+<script>
+(function(){
+  if(window.__RBC_SCHEDULE_EXCEL_ONLY_FINAL_OVERRIDE_V10__) return;
+  window.__RBC_SCHEDULE_EXCEL_ONLY_FINAL_OVERRIDE_V10__ = true;
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>\"']/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[s];});}
+  function setStatus(msg){
+    var st=document.getElementById('googleScheduleStatus');
+    if(st) st.innerHTML=msg;
+    var fb=document.getElementById('rbcScheduleExcelFallbackStatus');
+    if(fb) fb.innerHTML=msg;
+  }
+  function ensureFallbackBox(){
+    if(typeof addExcelFallbackPanel === 'function'){
+      try{ addExcelFallbackPanel(); }catch(e){}
+    }
+    if(!document.getElementById('rbcScheduleExcelFallbackBox')){
+      var sections=Array.from(document.querySelectorAll('.section'));
+      var schedule=sections.find(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>-1;});
+      if(schedule){
+        var status=document.getElementById('googleScheduleStatus');
+        var box=document.createElement('div');
+        box.id='rbcScheduleExcelFallbackBox';
+        box.style.cssText='margin-top:12px;padding:12px;border:1px solid #b8d3fb;border-radius:12px;background:#eef6ff;';
+        box.innerHTML='<h3 style="margin:0 0 8px;color:#123f7a">일정표 엑셀 직접 반영</h3>'+
+          '<div style="font-size:13px;line-height:1.5;color:#123f7a;margin-bottom:8px">Apps Script 시간초과/HTTP 408이 반복되어, 이제 이 버튼 영역은 <b>엑셀 직접 반영 방식</b>으로 동작합니다. 구글시트에서 <b>파일 → 다운로드 → Microsoft Excel(.xlsx)</b>로 저장한 뒤 선택하세요.</div>'+
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><input id="rbcScheduleExcelFileInput" type="file" accept=".xlsx,.xls" style="padding:10px;border:1px solid #b8d3fb;border-radius:10px;background:#fff"><button class="green" type="button" onclick="rbcImportScheduleExcelFallback()">선택한 엑셀 일정표 직접 반영</button></div>'+
+          '<div id="rbcScheduleExcelFallbackStatus" style="margin-top:8px;padding:8px;border:1px solid #b8d3fb;border-radius:10px;background:#fff;color:#123f7a;font-weight:800">엑셀 파일을 선택 후 직접 반영을 누르세요.</div>';
+        if(status && status.parentNode) status.parentNode.insertBefore(box,status.nextSibling); else schedule.appendChild(box);
+      }
+    }
+  }
+
+  async function saveApprovedAddressOnly(){
+    try{
+      if(typeof db === 'undefined') return;
+      var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:(typeof latestGoogleSchedulePdfUrl!=='undefined'?latestGoogleSchedulePdfUrl:''));
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),
+        range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),
+        pdfUrl:url,
+        scheduleUrl:url,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText:new Date().toISOString(),
+        approvedBy:sessionStorage.getItem('ravebicAdminStaffName')||'관리자',
+        source:'address_only_excel_import_required'
+      },{merge:true});
+    }catch(e){console.warn(e);}
+  }
+
+  window.loadGoogleSchedule = async function(){
+    ensureFallbackBox();
+    await saveApprovedAddressOnly();
+    setStatus('Apps Script 자동 읽기는 HTTP 408/Failed to fetch 때문에 중지했습니다. 구글시트에서 xlsx로 다운로드한 파일을 아래에서 직접 반영하세요.');
+    alert('현재 Apps Script 자동 읽기는 시간초과로 막혀 있습니다.\n\n구글시트에서 파일 → 다운로드 → Microsoft Excel(.xlsx)로 저장한 뒤, 아래 [일정표 엑셀 직접 반영]에 파일을 넣어주세요.');
+  };
+
+  window.approveGoogleSchedule = async function(){
+    ensureFallbackBox();
+    var input=document.getElementById('rbcScheduleExcelFileInput');
+    if(input && input.files && input.files[0] && typeof window.rbcImportScheduleExcelFallback === 'function'){
+      return window.rbcImportScheduleExcelFallback();
+    }
+    await saveApprovedAddressOnly();
+    setStatus('승인 주소는 저장했습니다. 분석표 반영은 아래 엑셀 파일을 선택한 뒤 [선택한 엑셀 일정표 직접 반영]을 눌러주세요.');
+    alert('분석표 반영은 엑셀 직접 반영으로 진행합니다.\n\n1) 구글시트에서 파일 → 다운로드 → Microsoft Excel(.xlsx)\n2) 아래 파일 선택\n3) [선택한 엑셀 일정표 직접 반영] 클릭');
+  };
+
+  function rewireButtons(){
+    ensureFallbackBox();
+    var sections=Array.from(document.querySelectorAll('.section'));
+    var schedule=sections.find(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>-1;});
+    if(!schedule) return;
+    Array.from(schedule.querySelectorAll('button')).forEach(function(btn){
+      var t=(btn.innerText||'').replace(/\s+/g,'').trim();
+      if(t.indexOf('구글일정불러오기')>-1){btn.onclick=window.loadGoogleSchedule; btn.setAttribute('onclick','loadGoogleSchedule()');}
+      if(t.indexOf('직원용일정표승인반영')>-1){btn.onclick=window.approveGoogleSchedule; btn.setAttribute('onclick','approveGoogleSchedule()');}
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){setTimeout(rewireButtons,200);setTimeout(rewireButtons,1000);setTimeout(rewireButtons,2500);});
+  setTimeout(rewireButtons,500);
+  setTimeout(rewireButtons,1800);
+  setInterval(rewireButtons,3000);
+})();
+</script>
+<!-- /RAVEBIC_SCHEDULE_EXCEL_ONLY_FINAL_OVERRIDE_V10 -->
+
 </body></html>
 
 <!-- RAVEBIC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625 -->
