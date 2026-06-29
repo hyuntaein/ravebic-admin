@@ -12167,3 +12167,188 @@ window.debugTeamScheduleDate = async function(dateStr){
   setTimeout(function(){ window.rbcProtectNoDocumentSubmissions(); }, 5000);
 })();
 </script>
+
+<!-- RAVEBIC_FINAL_APPROVAL_NO_APPS_SCRIPT_FETCH_V13 -->
+<script>
+(function(){
+  if(window.__RBC_FINAL_APPROVAL_NO_APPS_SCRIPT_FETCH_V13__) return;
+  window.__RBC_FINAL_APPROVAL_NO_APPS_SCRIPT_FETCH_V13__ = true;
+
+  function rbcEsc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+
+  function rbcScheduleSection(){
+    return Array.from(document.querySelectorAll('.section')).find(function(s){
+      return (s.innerText || '').indexOf('구글 일정 승인 시스템') > -1;
+    });
+  }
+
+  function rbcEnsureApprovalBox(){
+    var section = rbcScheduleSection();
+    if(!section) return null;
+
+    var oldWarns = section.querySelectorAll('#rbcScheduleExcelFallbackBox');
+    oldWarns.forEach(function(el){ el.style.display = 'none'; });
+
+    var box = document.getElementById('rbcScheduleFinalApprovalBox');
+    if(!box){
+      box = document.createElement('div');
+      box.id = 'rbcScheduleFinalApprovalBox';
+      box.style.cssText = 'margin-top:12px;padding:12px;border:1px solid #b8d3fb;border-radius:12px;background:#eef6ff;color:#123f7a;line-height:1.55;';
+      box.innerHTML = '<b>일정 승인 운영 상태</b><div id="rbcScheduleFinalApprovalStatus" style="margin-top:8px;padding:9px;border:1px solid #b8d3fb;border-radius:10px;background:#fff;font-weight:800;">자동수집 상태 확인을 눌러주세요.</div>';
+      var lastInfo = document.getElementById('lastApprovedInfo');
+      if(lastInfo && lastInfo.parentNode) lastInfo.parentNode.insertBefore(box, lastInfo.nextSibling);
+      else section.appendChild(box);
+    }
+    return box;
+  }
+
+  function rbcSetScheduleStatus(html){
+    rbcEnsureApprovalBox();
+    var ids = ['googleScheduleStatus','rbcScheduleApprovalStatus','rbcAutoScheduleStatus','rbcScheduleFinalApprovalStatus'];
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.innerHTML = html;
+    });
+  }
+
+  async function rbcGetLatestRun(){
+    if(typeof db === 'undefined') throw new Error('Firebase DB 연결을 찾지 못했습니다.');
+    var doc = await db.collection('settings').doc('teamScheduleLatestRun').get();
+    return doc.exists ? (doc.data() || {}) : null;
+  }
+
+  async function rbcCountPending(){
+    var snap = await db.collection('pendingTeamSchedules').limit(5000).get();
+    return snap.size;
+  }
+
+  window.loadGoogleSchedule = async function(){
+    try{
+      rbcEnsureApprovalBox();
+      var latest = await rbcGetLatestRun();
+      var pending = await rbcCountPending();
+      var msg = '자동수집 상태 확인 완료<br>' +
+        '상태: ' + rbcEsc(latest && latest.ok ? '정상' : '확인 필요') + '<br>' +
+        '시트: ' + rbcEsc((latest && latest.sheetName) || '-') + '<br>' +
+        '대기 일정: ' + pending.toLocaleString() + '건<br>' +
+        '저장 일정: ' + rbcEsc((latest && latest.count) || '-') + '건<br>' +
+        '팀장 수: ' + rbcEsc((latest && latest.leaders) || '-') + '명<br>' +
+        '마지막 수집: ' + rbcEsc((latest && latest.savedAtText) || '-') + '<br>' +
+        '메시지: ' + rbcEsc((latest && latest.message) || '-');
+      rbcSetScheduleStatus(msg);
+      alert('자동수집 상태 확인 완료\n\n대기 일정: ' + pending.toLocaleString() + '건\n마지막 수집: ' + ((latest && latest.savedAtText) || '-') + '\n\n승인하려면 [직원용 일정표 승인 반영]을 누르세요.');
+    }catch(e){
+      rbcSetScheduleStatus('자동수집 상태 확인 실패: ' + rbcEsc(e.message || e));
+      alert('자동수집 상태 확인 실패:\n' + (e.message || e));
+    }
+  };
+
+  window.downloadGoogleScheduleExcel = window.loadGoogleSchedule;
+
+  window.approveGoogleSchedule = async function(){
+    rbcEnsureApprovalBox();
+    if(typeof db === 'undefined'){
+      alert('Firebase DB 연결을 찾지 못했습니다.');
+      return;
+    }
+
+    try{
+      rbcSetScheduleStatus('승인 반영 중... pendingTeamSchedules → teamSchedules');
+
+      var qs = await db.collection('pendingTeamSchedules').limit(5000).get();
+      if(qs.empty){
+        rbcSetScheduleStatus('승인할 대기 일정이 없습니다. 자동수집 상태를 먼저 확인하세요.');
+        alert('승인할 대기 일정이 없습니다.\n\nApps Script 자동수집이 pendingTeamSchedules에 일정을 저장한 뒤 승인할 수 있습니다.');
+        return;
+      }
+
+      var docs = [];
+      qs.forEach(function(doc){ docs.push(doc); });
+
+      var approvedBy = sessionStorage.getItem('ravebicAdminStaffName') || '관리자';
+      var approvedAtText = new Date().toISOString();
+      var done = 0;
+
+      for(var i=0; i<docs.length; i+=240){
+        var batch = db.batch();
+        docs.slice(i, i+240).forEach(function(doc){
+          var data = doc.data() || {};
+          data.approved = true;
+          data.approvedAt = firebase.firestore.FieldValue.serverTimestamp();
+          data.approvedAtText = approvedAtText;
+          data.approvedBy = approvedBy;
+          data.source = data.source || 'pendingTeamSchedules';
+          batch.set(db.collection('teamSchedules').doc(doc.id), data, {merge:true});
+          batch.delete(db.collection('pendingTeamSchedules').doc(doc.id));
+          done++;
+        });
+        await batch.commit();
+        rbcSetScheduleStatus('승인 반영 중... ' + done.toLocaleString() + ' / ' + docs.length.toLocaleString() + '건 처리');
+      }
+
+      await db.collection('settings').doc('approvedSchedule').set({
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText: approvedAtText,
+        approvedBy: approvedBy,
+        approvedCount: done,
+        source: 'pendingTeamSchedules',
+        mode: 'firestore_pending_to_teamSchedules'
+      }, {merge:true});
+
+      var info = document.getElementById('lastApprovedInfo');
+      if(info){
+        info.innerHTML = '마지막 승인: ' + new Date().toLocaleString() + '<br>승인자: ' + rbcEsc(approvedBy) + '<br>반영 건수: ' + done.toLocaleString() + '건';
+      }
+
+      rbcSetScheduleStatus('승인 반영 완료: ' + done.toLocaleString() + '건이 teamSchedules에 반영되었습니다.');
+      alert('직원용 일정표 승인 반영 완료\n\n반영 건수: ' + done.toLocaleString() + '건');
+
+      if(typeof loadTeamScheduleAnalysis === 'function') setTimeout(loadTeamScheduleAnalysis, 400);
+      if(typeof rbcLoadAlertCenter === 'function') setTimeout(rbcLoadAlertCenter, 700);
+      if(typeof rbcLoadScore === 'function') setTimeout(rbcLoadScore, 1000);
+      if(typeof rbcLoadMonthly === 'function') setTimeout(rbcLoadMonthly, 1200);
+    }catch(e){
+      rbcSetScheduleStatus('승인 반영 실패: ' + rbcEsc(e.message || e));
+      alert('승인 반영 실패:\n' + (e.message || e));
+    }
+  };
+
+  function rbcRewireScheduleButtons(){
+    var section = rbcScheduleSection();
+    if(!section) return;
+    rbcEnsureApprovalBox();
+    Array.from(section.querySelectorAll('button')).forEach(function(btn){
+      var t = (btn.innerText || '').replace(/\s+/g,'');
+      if(t.indexOf('구글일정불러오기') > -1 || t.indexOf('자동수집상태확인') > -1 || t.indexOf('최신반영정보확인') > -1){
+        btn.innerText = '자동수집 상태 확인';
+        btn.onclick = window.loadGoogleSchedule;
+        btn.setAttribute('onclick','loadGoogleSchedule()');
+      }
+      if(t.indexOf('직원용일정표승인반영') > -1 || t.indexOf('적용용일정표승인반영') > -1 || t.indexOf('분석표새로고침') > -1){
+        btn.innerText = '직원용 일정표 승인 반영';
+        btn.onclick = window.approveGoogleSchedule;
+        btn.setAttribute('onclick','approveGoogleSchedule()');
+      }
+      if(t.indexOf('불러온일정PDF다시열기') > -1 || t.indexOf('일정표엑셀직접반영') > -1){
+        btn.innerText = '자동수집 상태 확인';
+        btn.onclick = window.loadGoogleSchedule;
+        btn.setAttribute('onclick','loadGoogleSchedule()');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(rbcRewireScheduleButtons, 100);
+    setTimeout(rbcRewireScheduleButtons, 700);
+    setTimeout(rbcRewireScheduleButtons, 1800);
+  });
+  setTimeout(rbcRewireScheduleButtons, 300);
+  setTimeout(rbcRewireScheduleButtons, 1200);
+  setInterval(rbcRewireScheduleButtons, 2500);
+})();
+</script>
+<!-- /RAVEBIC_FINAL_APPROVAL_NO_APPS_SCRIPT_FETCH_V13 -->
