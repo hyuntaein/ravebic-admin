@@ -10614,6 +10614,322 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_SCHEDULE_LIGHT_AND_MESSAGE_COMPAT_V8_20260629 -->
+<script>
+/*
+  RAVEBIC_SCHEDULE_LIGHT_AND_MESSAGE_COMPAT_V8_20260629
+  - 기존 배치/화면은 변경하지 않고 함수만 보강합니다.
+  - 구글 일정 승인: Apps Script에 가벼운 importOnly 호출을 먼저 보내고, Firestore teamSchedules 반영 여부를 확인합니다.
+  - 직접 보완메세지: 직원용이 읽을 가능성이 높은 컬렉션 + submissions 보완요청 문서까지 같이 저장합니다.
+*/
+(function(){
+  if(window.__RBC_SCHEDULE_LIGHT_AND_MESSAGE_COMPAT_V8__) return;
+  window.__RBC_SCHEDULE_LIGHT_AND_MESSAGE_COMPAT_V8__ = true;
+
+  function rbcEsc(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+
+  function rbcYmd(d){
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function rbcWait(ms){
+    return new Promise(function(resolve){ setTimeout(resolve, ms); });
+  }
+
+  async function rbcGetTeamScheduleCount(){
+    try{
+      var snap = await db.collection('teamSchedules').get();
+      var count = 0;
+      var dates = {};
+      snap.forEach(function(doc){
+        var d = doc.data() || {};
+        if(d.active === false) return;
+        count++;
+        if(d.scheduleDate) dates[String(d.scheduleDate)] = (dates[String(d.scheduleDate)] || 0) + 1;
+      });
+      var dateList = Object.keys(dates).sort();
+      var latest = dateList[dateList.length - 1] || '';
+      return {count:count, latest:latest, latestCount:latest ? dates[latest] : 0};
+    }catch(e){
+      return {count:0, latest:'', latestCount:0, error:e.message || String(e)};
+    }
+  }
+
+  function rbcFireAndForgetAppsScript(url){
+    return new Promise(function(resolve){
+      try{
+        var img = new Image();
+        var done = false;
+        var finish = function(ok){
+          if(done) return;
+          done = true;
+          resolve(ok);
+        };
+        img.onload = function(){ finish(true); };
+        img.onerror = function(){ finish(false); };
+        img.src = url;
+        setTimeout(function(){ finish(true); }, 5000);
+      }catch(e){
+        resolve(false);
+      }
+    });
+  }
+
+  async function rbcCallLightImport(){
+    var base = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (window.latestGoogleSchedulePdfUrl || ''));
+    if(!base) throw new Error('Apps Script 주소가 없습니다.');
+    var sep = base.indexOf('?') >= 0 ? '&' : '?';
+
+    var urls = [
+      base + sep + 'mode=importOnly&light=1&noPdf=1&v=' + Date.now(),
+      base + sep + 'mode=json&light=1&noPdf=1&v=' + Date.now(),
+      base + sep + 'rbcImport=1&light=1&noPdf=1&v=' + Date.now()
+    ];
+
+    var lastError = '';
+    for(var i=0;i<urls.length;i++){
+      var u = urls[i];
+
+      try{
+        var controller = new AbortController();
+        var timer = setTimeout(function(){ try{controller.abort();}catch(e){} }, 25000);
+        var res = await fetch(u, {cache:'no-store', signal:controller.signal});
+        clearTimeout(timer);
+
+        var text = await res.text().catch(function(){return '';});
+        if(res.ok){
+          return {ok:true, mode:'fetch', url:u, text:text.slice(0,500)};
+        }
+        lastError = 'HTTP ' + res.status;
+      }catch(e){
+        lastError = e.message || String(e);
+      }
+
+      // CORS 또는 408일 때도 Apps Script 서버 실행은 시작될 수 있게 백업 호출
+      await rbcFireAndForgetAppsScript(u);
+    }
+
+    return {ok:false, message:lastError || 'Apps Script 호출 실패'};
+  }
+
+  window.approveGoogleSchedule = async function(){
+    var status = document.getElementById('googleScheduleStatus');
+    var info = document.getElementById('lastApprovedInfo');
+    var approver = window.rbcSelectedOfficeStaffName || sessionStorage.getItem('ravebicAdminStaffName') || '인현태';
+    var url = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (window.latestGoogleSchedulePdfUrl || ''));
+
+    try{
+      if(status) status.textContent = '직원용 일정 주소 저장 중...';
+
+      await db.collection('settings').doc('approvedSchedule').set({
+        sheetName: (typeof latestGoogleScheduleSheetName !== 'undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
+        range: (typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        pdfUrl: url,
+        scheduleUrl: url,
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText: new Date().toISOString(),
+        approvedBy: approver,
+        source: 'admin_light_import_v8'
+      }, {merge:true});
+
+      var before = await rbcGetTeamScheduleCount();
+
+      if(status) status.textContent = '직원용 주소 저장 완료 · Apps Script 경량 반영 호출 중...';
+      var callResult = await rbcCallLightImport();
+
+      if(status) status.textContent = 'Apps Script 반영 확인 중... 잠시 기다려주세요.';
+      await rbcWait(7000);
+
+      var after = await rbcGetTeamScheduleCount();
+      var increased = Math.max(0, after.count - before.count);
+
+      if(info){
+        info.innerHTML =
+          '마지막 승인: ' + new Date().toLocaleString() +
+          '<br>승인자: ' + rbcEsc(approver) +
+          '<br>직원용 일정 주소 저장 완료' +
+          '<br>teamSchedules 현재 전체: ' + Number(after.count || 0).toLocaleString() + '건' +
+          '<br>최신 일정일: ' + rbcEsc(after.latest || '-') + ' / ' + Number(after.latestCount || 0).toLocaleString() + '건';
+      }
+
+      if(typeof loadTeamScheduleRows === 'function') await loadTeamScheduleRows().catch(function(){});
+      if(typeof loadTeamScheduleAnalysis === 'function') await loadTeamScheduleAnalysis().catch(function(){});
+      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+      if(typeof rbcLoadScore === 'function') rbcLoadScore();
+
+      if(status) status.textContent = '승인 저장 완료 · teamSchedules ' + Number(after.count || 0).toLocaleString() + '건 확인';
+
+      if(after.count > 0){
+        alert('직원용 일정 주소 저장 및 일정 반영 확인 완료\n\nteamSchedules 전체 ' + Number(after.count || 0).toLocaleString() + '건\n최신 일정일 ' + (after.latest || '-') + ' / ' + Number(after.latestCount || 0).toLocaleString() + '건');
+      }else{
+        alert('직원용 일정 주소 저장은 완료됐지만 teamSchedules가 0건입니다.\n\nApps Script가 importOnly/json 경량 모드를 지원해야 분석표가 살아납니다.\n현재 호출 결과: ' + (callResult.message || callResult.text || '확인 불가'));
+      }
+
+    }catch(e){
+      if(status) status.textContent = '승인/일정 반영 실패';
+      if(info){
+        info.innerHTML = '마지막 시도: ' + new Date().toLocaleString() + '<br>실패 원인: ' + rbcEsc(e.message || e);
+      }
+      alert('일정 승인 반영 실패:\n\n' + (e.message || e));
+    }
+  };
+
+  async function rbcSaveCompatCorrectionMessage(targetName, message, extra){
+    var nowIso = new Date().toISOString();
+    var base = Object.assign({
+      targetName: targetName,
+      name: targetName,
+      staffName: targetName,
+      recipientName: targetName,
+      leader: targetName,
+      to: targetName,
+      message: message,
+      correctionMessage: message,
+      text: message,
+      body: message,
+      content: message,
+      type: 'direct',
+      messageType: 'correction',
+      kind: 'correction',
+      category: '보완요청',
+      status: 'unread',
+      read: false,
+      correctionRead: false,
+      correctionResolved: false,
+      active: true,
+      visible: true,
+      source: 'admin_direct_compat_v8',
+      sentBy: '관리자',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+      requestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      createdAtText: nowIso,
+      sentAtText: nowIso,
+      requestedAtText: nowIso
+    }, extra || {});
+
+    var collections = [
+      'adminMessages',
+      'staffMessages',
+      'correctionRequests',
+      'staffCorrectionRequests',
+      'correctionMessages',
+      'employeeMessages',
+      'messages'
+    ];
+
+    var saved = [];
+    for(var i=0;i<collections.length;i++){
+      try{
+        await db.collection(collections[i]).add(base);
+        saved.push(collections[i]);
+      }catch(e){
+        console.warn('compat message save skipped: ' + collections[i], e);
+      }
+    }
+
+    // 직원용 앱이 submissions의 status/correctionMessage만 보는 버전도 있어서 직접메세지를 보완요청 제출문서로도 남깁니다.
+    try{
+      await db.collection('submissions').add({
+        name: targetName,
+        staffName: targetName,
+        store: (extra && extra.store) || '관리자 직접메세지',
+        storeName: (extra && extra.store) || '관리자 직접메세지',
+        region: (extra && extra.region) || '기타지역',
+        brand: (extra && extra.brand) || '기타',
+        workType: '보완요청',
+        note: message,
+        status: '보완요청',
+        correctionMessage: message,
+        correctionRead: false,
+        correctionResolved: false,
+        adminDirectMessage: true,
+        files: [],
+        submittedAtText: nowIso,
+        date: nowIso,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        createdAtText: nowIso,
+        source: 'admin_direct_submission_compat_v8'
+      });
+      saved.push('submissions');
+    }catch(e){
+      console.warn('submission compat save skipped', e);
+    }
+
+    return saved;
+  }
+
+  window.sendAdminDirectMessageForce = async function(){
+    var nameEl = document.getElementById('adminDirectMessageTarget');
+    var textEl = document.getElementById('adminDirectMessageText');
+    var targetName = nameEl ? nameEl.value.trim() : '';
+    var message = textEl ? textEl.value.trim() : '';
+
+    if(!targetName){ alert('직원명을 입력하세요.'); return; }
+    if(!message){ alert('메세지 내용을 입력하세요.'); return; }
+
+    try{
+      var saved = await rbcSaveCompatCorrectionMessage(targetName, message, {});
+      var modal = document.getElementById('adminDirectMessageModal');
+      if(modal) modal.style.display = 'none';
+      if(typeof rbcLoadCorrectionAudit === 'function') rbcLoadCorrectionAudit();
+      if(typeof loadData === 'function') loadData();
+      alert(targetName + '님의 직원용 보완요청함에 메세지를 보냈습니다.\n저장 위치: ' + saved.join(', '));
+    }catch(err){
+      alert('메세지 저장 실패:\n\n' + (err.message || err));
+    }
+  };
+
+  var oldSendCorrectionRequest = window.sendCorrectionRequest;
+  window.sendCorrectionRequest = async function(){
+    var id = window.pendingCorrectionId || pendingCorrectionId;
+    var message = (document.getElementById('correctionMessage') && document.getElementById('correctionMessage').value || '').trim();
+
+    if(!id || !message){
+      if(typeof oldSendCorrectionRequest === 'function') return oldSendCorrectionRequest.apply(this, arguments);
+      alert('보완요청 대상 또는 메시지가 없습니다.');
+      return;
+    }
+
+    var row = (window.allRows || allRows || []).find(function(x){ return x.id === id; }) || {};
+    try{
+      if(typeof oldSendCorrectionRequest === 'function'){
+        await oldSendCorrectionRequest.apply(this, arguments);
+      }else{
+        await db.collection('submissions').doc(id).update({
+          status:'보완요청',
+          correctionMessage:message,
+          correctionRequestedAt:firebase.firestore.FieldValue.serverTimestamp(),
+          correctionRequestedAtText:new Date().toISOString(),
+          correctionRead:false,
+          correctionResolved:false
+        });
+      }
+
+      await rbcSaveCompatCorrectionMessage(row.name || row.staffName || '', message, {
+        submissionId: id,
+        store: row.store || '',
+        storeName: row.store || '',
+        brand: row.brand || '',
+        region: row.region || '',
+        workType: row.workType || '',
+        type: 'manual_submission',
+        source: 'admin_submission_correction_compat_v8'
+      });
+
+      if(typeof rbcLoadCorrectionAudit === 'function') rbcLoadCorrectionAudit();
+    }catch(e){
+      alert('보완요청 저장 실패:\n\n' + (e.message || e));
+    }
+  };
+})();
+</script>
+<!-- /RAVEBIC_SCHEDULE_LIGHT_AND_MESSAGE_COMPAT_V8_20260629 -->
 </body></html>
 
 <!-- RAVEBIC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625 -->
