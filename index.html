@@ -6528,6 +6528,129 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+
+<!-- RAVEBIC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12 -->
+<style>
+#rbcScheduleExcelFallbackBox{display:none!important;}
+</style>
+<script>
+(function(){
+  if(window.__RBC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12__) return;
+  window.__RBC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12__ = true;
+
+  function esc(v){
+    return String(v==null?'':v).replace(/[&<>\"']/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[s];
+    });
+  }
+
+  function fmtDate(v){
+    try{
+      if(v && typeof v.toDate === 'function') return v.toDate().toLocaleString();
+      if(v) return new Date(v).toLocaleString();
+    }catch(e){}
+    return '-';
+  }
+
+  function hideExcelFallback(){
+    var box=document.getElementById('rbcScheduleExcelFallbackBox');
+    if(box) box.style.display='none';
+  }
+
+  async function readLatestRun(){
+    if(typeof db === 'undefined') throw new Error('Firebase DB 연결을 찾지 못했습니다.');
+    var doc = await db.collection('settings').doc('teamScheduleLatestRun').get();
+    if(!doc.exists) return null;
+    return doc.data() || {};
+  }
+
+  async function showScheduleSyncStatus(){
+    hideExcelFallback();
+    var st=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    if(st) st.textContent='Firestore 자동 일정 반영 상태 확인 중...';
+    try{
+      var d=await readLatestRun();
+      if(!d){
+        if(st) st.textContent='아직 Apps Script 자동 반영 기록이 없습니다. Apps Script의 installTrigger 실행 여부를 확인하세요.';
+        if(info) info.innerHTML='자동 반영 기록 없음';
+        return;
+      }
+      var count = d.count || d.savedCount || d.total || 0;
+      var leaders = d.leaders || d.leaderCount || 0;
+      var savedAt = fmtDate(d.savedAt || d.updatedAt || d.createdAt || d.savedAtText || d.updatedAtText);
+      var msg = d.message || (d.ok===false ? '자동 일정 반영 실패' : '자동 일정 반영 완료');
+      var source = d.sheetName || d.sourceFile || d.source || '-';
+      if(st) st.textContent = msg + ' · 저장 ' + Number(count).toLocaleString() + '건 · 팀장 ' + leaders + '명 · ' + savedAt;
+      if(info){
+        info.innerHTML =
+          '<b>Apps Script 자동 반영 상태</b><br>' +
+          '상태: ' + esc(msg) + '<br>' +
+          '최근 반영: ' + esc(savedAt) + '<br>' +
+          '저장 일정: ' + esc(Number(count).toLocaleString()) + '건<br>' +
+          '팀장 수: ' + esc(leaders) + '명<br>' +
+          '원본: ' + esc(source);
+      }
+      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+    }catch(e){
+      if(st) st.textContent='자동 반영 상태 확인 실패: '+(e.message||e);
+      if(info) info.innerHTML='자동 반영 상태 확인 실패: '+esc(e.message||e);
+    }
+  }
+
+  window.loadGoogleSchedule = async function(){
+    await showScheduleSyncStatus();
+  };
+
+  window.approveGoogleSchedule = async function(){
+    await showScheduleSyncStatus();
+    alert('이제 일정은 Apps Script 트리거가 Firestore(teamSchedules)에 자동 반영합니다.\n\n관리자앱에서는 최신 반영 상태만 확인합니다.');
+  };
+
+  window.downloadGoogleScheduleExcel = async function(){
+    await showScheduleSyncStatus();
+  };
+
+  function rewireScheduleButtons(){
+    hideExcelFallback();
+    var sections=Array.from(document.querySelectorAll('.section'));
+    var schedule=sections.find(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>-1;});
+    if(!schedule) return;
+    Array.from(schedule.querySelectorAll('button')).forEach(function(btn){
+      var t=(btn.innerText||'').replace(/\s+/g,'');
+      if(t.indexOf('구글일정불러오기')>-1){
+        btn.innerText='자동반영 상태 확인';
+        btn.onclick=window.loadGoogleSchedule;
+        btn.setAttribute('onclick','loadGoogleSchedule()');
+      }
+      if(t.indexOf('직원용일정표승인반영')>-1){
+        btn.innerText='분석표 새로고침';
+        btn.onclick=window.approveGoogleSchedule;
+        btn.setAttribute('onclick','approveGoogleSchedule()');
+      }
+      if(t.indexOf('불러온일정PDF다시열기')>-1){
+        btn.innerText='최신 반영정보 확인';
+        btn.onclick=window.downloadGoogleScheduleExcel;
+        btn.setAttribute('onclick','downloadGoogleScheduleExcel()');
+      }
+    });
+    var smalls=schedule.querySelectorAll('.rbc-schedule-fallback-small,#rbcScheduleExcelFallbackStatus');
+    smalls.forEach(function(el){el.style.display='none';});
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(rewireScheduleButtons,300);
+    setTimeout(showScheduleSyncStatus,1200);
+  });
+  setTimeout(rewireScheduleButtons,500);
+  setTimeout(rewireScheduleButtons,1500);
+  setInterval(rewireScheduleButtons,3000);
+})();
+</script>
+<!-- /RAVEBIC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12 -->
+
 </body></html>
 
 <!-- RAVEBIC_ULTRA_STABLE_FIX_20260616_PAGINATION_PAGE_SCHEDULE -->
@@ -11033,6 +11156,129 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 <!-- /RAVEBIC_SCHEDULE_EXCEL_ONLY_FINAL_OVERRIDE_V10 -->
+
+
+
+<!-- RAVEBIC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12 -->
+<style>
+#rbcScheduleExcelFallbackBox{display:none!important;}
+</style>
+<script>
+(function(){
+  if(window.__RBC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12__) return;
+  window.__RBC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12__ = true;
+
+  function esc(v){
+    return String(v==null?'':v).replace(/[&<>\"']/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[s];
+    });
+  }
+
+  function fmtDate(v){
+    try{
+      if(v && typeof v.toDate === 'function') return v.toDate().toLocaleString();
+      if(v) return new Date(v).toLocaleString();
+    }catch(e){}
+    return '-';
+  }
+
+  function hideExcelFallback(){
+    var box=document.getElementById('rbcScheduleExcelFallbackBox');
+    if(box) box.style.display='none';
+  }
+
+  async function readLatestRun(){
+    if(typeof db === 'undefined') throw new Error('Firebase DB 연결을 찾지 못했습니다.');
+    var doc = await db.collection('settings').doc('teamScheduleLatestRun').get();
+    if(!doc.exists) return null;
+    return doc.data() || {};
+  }
+
+  async function showScheduleSyncStatus(){
+    hideExcelFallback();
+    var st=document.getElementById('googleScheduleStatus');
+    var info=document.getElementById('lastApprovedInfo');
+    if(st) st.textContent='Firestore 자동 일정 반영 상태 확인 중...';
+    try{
+      var d=await readLatestRun();
+      if(!d){
+        if(st) st.textContent='아직 Apps Script 자동 반영 기록이 없습니다. Apps Script의 installTrigger 실행 여부를 확인하세요.';
+        if(info) info.innerHTML='자동 반영 기록 없음';
+        return;
+      }
+      var count = d.count || d.savedCount || d.total || 0;
+      var leaders = d.leaders || d.leaderCount || 0;
+      var savedAt = fmtDate(d.savedAt || d.updatedAt || d.createdAt || d.savedAtText || d.updatedAtText);
+      var msg = d.message || (d.ok===false ? '자동 일정 반영 실패' : '자동 일정 반영 완료');
+      var source = d.sheetName || d.sourceFile || d.source || '-';
+      if(st) st.textContent = msg + ' · 저장 ' + Number(count).toLocaleString() + '건 · 팀장 ' + leaders + '명 · ' + savedAt;
+      if(info){
+        info.innerHTML =
+          '<b>Apps Script 자동 반영 상태</b><br>' +
+          '상태: ' + esc(msg) + '<br>' +
+          '최근 반영: ' + esc(savedAt) + '<br>' +
+          '저장 일정: ' + esc(Number(count).toLocaleString()) + '건<br>' +
+          '팀장 수: ' + esc(leaders) + '명<br>' +
+          '원본: ' + esc(source);
+      }
+      if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
+      if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+    }catch(e){
+      if(st) st.textContent='자동 반영 상태 확인 실패: '+(e.message||e);
+      if(info) info.innerHTML='자동 반영 상태 확인 실패: '+esc(e.message||e);
+    }
+  }
+
+  window.loadGoogleSchedule = async function(){
+    await showScheduleSyncStatus();
+  };
+
+  window.approveGoogleSchedule = async function(){
+    await showScheduleSyncStatus();
+    alert('이제 일정은 Apps Script 트리거가 Firestore(teamSchedules)에 자동 반영합니다.\n\n관리자앱에서는 최신 반영 상태만 확인합니다.');
+  };
+
+  window.downloadGoogleScheduleExcel = async function(){
+    await showScheduleSyncStatus();
+  };
+
+  function rewireScheduleButtons(){
+    hideExcelFallback();
+    var sections=Array.from(document.querySelectorAll('.section'));
+    var schedule=sections.find(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>-1;});
+    if(!schedule) return;
+    Array.from(schedule.querySelectorAll('button')).forEach(function(btn){
+      var t=(btn.innerText||'').replace(/\s+/g,'');
+      if(t.indexOf('구글일정불러오기')>-1){
+        btn.innerText='자동반영 상태 확인';
+        btn.onclick=window.loadGoogleSchedule;
+        btn.setAttribute('onclick','loadGoogleSchedule()');
+      }
+      if(t.indexOf('직원용일정표승인반영')>-1){
+        btn.innerText='분석표 새로고침';
+        btn.onclick=window.approveGoogleSchedule;
+        btn.setAttribute('onclick','approveGoogleSchedule()');
+      }
+      if(t.indexOf('불러온일정PDF다시열기')>-1){
+        btn.innerText='최신 반영정보 확인';
+        btn.onclick=window.downloadGoogleScheduleExcel;
+        btn.setAttribute('onclick','downloadGoogleScheduleExcel()');
+      }
+    });
+    var smalls=schedule.querySelectorAll('.rbc-schedule-fallback-small,#rbcScheduleExcelFallbackStatus');
+    smalls.forEach(function(el){el.style.display='none';});
+  }
+
+  document.addEventListener('DOMContentLoaded',function(){
+    setTimeout(rewireScheduleButtons,300);
+    setTimeout(showScheduleSyncStatus,1200);
+  });
+  setTimeout(rewireScheduleButtons,500);
+  setTimeout(rewireScheduleButtons,1500);
+  setInterval(rewireScheduleButtons,3000);
+})();
+</script>
+<!-- /RAVEBIC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12 -->
 
 </body></html>
 
