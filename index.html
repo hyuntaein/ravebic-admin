@@ -10466,6 +10466,154 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 
+
+<!-- RAVEBIC_MESSAGE_COMPAT_FORCE_V3 -->
+<script>
+(function(){
+  if(window.__RAVEBIC_MESSAGE_COMPAT_FORCE_V3__) return;
+  window.__RAVEBIC_MESSAGE_COMPAT_FORCE_V3__ = true;
+
+  function nowIso(){ return new Date().toISOString(); }
+  function normName(v){ return String(v||'').replace(/\s+/g,'').trim(); }
+  function safeDocId(v){ return String(v||'').replace(/[\/\\#?\[\]*]/g,'_').replace(/\s+/g,'_').slice(0,120) || ('msg_'+Date.now()); }
+
+  async function saveCompatCorrectionMessage(base){
+    if(!window.db || !window.firebase || !firebase.firestore){ throw new Error('Firebase DB 연결을 찾지 못했습니다.'); }
+    var ts = firebase.firestore.FieldValue.serverTimestamp();
+    var id = base.id || ('direct_'+Date.now()+'_'+Math.random().toString(36).slice(2,8));
+    var targetName = base.targetName || base.name || base.staffName || base.recipientName || '';
+    var message = base.message || base.correctionMessage || '';
+    var doc = Object.assign({}, base, {
+      id: id,
+      targetName: targetName,
+      name: targetName,
+      staffName: targetName,
+      recipientName: targetName,
+      targetKey: normName(targetName),
+      message: message,
+      correctionMessage: message,
+      title: base.title || '관리자 보완요청',
+      type: base.type || 'direct',
+      messageType: 'correction',
+      category: 'correction',
+      status: base.status || 'unread',
+      read: false,
+      correctionRead: false,
+      correctionResolved: false,
+      active: true,
+      visibleToEmployee: true,
+      visibleToTeam: true,
+      sentBy: base.sentBy || '관리자',
+      source: base.source || 'admin_direct_message_compat_v3',
+      createdAt: ts,
+      sentAt: ts,
+      createdAtText: base.createdAtText || nowIso(),
+      sentAtText: base.sentAtText || nowIso()
+    });
+
+    var ref = await db.collection('adminMessages').add(doc);
+    var copy = Object.assign({}, doc, {adminMessageId: ref.id});
+    delete copy.createdAt;
+    delete copy.sentAt;
+
+    var targets = [
+      ['employeeMessages', ref.id],
+      ['staffMessages', ref.id],
+      ['teamMessages', ref.id],
+      ['correctionMessages', ref.id],
+      ['correctionRequests', ref.id],
+      ['adminMessageLogs', ref.id]
+    ];
+
+    for(var i=0;i<targets.length;i++){
+      try{
+        await db.collection(targets[i][0]).doc(targets[i][1]).set(copy, {merge:true});
+      }catch(e){
+        console.warn('compat message save skipped:', targets[i][0], e);
+      }
+    }
+    return ref;
+  }
+
+  window.rbcSaveCompatCorrectionMessage = saveCompatCorrectionMessage;
+
+  window.sendAdminDirectMessageForce = async function(){
+    var nameEl = document.getElementById('adminDirectMessageTarget');
+    var textEl = document.getElementById('adminDirectMessageText');
+    var targetName = nameEl ? nameEl.value.trim() : '';
+    var message = textEl ? textEl.value.trim() : '';
+
+    if(!targetName){ alert('직원명을 입력하세요.'); return; }
+    if(!message){ alert('메세지 내용을 입력하세요.'); return; }
+
+    try{
+      await saveCompatCorrectionMessage({
+        targetName: targetName,
+        message: message,
+        type: 'direct',
+        source: 'admin_direct_message_compat_v3'
+      });
+      alert(targetName + '님의 직원용/팀장앱 보완요청함에 메세지를 보냈습니다.');
+      var modal=document.getElementById('adminDirectMessageModal');
+      if(modal) modal.style.display='none';
+      if(typeof rbcLoadCorrectionAudit === 'function') setTimeout(rbcLoadCorrectionAudit, 300);
+    }catch(err){
+      alert('메세지 저장 실패:\n\n' + (err.message || err));
+    }
+  };
+
+  var originalSendCorrectionRequest = window.sendCorrectionRequest;
+  window.sendCorrectionRequest = async function(){
+    var id = window.correctionTargetId;
+    var message = (document.getElementById('correctionMessage') && document.getElementById('correctionMessage').value || '').trim();
+    var r = null;
+    try{
+      if(id && Array.isArray(window.allRows)) r = window.allRows.find(function(x){ return x.id === id; });
+      if(id && message){
+        await db.collection('submissions').doc(id).update({
+          status:'보완요청',
+          correctionMessage: message,
+          correctionRequestedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          correctionRequestedAtText: nowIso(),
+          correctionSubmittedAt: null,
+          correctionResolved: false,
+          correctionRead: false
+        });
+        if(r){
+          r.status='보완요청';
+          r.correctionMessage=message;
+          r.correctionRequestedAtText=nowIso();
+          r.correctionResolved=false;
+          r.correctionRead=false;
+        }
+        await saveCompatCorrectionMessage({
+          targetName: (r && (r.name || r.staffName || r.leader)) || '',
+          store: (r && (r.store || r.storeName)) || '',
+          brand: (r && r.brand) || '',
+          workType: (r && r.workType) || '',
+          submissionId: id,
+          message: message,
+          type: 'submission_correction',
+          source: 'admin_submission_correction_compat_v3'
+        });
+        var modal=document.getElementById('correctionModal');
+        if(modal) modal.style.display='none';
+        if(typeof applyFilters === 'function') applyFilters();
+        if(typeof rbcLoadAlertCenter === 'function') rbcLoadAlertCenter();
+        if(typeof rbcLoadCorrectionAudit === 'function') setTimeout(rbcLoadCorrectionAudit, 300);
+        alert('보완요청 메시지를 직원용/팀장앱으로 보냈습니다.');
+        return;
+      }
+    }catch(err){
+      alert('보완요청 저장 실패:\n\n' + (err.message || err));
+      return;
+    }
+
+    if(typeof originalSendCorrectionRequest === 'function') return originalSendCorrectionRequest.apply(this, arguments);
+  };
+})();
+</script>
+
 </body></html>
 
 <!-- RAVEBIC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625 -->
