@@ -6651,6 +6651,283 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 <!-- /RAVEBIC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12 -->
 
+
+
+<!-- RAVEBIC_FINAL_PENDING_TEAM_SAFE_PATCH_20260706 -->
+<script>
+/* RAVEBIC_FINAL_PENDING_TEAM_SAFE_PATCH_20260706
+   목적:
+   1) Apps Script 배포 없이도 기존 pendingTeamSchedules 데이터를 관리자 승인 버튼으로 teamSchedules에 반영
+   2) 분석표/알림센터는 teamSchedules + pendingTeamSchedules를 함께 읽어 빈 화면 방지
+   3) 기존 제출관리/직원관리/파일분석 기능은 건드리지 않음
+*/
+(function(){
+  if(window.__RBC_FINAL_PENDING_TEAM_SAFE_PATCH_20260706__) return;
+  window.__RBC_FINAL_PENDING_TEAM_SAFE_PATCH_20260706__ = true;
+
+  function rbcEscFinal(v){
+    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
+    });
+  }
+
+  window.rbcFetchScheduleDocsFinal = async function(dateStr){
+    if(typeof db === 'undefined') return [];
+    const collections = ['teamSchedules','pendingTeamSchedules'];
+    const merged = new Map();
+
+    for(const col of collections){
+      try{
+        let ref = db.collection(col);
+        if(dateStr) ref = ref.where('scheduleDate','==',dateStr);
+        const snap = await ref.get();
+        snap.forEach(function(doc){
+          const data = doc.data() || {};
+          const key = String(doc.id || [data.scheduleDate,data.leader,data.brand,data.store].join('_'));
+          merged.set(key, {
+            id: doc.id,
+            collection: col,
+            data: Object.assign({__sourceCollection: col}, data)
+          });
+        });
+      }catch(e){
+        console.warn('schedule collection read skipped:', col, e);
+      }
+    }
+
+    return Array.from(merged.values());
+  };
+
+  window.loadTeamScheduleRows = async function(dateStr){
+    try{
+      if(typeof loadRavebicValidStaffNames === 'function') await loadRavebicValidStaffNames();
+
+      const docs = await window.rbcFetchScheduleDocsFinal(dateStr);
+      const rawDocs = [];
+
+      docs.forEach(function(doc){
+        const d = doc.data || {};
+        rawDocs.push({
+          id: doc.id,
+          data: d,
+          scheduleDate: String(d.scheduleDate || '').trim(),
+          sheetName: String(d.sheetName || '').trim(),
+          sourceRange: String(d.sourceRange || '').trim(),
+          leaderOrderIndex: Number(d.leaderOrderIndex || 999999),
+          rowIndex: Number(d.rowIndex || d.orderIndex || d.row || 999999),
+          sourceCollection: doc.collection
+        });
+      });
+
+      function rangeStartNum(v){
+        const s = String(v || '');
+        const m = s.match(/[A-Z]+(\d+)/i);
+        return m ? Number(m[1]) : 999999;
+      }
+
+      rawDocs.sort(function(a,b){
+        return String(a.scheduleDate).localeCompare(String(b.scheduleDate)) ||
+               String(a.sheetName).localeCompare(String(b.sheetName)) ||
+               (rangeStartNum(a.sourceRange) - rangeStartNum(b.sourceRange)) ||
+               (a.rowIndex - b.rowIndex) ||
+               (a.leaderOrderIndex - b.leaderOrderIndex) ||
+               String(a.id).localeCompare(String(b.id));
+      });
+
+      const rows = [];
+      const lastLeaderByDateSheet = {};
+
+      rawDocs.forEach(function(item){
+        const d = item.data || {};
+        const badLeader = /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|교육|휴무|차량|타입변경|팀장휴무|담당휴무|마감|수정/;
+        const leaderText = String(d.leader || '').replace(/\s+/g,'');
+        const dateSheetKey = item.scheduleDate + '|' + item.sheetName;
+
+        let resolvedLeader = '';
+        if(typeof resolveRavebicScheduleLeader === 'function'){
+          resolvedLeader = resolveRavebicScheduleLeader(d);
+        }else{
+          resolvedLeader = String(d.leader || '').trim();
+        }
+
+        if(!resolvedLeader && lastLeaderByDateSheet[dateSheetKey]){
+          const storeText = String(d.store || '').replace(/\s+/g,'');
+          const rawText = String(d.rawText || d.text || d.memo || d.note || '').replace(/\s+/g,'');
+          const looksLikeStoreRow = !!storeText && !/휴무|교육|차량|마감|수정|사무실/.test(storeText) && !/휴무|교육|차량|마감|수정|사무실/.test(rawText);
+          if(looksLikeStoreRow) resolvedLeader = lastLeaderByDateSheet[dateSheetKey];
+        }
+
+        if(d.active === false) return;
+        if(badLeader.test(leaderText) && !resolvedLeader) return;
+        if(!resolvedLeader) return;
+
+        lastLeaderByDateSheet[dateSheetKey] = resolvedLeader;
+
+        rows.push(Object.assign({}, d, {
+          id: item.id,
+          scheduleDate: item.scheduleDate,
+          leader: resolvedLeader,
+          brand: String(d.brand || '').trim(),
+          store: String(d.store || '').trim(),
+          leaderOrderIndex: Number(d.leaderOrderIndex || 999999),
+          sourceCollection: item.sourceCollection
+        }));
+      });
+
+      window.teamScheduleRows = rows;
+      try{ teamScheduleRows = rows; }catch(e){}
+      return rows;
+    }catch(e){
+      console.error('final combined schedule load failed', e);
+      window.teamScheduleRows = [];
+      try{ teamScheduleRows = []; }catch(err){}
+      return [];
+    }
+  };
+
+  async function rbcCountFinal(col){
+    try{return (await db.collection(col).limit(5000).get()).size || 0;}catch(e){return 0;}
+  }
+
+  const oldLoadGoogleSchedule = window.loadGoogleSchedule;
+  window.loadGoogleSchedule = async function(){
+    try{
+      if(typeof rbcEnsureApprovalBox === 'function') rbcEnsureApprovalBox();
+      const pending = await rbcCountFinal('pendingTeamSchedules');
+      const team = await rbcCountFinal('teamSchedules');
+      let latest = null;
+      try{
+        const doc = await db.collection('settings').doc('teamScheduleLatestRun').get();
+        latest = doc.exists ? (doc.data() || {}) : null;
+      }catch(e){}
+      const msg = '자동수집/승인 상태 확인 완료<br>'+
+        '승인 대기 pendingTeamSchedules: '+pending.toLocaleString()+'건<br>'+
+        '반영 완료 teamSchedules: '+team.toLocaleString()+'건<br>'+
+        '최근 수집 시트: '+rbcEscFinal((latest && latest.sheetName) || '-')+'<br>'+
+        '최근 수집 시간: '+rbcEscFinal((latest && latest.savedAtText) || '-')+'<br>'+
+        '메시지: '+rbcEscFinal((latest && latest.message) || '-');
+      if(typeof rbcSetScheduleStatus === 'function') rbcSetScheduleStatus(msg);
+      else {
+        const el=document.getElementById('googleScheduleStatus');
+        if(el) el.innerHTML=msg;
+      }
+      alert('상태 확인 완료\n\n승인 대기: '+pending.toLocaleString()+'건\n반영 완료: '+team.toLocaleString()+'건');
+    }catch(e){
+      if(typeof oldLoadGoogleSchedule === 'function') return oldLoadGoogleSchedule.apply(this, arguments);
+      alert('상태 확인 실패:\n'+(e.message||e));
+    }
+  };
+
+  window.downloadGoogleScheduleExcel = window.loadGoogleSchedule;
+
+  const oldApproveGoogleSchedule = window.approveGoogleSchedule;
+  window.approveGoogleSchedule = async function(){
+    if(typeof db === 'undefined'){
+      alert('Firebase DB 연결을 찾지 못했습니다.');
+      return;
+    }
+    try{
+      if(typeof rbcEnsureApprovalBox === 'function') rbcEnsureApprovalBox();
+      if(typeof rbcSetScheduleStatus === 'function') rbcSetScheduleStatus('승인 반영 중... pendingTeamSchedules → teamSchedules');
+
+      const qs = await db.collection('pendingTeamSchedules').limit(5000).get();
+      if(qs.empty){
+        const team = await rbcCountFinal('teamSchedules');
+        const msg = '승인 대기 일정은 없습니다.<br>현재 teamSchedules 반영 완료 일정: '+team.toLocaleString()+'건<br>이미 반영된 일정으로 분석표를 새로고침합니다.';
+        if(typeof rbcSetScheduleStatus === 'function') rbcSetScheduleStatus(msg);
+        if(typeof loadTeamScheduleAnalysis === 'function') setTimeout(loadTeamScheduleAnalysis, 200);
+        if(typeof rbcLoadAlertCenter === 'function') setTimeout(rbcLoadAlertCenter, 500);
+        alert('승인 대기 일정은 없습니다.\n\n현재 반영 완료 일정: '+team.toLocaleString()+'건');
+        return;
+      }
+
+      const docs = [];
+      qs.forEach(function(doc){ docs.push(doc); });
+      const approvedBy = sessionStorage.getItem('ravebicAdminStaffName') || '관리자';
+      const approvedAtText = new Date().toISOString();
+      let done = 0;
+
+      for(let i=0; i<docs.length; i+=240){
+        const batch = db.batch();
+        docs.slice(i, i+240).forEach(function(doc){
+          const data = doc.data() || {};
+          data.approved = true;
+          data.approvedAt = firebase.firestore.FieldValue.serverTimestamp();
+          data.approvedAtText = approvedAtText;
+          data.approvedBy = approvedBy;
+          data.source = data.source || 'pendingTeamSchedules';
+          batch.set(db.collection('teamSchedules').doc(doc.id), data, {merge:true});
+          batch.delete(db.collection('pendingTeamSchedules').doc(doc.id));
+          done++;
+        });
+        await batch.commit();
+        if(typeof rbcSetScheduleStatus === 'function') rbcSetScheduleStatus('승인 반영 중... '+done.toLocaleString()+' / '+docs.length.toLocaleString()+'건 처리');
+      }
+
+      await db.collection('settings').doc('approvedSchedule').set({
+        approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText: approvedAtText,
+        approvedBy: approvedBy,
+        approvedCount: done,
+        source: 'pendingTeamSchedules',
+        mode: 'firestore_pending_to_teamSchedules_final_safe'
+      }, {merge:true});
+
+      const info = document.getElementById('lastApprovedInfo');
+      if(info){
+        info.innerHTML = '마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+rbcEscFinal(approvedBy)+'<br>반영 건수: '+done.toLocaleString()+'건';
+      }
+
+      if(typeof rbcSetScheduleStatus === 'function') rbcSetScheduleStatus('승인 반영 완료: '+done.toLocaleString()+'건이 teamSchedules에 반영되었습니다.');
+      alert('직원용 일정표 승인 반영 완료\n\n반영 건수: '+done.toLocaleString()+'건');
+
+      if(typeof loadTeamScheduleAnalysis === 'function') setTimeout(loadTeamScheduleAnalysis, 300);
+      if(typeof rbcLoadAlertCenter === 'function') setTimeout(rbcLoadAlertCenter, 600);
+      if(typeof rbcLoadScore === 'function') setTimeout(rbcLoadScore, 900);
+      if(typeof rbcLoadMonthly === 'function') setTimeout(rbcLoadMonthly, 1100);
+    }catch(e){
+      if(typeof rbcSetScheduleStatus === 'function') rbcSetScheduleStatus('승인 반영 실패: '+rbcEscFinal(e.message || e));
+      alert('승인 반영 실패:\n'+(e.message || e));
+    }
+  };
+
+  window.debugTeamScheduleDate = async function(dateStr){
+    if(typeof loadRavebicValidStaffNames === 'function') await loadRavebicValidStaffNames(true);
+    const rows = await window.loadTeamScheduleRows(dateStr);
+    console.table(rows.map(function(r){
+      return {id:r.id,date:r.scheduleDate,leader:r.leader,store:r.store,brand:r.brand,source:r.sourceCollection,rawText:r.rawText};
+    }));
+    console.log(dateStr, rows.length + '건');
+    return rows;
+  };
+
+  function rbcFinalRewireButtons(){
+    const section = Array.from(document.querySelectorAll('.section')).find(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>-1;});
+    if(!section) return;
+    Array.from(section.querySelectorAll('button')).forEach(function(btn){
+      const t=(btn.innerText||'').replace(/\s+/g,'');
+      if(t.indexOf('불러오기')>-1 || t.indexOf('상태확인')>-1 || t.indexOf('PDF')>-1){
+        btn.innerText='자동수집 상태 확인';
+        btn.onclick=window.loadGoogleSchedule;
+        btn.setAttribute('onclick','loadGoogleSchedule()');
+      }
+      if(t.indexOf('승인반영')>-1){
+        btn.innerText='직원용 일정표 승인 반영';
+        btn.onclick=window.approveGoogleSchedule;
+        btn.setAttribute('onclick','approveGoogleSchedule()');
+      }
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(rbcFinalRewireButtons, 200);
+    setTimeout(rbcFinalRewireButtons, 1000);
+  });
+  setTimeout(rbcFinalRewireButtons, 1500);
+})();
+</script>
+<!-- /RAVEBIC_FINAL_PENDING_TEAM_SAFE_PATCH_20260706 -->
+
 </body></html>
 
 <!-- RAVEBIC_ULTRA_STABLE_FIX_20260616_PAGINATION_PAGE_SCHEDULE -->
