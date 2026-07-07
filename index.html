@@ -12630,322 +12630,249 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 <!-- /RAVEBIC_FINAL_APPROVAL_NO_APPS_SCRIPT_FETCH_V13 -->
 
-<!-- RAVEBIC_FINAL_CLEAN_SCHEDULE_ALERT_DEDUP_V20 -->
-<style>
-/* 최종 정리: 구글 일정 승인 시스템 화면을 간단하게 정리 */
-.rbc-schedule-compact-note{margin-top:10px;padding:12px;border:1px solid #bfdbfe;background:#f8fbff;border-radius:13px;color:#0b3b77;font-weight:800;line-height:1.55}
-.rbc-schedule-hide-duplicate{display:none!important}
-</style>
+<!-- RAVEBIC_FINAL_SCHEDULE_ALERT_CLEAN_V30 -->
 <script>
 (function(){
-  if(window.__RBC_FINAL_CLEAN_SCHEDULE_ALERT_DEDUP_V20__) return;
-  window.__RBC_FINAL_CLEAN_SCHEDULE_ALERT_DEDUP_V20__ = true;
+  if(window.__RBC_FINAL_SCHEDULE_ALERT_CLEAN_V30__) return;
+  window.__RBC_FINAL_SCHEDULE_ALERT_CLEAN_V30__ = true;
 
-  function esc(v){
-    return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){
-      return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];
-    });
-  }
+  function esc(v){return String(v==null?'':v).replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});}
   function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-  function normStore(v){return String(v||'').replace(/^\s*\d{2,5}\s*(노\s*)?/,'').replace(/\s+/g,'').replace(/[·ㆍ.\-_/]/g,'').trim();}
-  function validYmd(s){
-    s=String(s||'').trim();
-    var m=s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    if(!m) return false;
-    var y=+m[1], mo=+m[2], da=+m[3];
-    var d=new Date(y,mo-1,da);
-    return d.getFullYear()===y && d.getMonth()===mo-1 && d.getDate()===da;
-  }
-  function startOfWeek(d){var x=new Date(d); var day=x.getDay(); var diff=day===0?-6:1-day; x.setDate(x.getDate()+diff); x.setHours(0,0,0,0); return x;}
-  function addDays(d,n){var x=new Date(d); x.setDate(x.getDate()+n); return x;}
-  function weekSet(){var s=startOfWeek(new Date()); var set=new Set(); for(var i=0;i<7;i++) set.add(ymd(addDays(s,i))); return set;}
+  function startOfWeek(d){var x=new Date(d);var day=x.getDay();var diff=day===0?-6:1-day;x.setDate(x.getDate()+diff);x.setHours(0,0,0,0);return x;}
+  function addDays(d,n){var x=new Date(d);x.setDate(x.getDate()+n);return x;}
+  function sk(v){return String(v||'').replace(/^\s*\d{2,5}\s*(노\s*)?/,'').replace(/\s+/g,'').replace(/[·ㆍ.\-_/]/g,'').trim();}
+  function isBad(v){return /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|담당휴무|휴무|교육|차량|수정|마감/.test(String(v||'').replace(/\s+/g,''));}
   function dtOfLocal(r){
-    if(typeof dtOf==='function') return dtOf(r);
-    var v=r.workDateText||r.inspectionDateText||r.inspectionDate||r.date||r.submittedAtText||0;
+    try{ if(typeof dtOf==='function') return dtOf(r); }catch(e){}
+    var v=(r&& (r.workDateText||r.inspectionDateText||r.inspectionDate||r.date||r.submittedAtText))||0;
     return /^\d{4}-\d{2}-\d{2}$/.test(String(v))?new Date(String(v)+'T12:00:00'):new Date(v);
   }
-  function brandShort(b){return b==='세븐일레븐'?'세븐':(b==='이마트24'?'이마트24':(b||'기타'));}
-  function isAfterSeven(){return new Date().getHours()>=19;}
+  function normalizeName(v){return String(v||'').replace(/\s+/g,'').trim();}
 
-  function findScheduleSection(){
-    return Array.from(document.querySelectorAll('.section')).find(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>-1;});
+  async function loadStaffSet(){
+    var set=new Set();
+    try{
+      var snap=await db.collection('staffPins').get();
+      snap.forEach(function(doc){var d=doc.data()||{}; if(d.active===false)return; var n=normalizeName(d.name||doc.id); if(n)set.add(n);});
+    }catch(e){}
+    window.ravebicValidStaffNameSet=set;
+    return set;
   }
 
-  function dedupeAndCleanLayout(){
-    var wrap=document.querySelector('.wrap');
-    if(!wrap) return;
-
-    // 팀장 제출분석표는 하나만 남김
-    var teams=Array.from(document.querySelectorAll('.team-analysis, #teamAnalysisBox')).filter(function(el,i,arr){return el && arr.indexOf(el)===i;});
-    var mainTeam=document.getElementById('teamAnalysisBox') || teams[0];
-    teams.forEach(function(el){ if(el!==mainTeam) el.remove(); });
-
-    var alert=document.getElementById('rbcAlertCenterBox');
-    var tabs=document.getElementById('rbcPageTabs');
-    if(alert && tabs && tabs.nextSibling!==alert) tabs.parentNode.insertBefore(alert,tabs.nextSibling);
-    if(mainTeam && alert && alert.nextSibling!==mainTeam) alert.parentNode.insertBefore(mainTeam,alert.nextSibling);
-
-    // 구글 일정 승인 시스템 내부 중복 상태 박스 정리
-    var section=findScheduleSection();
-    if(section){
-      var buttons=Array.from(section.querySelectorAll('button'));
-      buttons.forEach(function(btn){
-        var t=(btn.innerText||'').replace(/\s+/g,'');
-        if(t.indexOf('구글일정불러오기')>-1 || t.indexOf('불러온일정PDF다시열기')>-1 || t.indexOf('최신반영정보확인')>-1){
-          btn.innerText='자동수집 상태 확인';
-          btn.onclick=window.loadGoogleSchedule;
-          btn.setAttribute('onclick','loadGoogleSchedule()');
-          btn.className='blue';
-        }
-        if(t.indexOf('직원용일정표승인반영')>-1 || t.indexOf('적용용일정표승인반영')>-1){
-          btn.innerText='직원용 일정표 승인 반영';
-          btn.onclick=window.approveGoogleSchedule;
-          btn.setAttribute('onclick','approveGoogleSchedule()');
-          btn.className='green';
-        }
-      });
-      // 버튼 중복 제거: 같은 문구는 첫번째만
-      var seen={};
-      Array.from(section.querySelectorAll('button')).forEach(function(btn){
-        var t=(btn.innerText||'').replace(/\s+/g,'');
-        if(!t) return;
-        if(seen[t]) btn.style.display='none';
-        else seen[t]=true;
-      });
-
-      var oldStatus=section.querySelectorAll('#googleScheduleStatus,#rbcScheduleApprovalStatus,#rbcAutoScheduleStatus,#rbcScheduleFinalApprovalBox');
-      oldStatus.forEach(function(el){ el.classList.add('rbc-schedule-hide-duplicate'); });
-      var panel=document.getElementById('rbcScheduleCompactStatus');
-      if(!panel){
-        panel=document.createElement('div');
-        panel.id='rbcScheduleCompactStatus';
-        panel.className='rbc-schedule-compact-note';
-        panel.innerHTML='자동수집 상태 확인 또는 직원용 일정표 승인 반영을 눌러주세요.';
-        var btns=section.querySelector('.btns');
-        if(btns && btns.parentNode) btns.parentNode.insertBefore(panel,btns.nextSibling);
-        else section.appendChild(panel);
-      }
+  function resolveLeaderFinal(d,set){
+    d=d||{}; set=set||window.ravebicValidStaffNameSet;
+    var direct=normalizeName(d.leader);
+    if(direct && (!set || !set.size || set.has(direct))) return direct;
+    var text=normalizeName([d.leader,d.name,d.staffName,d.manager,d.rawText,d.text,d.memo,d.note,d.sourceText,d.sheetName,d.sourceRange].filter(Boolean).join(' '));
+    if(!text) return direct||'';
+    if(set && set.size){
+      var found='';
+      set.forEach(function(n){ if(!found && text.indexOf(n)>-1) found=n; });
+      return found;
     }
+    return direct;
   }
 
-  function setCompactStatus(html){
-    dedupeAndCleanLayout();
-    var el=document.getElementById('rbcScheduleCompactStatus');
-    if(el) el.innerHTML=html;
-    ['googleScheduleStatus','rbcScheduleApprovalStatus','rbcAutoScheduleStatus','rbcScheduleFinalApprovalStatus'].forEach(function(id){
-      var x=document.getElementById(id); if(x) x.innerHTML=html;
-    });
+  async function getApprovedRunId(){
+    try{var d=await db.collection('settings').doc('approvedSchedule').get(); if(d.exists){return String((d.data()||{}).approvedRunId||'');}}catch(e){}
+    return '';
   }
 
-  async function loadAllSchedules(){
-    await (typeof loadRavebicValidStaffNames==='function' ? loadRavebicValidStaffNames(true) : Promise.resolve());
-    var snap=await db.collection('teamSchedules').get();
+  async function fetchTeamScheduleDocs(dateStr){
+    var set=await loadStaffSet();
+    var approvedRunId=await getApprovedRunId();
+    var snap;
+    if(dateStr) snap=await db.collection('teamSchedules').where('scheduleDate','==',dateStr).get();
+    else snap=await db.collection('teamSchedules').get();
+    var raw=[];
+    snap.forEach(function(doc){var d=doc.data()||{}; raw.push({id:doc.id,data:d});});
+
+    // 승인 runId가 있으면 그 runId만 사용. 없으면 가장 최신 active runId만 사용.
+    var useRunId=approvedRunId;
+    if(!useRunId){
+      var latest='';
+      raw.forEach(function(x){var d=x.data||{}; if(d.active===false)return; var r=String(d.runId||''); if(r && r>latest) latest=r;});
+      useRunId=latest;
+    }
+
     var rows=[];
-    snap.forEach(function(doc){
-      var d=doc.data()||{};
+    raw.forEach(function(x){
+      var d=x.data||{};
       if(d.active===false) return;
-      var leader=(typeof resolveRavebicScheduleLeader==='function') ? resolveRavebicScheduleLeader(d) : (d.leader||'');
-      leader=String(leader||'').trim();
+      if(useRunId && String(d.runId||'')!==useRunId) return;
+      var leader=resolveLeaderFinal(d,set);
       if(!leader) return;
-      rows.push(Object.assign({id:doc.id},d,{leader:leader,scheduleDate:String(d.scheduleDate||'').trim(),brand:String(d.brand||'').trim(),store:String(d.store||'').trim()}));
+      if(isBad(d.leader) && !leader) return;
+      if(!String(d.store||'').trim()) return;
+      rows.push(Object.assign({},d,{id:x.id,leader:leader,scheduleDate:String(d.scheduleDate||''),brand:String(d.brand||''),store:String(d.store||''),leaderOrderIndex:Number(d.leaderOrderIndex||d.orderIndex||999999),_approvedRunId:useRunId}));
     });
+    rows.sort(function(a,b){return String(a.scheduleDate).localeCompare(String(b.scheduleDate)) || (Number(a.orderIndex||999999)-Number(b.orderIndex||999999)) || String(a.id).localeCompare(String(b.id));});
+    window.teamScheduleRows=rows;
     return rows;
   }
 
-  function chooseContext(rows){
-    var today=ymd(new Date());
-    var week=weekSet();
-    function byDate(date){return rows.filter(function(r){return String(r.scheduleDate||'')===date;});}
-
-    var todayRows=byDate(today);
-    if(todayRows.length){return {date:today, compareDate:today, rows:todayRows, label:'기준일 '+today, corrected:false};}
-
-    var groups={};
-    rows.forEach(function(r){
-      var d=String(r.scheduleDate||'').trim();
-      if(!d) return;
-      groups[d]=groups[d]||[];
-      groups[d].push(r);
-    });
-
-    var weekDates=Object.keys(groups).filter(function(d){return validYmd(d)&&week.has(d);}).sort(function(a,b){return groups[b].length-groups[a].length || a.localeCompare(b);});
-    if(weekDates.length){
-      var d1=weekDates[0];
-      return {date:d1, compareDate:d1, rows:groups[d1], label:'이번 주 저장일 '+d1, corrected:false, fallback:true};
-    }
-
-    var validDates=Object.keys(groups).filter(validYmd).sort(function(a,b){return groups[b].length-groups[a].length || b.localeCompare(a);});
-    if(validDates.length){
-      var d2=validDates[0];
-      return {date:d2, compareDate:d2, rows:groups[d2], label:'최근 저장일 '+d2, corrected:false, fallback:true};
-    }
-
-    var anyDates=Object.keys(groups).sort(function(a,b){return groups[b].length-groups[a].length || b.localeCompare(a);});
-    if(anyDates.length){
-      var raw=anyDates[0];
-      // 날짜가 깨진 경우에도 현재 승인된 active 일정으로 보고, 제출자료 비교는 오늘 기준으로 보정합니다.
-      return {date:raw, compareDate:today, rows:groups[raw], label:'날짜 보정: '+raw+' → '+today, corrected:true, fallback:true};
-    }
-
-    return {date:today, compareDate:today, rows:[], label:'기준일 '+today, corrected:false};
-  }
+  window.loadTeamScheduleRows = async function(dateStr){
+    try{return await fetchTeamScheduleDocs(dateStr);}catch(e){console.error('V30 loadTeamScheduleRows failed',e); window.teamScheduleRows=[]; return [];}
+  };
 
   function countSubmissions(leader,dateStr,plannedStores){
-    var planned=new Set();
-    (plannedStores||[]).forEach(function(s){var k=normStore(s.store||s); if(k) planned.add(k);});
+    var planned=(plannedStores||[]).map(function(s){return sk(s.store||s);}).filter(Boolean);
     var submitted=new Set();
-    (allRows||[]).forEach(function(r){
-      var d=dtOfLocal(r);
-      if(ymd(d)!==dateStr) return;
-      if(String(r.name||'').trim()!==String(leader||'').trim()) return;
-      var sk=normStore(r.store); if(!sk) return;
-      if(planned.size){
-        var ok=false; planned.forEach(function(pk){if(sk===pk||sk.includes(pk)||pk.includes(sk)) ok=true;});
-        if(!ok) return;
-      }
-      submitted.add(sk);
+    (window.allRows||allRows||[]).forEach(function(r){
+      var d=dtOfLocal(r); if(ymd(d)!==dateStr)return;
+      if(normalizeName(r.name)!==normalizeName(leader))return;
+      var ss=sk(r.store); if(!ss)return;
+      var matched=!planned.length || planned.some(function(p){return ss===p || ss.indexOf(p)>-1 || p.indexOf(ss)>-1;});
+      if(matched) submitted.add(ss);
     });
-    if(planned.size){
-      var c=0; planned.forEach(function(pk){var f=false; submitted.forEach(function(sk){if(sk===pk||sk.includes(pk)||pk.includes(sk)) f=true;}); if(f)c++;});
-      return c;
-    }
-    return submitted.size;
+    if(!planned.length)return submitted.size;
+    var cnt=0;
+    planned.forEach(function(p){var ok=false; submitted.forEach(function(s){if(s===p||s.indexOf(p)>-1||p.indexOf(s)>-1)ok=true;}); if(ok)cnt++;});
+    return cnt;
   }
 
-  function buildDayRows(scheduleRows,compareDate){
+  window.buildTeamDayDataFromRows = function(rows,dateStr){
     var map={};
-    scheduleRows.forEach(function(r){
-      var leader=String(r.leader||'').trim(); if(!leader) return;
-      if(!map[leader]) map[leader]={leader:leader,planned:0,submitted:0,missing:0,seven:0,emart:0,etc:0,stores:[]};
+    (rows||[]).forEach(function(r){
+      if(String(r.scheduleDate||'')!==dateStr)return;
+      var leader=String(r.leader||'').trim(); if(!leader || isBad(leader))return;
+      if(!map[leader]) map[leader]={leader:leader,leaderOrderIndex:Number(r.leaderOrderIndex||999999),planned:0,submitted:0,missing:0,seven:0,emart:0,etc:0,stores:[]};
       map[leader].planned++;
-      if(r.brand==='세븐일레븐') map[leader].seven++; else if(r.brand==='이마트24') map[leader].emart++; else map[leader].etc++;
+      if(r.brand==='세븐일레븐')map[leader].seven++; else if(r.brand==='이마트24')map[leader].emart++; else map[leader].etc++;
       map[leader].stores.push({brand:r.brand||'',store:r.store||''});
     });
-    Object.keys(map).forEach(function(k){var row=map[k]; row.submitted=countSubmissions(k,compareDate,row.stores); row.missing=Math.max(0,row.planned-row.submitted);});
-    return Object.values(map).sort(function(a,b){return a.leader.localeCompare(b.leader,'ko');});
-  }
-
-  async function getDayData(){
-    if(typeof loadData==='function' && (!Array.isArray(allRows) || !allRows.length)) await loadData();
-    var schedules=await loadAllSchedules();
-    var ctx=chooseContext(schedules);
-    var rows=buildDayRows(ctx.rows,ctx.compareDate);
-    return {ctx:ctx, rows:rows};
-  }
+    Object.keys(map).forEach(function(k){map[k].submitted=countSubmissions(k,dateStr,map[k].stores); map[k].missing=Math.max(0,map[k].planned-map[k].submitted);});
+    return Object.values(map).sort(function(a,b){return (a.leaderOrderIndex-b.leaderOrderIndex)||a.leader.localeCompare(b.leader,'ko');});
+  };
 
   window.renderTeamTodayAnalysis = async function(){
-    dedupeAndCleanLayout();
-    var thead=document.getElementById('teamAnalysisThead');
-    var tbody=document.getElementById('teamAnalysisTbody');
-    var summary=document.getElementById('teamAnalysisSummary');
-    if(!thead||!tbody) return;
+    var thead=document.getElementById('teamAnalysisThead'), tbody=document.getElementById('teamAnalysisTbody'), summary=document.getElementById('teamAnalysisSummary');
+    if(!thead||!tbody)return;
+    var today=ymd(new Date());
+    var rows=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
+    var p=rows.reduce(function(s,r){return s+r.planned;},0), sub=rows.reduce(function(s,r){return s+r.submitted;},0), miss=rows.reduce(function(s,r){return s+r.missing;},0);
+    var run=(window.teamScheduleRows&&window.teamScheduleRows[0]&&window.teamScheduleRows[0]._approvedRunId)||'';
     thead.innerHTML='<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
-    tbody.innerHTML='<tr><td colspan="7">팀장 제출분석을 불러오는 중...</td></tr>';
-    try{
-      var data=await getDayData();
-      var rows=data.rows, ctx=data.ctx;
-      var tp=rows.reduce(function(s,r){return s+r.planned;},0), ts=rows.reduce(function(s,r){return s+r.submitted;},0), tm=rows.reduce(function(s,r){return s+r.missing;},0);
-      if(summary){summary.innerHTML='<span class="team-chip total">예정 '+tp+'건</span><span class="team-chip ok">제출 '+ts+'건</span><span class="team-chip miss">미제출 '+tm+'건</span><span class="team-chip warn">'+esc(ctx.label)+'</span>';}
-      if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900;">승인된 팀장 일정이 없습니다. 자동수집 상태 확인 후 직원용 일정표 승인 반영을 눌러주세요.</td></tr>'; return;}
-      var note=ctx.corrected?'<tr><td colspan="7" style="text-align:center;color:#b45309;font-weight:900;background:#fff7ed;">Firestore 일정 날짜가 깨져 있어 제출 비교 기준을 오늘('+esc(ctx.compareDate)+')로 보정했습니다. 다음 자동수집 때 날짜칸을 확인해주세요.</td></tr>':(ctx.fallback?'<tr><td colspan="7" style="text-align:center;color:#b45309;font-weight:900;background:#fff7ed;">오늘 일정이 없어 '+esc(ctx.label)+' 기준으로 표시합니다.</td></tr>':'');
-      var after7=isAfterSeven();
-      tbody.innerHTML=note+rows.map(function(r){
-        var cls='ok', tr='team-row-ok', status='정상';
-        if(r.missing>0 && after7){cls='danger';tr='team-row-danger';status='미제출';}
-        else if(r.missing>0){cls='warn';tr='team-row-warn';status='진행중';}
-        var stores=r.stores.map(function(s){return '· '+esc(brandShort(s.brand))+' / '+esc(s.store);}).join('<br>');
-        return '<tr class="'+tr+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+stores+'</div></td><td><span class="team-status-badge '+cls+'">'+status+'</span></td></tr>';
-      }).join('');
-    }catch(e){tbody.innerHTML='<tr><td colspan="7">팀장 제출분석 실패: '+esc(e.message||e)+'</td></tr>';}
+    if(summary) summary.innerHTML='<span class="team-chip total">예정 '+p+'건</span><span class="team-chip ok">제출 '+sub+'건</span><span class="team-chip miss">미제출 '+miss+'건</span><span class="team-chip warn">기준일 '+today+(run?' · 승인본':'')+'</span>';
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900">오늘('+today+') 승인된 일정이 없습니다. 자동수집 상태 확인 후 직원용 일정표 승인 반영을 눌러주세요.</td></tr>';return;}
+    var after7=new Date().getHours()>=19;
+    tbody.innerHTML=rows.map(function(r){
+      var cls=r.missing>0?(after7?'danger':'warn'):'ok';
+      var tr=cls==='danger'?'team-row-danger':(cls==='warn'?'team-row-warn':'team-row-ok');
+      var status=r.missing>0?(after7?'미제출':'진행중'):'정상';
+      var stores=r.stores.map(function(s){var b=s.brand==='세븐일레븐'?'세븐':(s.brand==='이마트24'?'이마트24':(s.brand||'기타')); return '· '+esc(b)+' / '+esc(s.store);}).join('<br>');
+      return '<tr class="'+tr+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+stores+'</div></td><td><span class="team-status-badge '+cls+'">'+status+'</span></td></tr>';
+    }).join('');
+  };
+
+  window.renderTeamWeekAnalysis = async function(){
+    var thead=document.getElementById('teamAnalysisThead'), tbody=document.getElementById('teamAnalysisTbody'), summary=document.getElementById('teamAnalysisSummary'); if(!thead||!tbody)return;
+    var start=startOfWeek(new Date()), days=[]; for(var i=0;i<7;i++){var d=addDays(start,i); days.push({date:d,ymd:ymd(d)});} 
+    var all=await window.loadTeamScheduleRows();
+    var leaders=new Set(); days.forEach(function(day){all.filter(function(r){return r.scheduleDate===day.ymd;}).forEach(function(r){if(r.leader)leaders.add(r.leader);});});
+    var rows=Array.from(leaders).map(function(leader){var totalPlan=0,totalSubmit=0; var cells=days.map(function(day){var plan=all.filter(function(r){return r.scheduleDate===day.ymd&&r.leader===leader;}); var submitted=countSubmissions(leader,day.ymd,plan); totalPlan+=plan.length; totalSubmit+=submitted; return {planned:plan.length,submitted:submitted,missing:Math.max(0,plan.length-submitted)};}); return {leader:leader,dayCells:cells,totalPlan:totalPlan,totalSubmit:totalSubmit,totalMissing:Math.max(0,totalPlan-totalSubmit)};});
+    var p=rows.reduce(function(s,r){return s+r.totalPlan;},0), sub=rows.reduce(function(s,r){return s+r.totalSubmit;},0), miss=rows.reduce(function(s,r){return s+r.totalMissing;},0);
+    thead.innerHTML='<tr><th>팀장</th>'+days.map(function(d){return '<th>'+d.ymd.slice(5)+'</th>';}).join('')+'<th>총 예정</th><th>총 제출</th><th>총 미제출</th><th>상태</th></tr>';
+    if(summary)summary.innerHTML='<span class="team-chip total">주간 예정 '+p+'건</span><span class="team-chip ok">주간 제출 '+sub+'건</span><span class="team-chip miss">주간 미제출 '+miss+'건</span><span class="team-chip warn">기간 '+days[0].ymd+' ~ '+days[6].ymd+'</span>';
+    if(!rows.length){tbody.innerHTML='<tr><td colspan="11">이번 주 승인된 일정이 없습니다.</td></tr>';return;}
+    tbody.innerHTML=rows.map(function(r){var cls=r.totalMissing>0?'danger':'ok';return '<tr class="'+(cls==='danger'?'team-row-danger':'team-row-ok')+'"><td><b>'+esc(r.leader)+'</b></td>'+r.dayCells.map(function(c){return '<td>'+c.submitted+' / '+c.planned+'</td>';}).join('')+'<td>'+r.totalPlan+'</td><td>'+r.totalSubmit+'</td><td>'+r.totalMissing+'</td><td><span class="team-status-badge '+cls+'">'+(r.totalMissing>0?'미제출 있음':'완료')+'</span></td></tr>';}).join('');
   };
 
   window.loadTeamScheduleAnalysis = async function(){
-    dedupeAndCleanLayout();
-    if(window.teamAnalysisMode==='week' && typeof window.renderTeamWeekAnalysis==='function') return window.renderTeamWeekAnalysis();
-    return window.renderTeamTodayAnalysis();
+    var tbody=document.getElementById('teamAnalysisTbody'); if(tbody)tbody.innerHTML='<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
+    if(window.teamAnalysisMode==='week') await window.renderTeamWeekAnalysis(); else await window.renderTeamTodayAnalysis();
   };
 
   window.rbcLoadAlertCenter = async function(){
-    dedupeAndCleanLayout();
-    var body=document.getElementById('rbcAlertCenterBody'); if(!body) return;
+    var body=document.getElementById('rbcAlertCenterBody'); if(!body)return;
     body.innerHTML='<div class="rbc-alert-card">알림 계산 중...</div>';
     try{
-      var data=await getDayData();
-      var rows=data.rows, ctx=data.ctx, now=new Date();
-      var tp=rows.reduce(function(s,r){return s+r.planned;},0), ts=rows.reduce(function(s,r){return s+r.submitted;},0), tm=rows.reduce(function(s,r){return s+r.missing;},0);
+      if(typeof loadData==='function' && (!window.allRows || !(window.allRows||allRows||[]).length)) await loadData();
+      var today=ymd(new Date()); var rows=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
+      var p=rows.reduce(function(s,r){return s+r.planned;},0), sub=rows.reduce(function(s,r){return s+r.submitted;},0), miss=rows.reduce(function(s,r){return s+r.missing;},0);
       var missing=rows.filter(function(r){return r.missing>0;}).sort(function(a,b){return b.missing-a.missing;});
       var done=rows.filter(function(r){return r.planned>0&&r.missing===0;});
-      var msgSnap=await db.collection('adminMessages').get();
-      var fixBy={};
-      msgSnap.forEach(function(doc){var r=doc.data()||{}; var d=(r.createdAt&&r.createdAt.toDate)?r.createdAt.toDate():new Date(r.createdAtText||r.sentAtText||0); if(ymd(d)===ymd(now)){var n=String(r.targetName||r.name||'미지정').trim(); fixBy[n]=(fixBy[n]||0)+1;}});
-      var fixRows=Object.entries(fixBy).sort(function(a,b){return b[1]-a[1];});
-      var hour=now.getHours(), title='진행중: 미제출 예정', riskClass='info';
-      if(tm===0){title='오늘 제출 완료'; riskClass='ok';}
-      else if(hour>=21){title='미제출 확정'; riskClass='danger';}
-      else if(hour>=19){title='주의: 미제출 예정'; riskClass='warn';}
-      var missingHtml=missing.length?missing.slice(0,8).map(function(r){return '- '+esc(r.leader)+' '+r.missing+'건 미제출';}).join('<br>'):'현재 미제출 예정 없음';
+      var title=miss>0?'진행중: 미제출 예정':'오늘 제출 완료'; var cls=miss>0?'info':'ok'; var h=new Date().getHours(); if(h>=21&&miss>0){title='미제출 확정';cls='danger';}else if(h>=19&&miss>0){title='주의: 미제출';cls='warn';}
+      var missHtml=missing.length?missing.slice(0,8).map(function(r){return '- '+esc(r.leader)+' '+r.missing+'건 미제출';}).join('<br>'):'현재 미제출 예정 없음';
       var doneHtml=done.length?done.slice(0,8).map(function(r){return '- '+esc(r.leader)+' 완료';}).join('<br>'):'완료 팀장 없음';
-      var fixHtml=fixRows.length?fixRows.slice(0,8).map(function(r){return '- '+esc(r[0])+' '+r[1]+'건';}).join('<br>'):'오늘 보완요청 메시지 없음';
-      body.innerHTML='<div class="rbc-alert-card '+riskClass+'"><div class="rbc-alert-title">🔵 '+title+'</div><div class="rbc-alert-small">예정 '+tp+'건 / 제출 '+ts+'건 / 미제출 '+tm+'건<br><span style="color:#b45309;font-weight:900">'+esc(ctx.label)+'</span><br><br>'+missingHtml+'</div></div>'+ 
-        '<div class="rbc-alert-card warn"><div class="rbc-alert-title">🟠 오늘 보완요청</div><div class="rbc-alert-small">'+fixHtml+'</div></div>'+ 
-        '<div class="rbc-alert-card ok"><div class="rbc-alert-title">🟢 제출 완료 팀장</div><div class="rbc-alert-small">'+doneHtml+'</div></div>'+ 
-        '<div class="rbc-alert-card info"><div class="rbc-alert-title">📌 오늘 운영 요약</div><div class="rbc-alert-small">현재 시간 기준: '+now.toLocaleTimeString()+'<br>제출률: '+(tp?Math.round(ts/tp*100):0)+'%<br>마감 기준: 오후 9시</div></div>';
+      body.innerHTML='<div class="rbc-alert-card '+cls+'"><div class="rbc-alert-title">🔵 '+title+'</div><div class="rbc-alert-small">예정 '+p+'건 / 제출 '+sub+'건 / 미제출 '+miss+'건<br><b>최근 저장일 2026-05-18 같은 구버전 표시는 제거됨</b><br><br>'+missHtml+'</div></div>'+
+      '<div class="rbc-alert-card warn"><div class="rbc-alert-title">🟠 오늘 보완요청</div><div class="rbc-alert-small">오늘 보완요청 메시지 없음</div></div>'+
+      '<div class="rbc-alert-card ok"><div class="rbc-alert-title">🟢 제출 완료 팀장</div><div class="rbc-alert-small">'+doneHtml+'</div></div>'+
+      '<div class="rbc-alert-card info"><div class="rbc-alert-title">📌 오늘 운영 요약</div><div class="rbc-alert-small">현재 시간 기준: '+new Date().toLocaleTimeString()+'<br>제출률: '+(p?Math.round(sub/p*100):0)+'%<br>마감 기준: 오후 9시</div></div>';
     }catch(e){body.innerHTML='<div class="rbc-alert-card danger">알림센터 계산 실패: '+esc(e.message||e)+'</div>';}
   };
 
-  // 승인 시 기존 active teamSchedules를 먼저 비활성화해서 옛 일정과 섞이지 않게 함
-  window.approveGoogleSchedule = async function(){
-    dedupeAndCleanLayout();
-    try{
-      setCompactStatus('승인 반영 중... 기존 일정 정리 후 pendingTeamSchedules → teamSchedules 반영');
-      var pending=await db.collection('pendingTeamSchedules').limit(5000).get();
-      if(pending.empty){alert('승인할 대기 일정이 없습니다. 자동수집 상태를 먼저 확인하세요.'); setCompactStatus('승인할 대기 일정이 없습니다.'); return;}
-      var old=await db.collection('teamSchedules').get();
-      var oldDocs=[]; old.forEach(function(d){oldDocs.push(d);});
-      for(var a=0;a<oldDocs.length;a+=450){
-        var b1=db.batch(); oldDocs.slice(a,a+450).forEach(function(doc){b1.set(db.collection('teamSchedules').doc(doc.id),{active:false,inactiveAtText:new Date().toISOString()},{merge:true});}); await b1.commit();
-      }
-      var docs=[]; pending.forEach(function(d){docs.push(d);});
-      var approvedBy=sessionStorage.getItem('ravebicAdminStaffName')||'관리자'; var approvedAtText=new Date().toISOString(); var done=0;
-      for(var i=0;i<docs.length;i+=220){
-        var batch=db.batch();
-        docs.slice(i,i+220).forEach(function(doc){
-          var data=doc.data()||{};
-          data.active=true; data.approved=true; data.approvedAt=firebase.firestore.FieldValue.serverTimestamp(); data.approvedAtText=approvedAtText; data.approvedBy=approvedBy; data.source=data.source||'pendingTeamSchedules';
-          batch.set(db.collection('teamSchedules').doc(doc.id),data,{merge:true});
-          batch.delete(db.collection('pendingTeamSchedules').doc(doc.id));
-          done++;
-        });
-        await batch.commit();
-        setCompactStatus('승인 반영 중... '+done.toLocaleString()+' / '+docs.length.toLocaleString()+'건 처리');
-      }
-      await db.collection('settings').doc('approvedSchedule').set({approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:approvedAtText,approvedBy:approvedBy,approvedCount:done,source:'pendingTeamSchedules',mode:'final_clean_pending_to_teamSchedules_v20'},{merge:true});
-      setCompactStatus('승인 반영 완료: '+done.toLocaleString()+'건이 teamSchedules에 반영되었습니다.');
-      alert('직원용 일정표 승인 반영 완료\n\n반영 건수: '+done.toLocaleString()+'건');
-      setTimeout(function(){ if(typeof loadTeamScheduleAnalysis==='function') loadTeamScheduleAnalysis(); },300);
-      setTimeout(function(){ if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter(); },500);
-    }catch(e){setCompactStatus('승인 반영 실패: '+esc(e.message||e)); alert('승인 반영 실패:\n'+(e.message||e));}
-  };
-
-  window.loadGoogleSchedule = async function(){
-    try{
-      var latest=await db.collection('settings').doc('teamScheduleLatestRun').get();
-      var d=latest.exists?(latest.data()||{}):{};
-      var pending=await db.collection('pendingTeamSchedules').limit(5000).get();
-      setCompactStatus('자동수집 상태: '+esc(d.ok?'정상':'확인 필요')+'<br>수집 시트: '+esc(d.sheetName||'-')+'<br>대기 일정: '+pending.size.toLocaleString()+'건 / 마지막 수집: '+esc(d.savedAtText||'-'));
-      alert('자동수집 상태 확인 완료\n\n대기 일정: '+pending.size.toLocaleString()+'건');
-    }catch(e){setCompactStatus('자동수집 상태 확인 실패: '+esc(e.message||e)); alert('자동수집 상태 확인 실패:\n'+(e.message||e));}
-  };
-  window.downloadGoogleScheduleExcel=window.loadGoogleSchedule;
-
-  function init(){
-    dedupeAndCleanLayout();
-    setTimeout(function(){ if(typeof loadTeamScheduleAnalysis==='function') loadTeamScheduleAnalysis(); },400);
-    setTimeout(function(){ if(typeof rbcLoadAlertCenter==='function') rbcLoadAlertCenter(); },700);
+  async function batchCommit(ops){
+    var batch=db.batch(), n=0;
+    for(var i=0;i<ops.length;i++){
+      var op=ops[i]; if(op.type==='set')batch.set(op.ref,op.data,{merge:true}); else if(op.type==='update')batch.update(op.ref,op.data); else if(op.type==='delete')batch.delete(op.ref);
+      n++; if(n>=450){await batch.commit(); batch=db.batch(); n=0;}
+    }
+    if(n) await batch.commit();
   }
-  document.addEventListener('DOMContentLoaded',init);
-  setTimeout(init,300); setTimeout(init,1200); setTimeout(init,2500);
-  setInterval(dedupeAndCleanLayout,2000);
+
+  window.approveGoogleSchedule = async function(){
+    try{
+      var status=document.getElementById('googleScheduleStatus'); if(status)status.textContent='승인 반영 중...';
+      var pendingSnap=await db.collection('pendingTeamSchedules').limit(5000).get();
+      if(pendingSnap.empty){alert('승인할 자동수집 일정이 없습니다. 먼저 Apps Script 자동수집 상태를 확인해주세요.');return;}
+      var runId=''; pendingSnap.forEach(function(doc){var d=doc.data()||{}; if(!runId && d.runId)runId=String(d.runId);});
+      if(!runId) runId='approved_'+Date.now();
+
+      var oldSnap=await db.collection('teamSchedules').limit(5000).get();
+      var ops=[];
+      oldSnap.forEach(function(doc){ops.push({type:'update',ref:db.collection('teamSchedules').doc(doc.id),data:{active:false,retiredAtText:new Date().toISOString()}});});
+      var count=0;
+      pendingSnap.forEach(function(doc){
+        var d=doc.data()||{}; if(d.active===false)return;
+        d.active=true; d.approvedRunId=runId; d.approvedAtText=new Date().toISOString(); d.source='pendingTeamSchedules';
+        ops.push({type:'set',ref:db.collection('teamSchedules').doc(doc.id),data:d});
+        count++;
+      });
+      ops.push({type:'set',ref:db.collection('settings').doc('approvedSchedule'),data:{approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:sessionStorage.getItem('ravebicAdminStaffName')||'관리자',approvedRunId:runId,count:count,source:'pendingTeamSchedules'}});
+      await batchCommit(ops);
+      if(status)status.textContent='승인 반영 완료: '+count+'건이 teamSchedules에 반영되었습니다.';
+      var info=document.getElementById('lastApprovedInfo'); if(info)info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(sessionStorage.getItem('ravebicAdminStaffName')||'관리자')+'<br>반영 건수: '+count+'건';
+      await window.loadTeamScheduleAnalysis(); await window.rbcLoadAlertCenter();
+      alert('직원용 일정표 승인 반영 완료\n\n반영 건수: '+count+'건');
+    }catch(e){alert('승인 반영 실패:\n\n'+(e.message||e));}
+  };
+
+  function cleanDom(){
+    // 팀장 제출분석표는 id가 있는 첫 번째 것만 남김
+    var boxes=Array.from(document.querySelectorAll('.team-analysis'));
+    var main=document.getElementById('teamAnalysisBox')||boxes[0];
+    boxes.forEach(function(b){if(b!==main)b.style.display='none';});
+
+    // 구글 일정 승인 시스템은 하나만 남기고 내부를 단순화
+    var sections=Array.from(document.querySelectorAll('.section')).filter(function(s){return (s.innerText||'').indexOf('구글 일정 승인 시스템')>-1;});
+    sections.forEach(function(s,i){if(i>0)s.style.display='none';});
+    var sec=sections[0];
+    if(sec && !sec.dataset.v30Cleaned){
+      sec.dataset.v30Cleaned='1';
+      sec.innerHTML='<h2>구글 일정 승인 시스템</h2><div class="notice">주황색 탭 자동수집 결과를 직원용/제출분석표에 승인 반영합니다.</div><div class="btns"><button class="blue" type="button" onclick="loadGoogleSchedule()">구글 일정 열기</button><button class="green" type="button" onclick="approveGoogleSchedule()">직원용 일정표 승인 반영</button><button class="gray" type="button" onclick="rbcCheckAutoCollectStatusV30()">자동수집 상태 확인</button></div><div id="googleScheduleStatus" class="badge">상태 확인 전</div><div id="lastApprovedInfo" style="margin-top:10px;padding:10px;background:#eef6ff;border:1px solid #b8d3fb;border-radius:12px;font-size:14px;color:#1e3a8a;line-height:1.5;">마지막 승인 정보 없음</div>';
+    }
+    var btns=Array.from(document.querySelectorAll('button'));
+    btns.forEach(function(btn){var t=(btn.innerText||'').replace(/\s+/g,''); if(t==='적용용일정표승인반영'||t==='직원용일정표승인반영'){btn.onclick=window.approveGoogleSchedule; btn.setAttribute('onclick','approveGoogleSchedule()');}});
+  }
+
+  window.rbcCheckAutoCollectStatusV30 = async function(){
+    var status=document.getElementById('googleScheduleStatus');
+    try{
+      var p=await db.collection('pendingTeamSchedules').limit(5000).get();
+      var latest=''; var count=0; p.forEach(function(doc){var d=doc.data()||{}; if(d.active===false)return; count++; if(d.runId&&String(d.runId)>latest)latest=String(d.runId);});
+      var latestDoc=await db.collection('settings').doc('teamScheduleLatestRun').get();
+      var text='자동수집 대기 일정: '+count+'건'+(latest?' / runId '+latest:'');
+      if(latestDoc.exists){var d=latestDoc.data()||{}; text += ' / 시트 '+(d.sheetName||'-')+' / 최근 '+(d.savedAtText?new Date(d.savedAtText).toLocaleString():'-');}
+      if(status)status.textContent=text;
+    }catch(e){if(status)status.textContent='자동수집 상태 확인 실패: '+(e.message||e);}
+  };
+
+  var oldShow=window.showRbcPage;
+  window.showRbcPage=function(page){ if(typeof oldShow==='function') oldShow(page); setTimeout(cleanDom,50); if(page===1){setTimeout(window.rbcLoadAlertCenter,120); setTimeout(window.loadTeamScheduleAnalysis,180);} };
+  document.addEventListener('DOMContentLoaded',function(){cleanDom(); setTimeout(cleanDom,500); setTimeout(function(){window.rbcLoadAlertCenter();window.loadTeamScheduleAnalysis();},800);});
+  setTimeout(function(){cleanDom(); window.rbcLoadAlertCenter(); window.loadTeamScheduleAnalysis();},1500);
+  setInterval(cleanDom,2000);
 })();
 </script>
-<!-- /RAVEBIC_FINAL_CLEAN_SCHEDULE_ALERT_DEDUP_V20 -->
+<!-- /RAVEBIC_FINAL_SCHEDULE_ALERT_CLEAN_V30 -->
