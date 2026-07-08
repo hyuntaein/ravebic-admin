@@ -1,7 +1,5 @@
-<!DOCTYPE html>
-<!-- saved from url=(0048)file:///C:/Users/eldorado/Downloads/index_2.html -->
-<html lang="ko"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RAVEBIC 관리자 안정본 첨부파일 열기</title>
-<script src="./RAVEBIC 관리자 안정본 첨부파일 열기_files/xlsx.full.min.js.다운로드"></script>
+<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>RAVEBIC 관리자 안정본 첨부파일 열기</title>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box}body{margin:0;padding:18px;background:#f4f7fb;font-family:Arial,'Malgun Gothic',sans-serif;color:#10213f}.wrap{max-width:1180px;margin:0 auto;background:white;border:1px solid #cfe0f8;border-radius:24px;padding:22px;box-shadow:0 8px 24px rgba(15,23,42,.06)}h1{margin:0;color:#123f7a}.sub{color:#64748b;margin:6px 0 14px}.badge{display:inline-block;padding:10px 14px;border:1px solid #b8d3fb;background:#eef6ff;border-radius:14px;font-weight:900;color:#123f7a}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}.card{border:1px solid #ead8a8;background:#fffdf5;border-radius:16px;padding:14px}.num{font-size:24px;font-weight:900;color:#0b3b77}.filters{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr 1fr 1fr;gap:10px;padding:14px;border:1px solid #d7e6fb;background:#f8fbff;border-radius:18px}input,select{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px}button{border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer}.blue{background:#2563eb;color:white}.green{background:#16a34a;color:white}.gray{background:#e5e7eb}.red{background:#b03a3a;color:white}.btns{display:flex;gap:10px;margin:14px 0;flex-wrap:wrap}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border-bottom:1px solid #e2e8f0;padding:10px;text-align:left;vertical-align:top}th{background:#eaf4ff;color:#0b3b77}.filelink{display:inline-block;margin:2px 0;color:#2563eb}.small{font-size:12px;color:#64748b}.section{margin-top:34px;padding-top:28px;border-top:3px solid #e5eefb}.section h2{margin:0 0 8px;color:#123f7a}.notice{font-size:13px;color:#555;line-height:1.55;margin:8px 0 16px}.tool-grid{display:grid;grid-template-columns:1fr;gap:22px}.tool-card{border:1px solid #d7e6fb;background:#fbfdff;border-radius:20px;padding:18px}.drop{border:3px dashed #7b8794;border-radius:18px;background:#fff;min-height:130px;display:flex;align-items:center;justify-content:center;text-align:center;margin:14px 0;padding:18px;transition:.15s}.drop.drag{background:#eef6ff;border-color:#1464c8}.drop p{font-size:16px;line-height:1.55;margin:0 0 8px}.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 18px}.box{background:#fffdf5;border:1px solid #ead8a8;border-radius:12px;padding:13px;text-align:center}.box b{display:block;font-size:22px;margin-top:4px}.smallbtn{padding:7px 11px;border-radius:8px;font-size:13px;background:#777;color:white}.err{color:#b00020;font-size:13px}td.store{text-align:left;font-weight:700}.analyzer-table th,.analyzer-table td{text-align:center;border:1px solid #d7d7d7}.analyzer-table th{background:#eef0f2;color:#111}.analyzer-table td.store{text-align:left}.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}.tab{background:#e5e7eb;color:#111}.tab.active{background:#2563eb;color:#fff}.hidden{display:none}@media(max-width:800px){body{padding:8px}.wrap{padding:16px;border-radius:18px}.cards{grid-template-columns:1fr 1fr}.filters{grid-template-columns:1fr 1fr}table{font-size:12px}.summary{grid-template-columns:repeat(2,1fr)}th:nth-child(4),td:nth-child(4),th:nth-child(5),td:nth-child(5){display:none}}
 
@@ -875,35 +873,90 @@ select.status-pending {
 
 </style></head><body style="overflow:hidden;">
 <div id="adminLockScreen">
-  <div class="admin-lock-card" data-office-rebuilt="1">
+  <div class="admin-lock-card">
     <h2>RAVEBIC 관리자</h2>
-    <p>사무실직원 이름을 선택하고 관리자 비밀번호를 입력하세요.</p>
-    <div id="adminOfficeStaffBox" class="admin-office-box"><div class="admin-office-title">사무실직원 선택</div><div id="adminOfficeStaffList" class="admin-office-list"><button type="button" class="admin-office-btn active" data-office-name="인현태">인현태</button><button type="button" class="admin-office-btn" data-office-name="조정환">조정환</button><button type="button" class="admin-office-btn" data-office-name="유성민">유성민</button><button type="button" class="admin-office-btn" data-office-name="김미란">김미란</button></div><div id="adminOfficeStaffHelp" class="admin-office-help">초록색으로 표시된 이름이 로그인 직원입니다.</div></div><input id="adminPasswordInput" type="password" placeholder="관리자 비밀번호" autocomplete="off" data-office-enter-bound="1">
+    <p>관리자 비밀번호를 입력하세요.</p>
+    <input id="adminPasswordInput" type="password" placeholder="관리자 비밀번호" autocomplete="off">
     <label class="admin-remember-line"><input id="adminRememberPassword" type="checkbox"> 비밀번호 기억하기</label>
     <button id="adminLoginBtn" type="button">관리자 로그인</button>
     <div id="adminLockError">비밀번호가 맞지 않습니다.</div>
   </div>
 </div>
-<div class="wrap"><div class="admin-main-title">RAVEBIC 관리자</div><button class="admin-logout-btn" type="button" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 성공 · 1265건</div>
-<div class="cards"><div class="card">전체 건수<div class="num" id="total">1265</div></div><div class="card">오늘 제출<div class="num" id="today">11</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">323</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div><div id="rbcPageTabs" class="rbc-page-tabs"><button id="rbcPage1Btn" class="rbc-page-tab active" type="button">페이지1 제출관리</button><button id="rbcPage2Btn" class="rbc-page-tab" type="button">페이지2 분석/직원관리</button><button id="rbcPage3Btn" class="rbc-page-tab" type="button">페이지3 가까운 점포검색</button></div>
+<div class="wrap"><div class="admin-main-title">RAVEBIC 관리자</div><button class="admin-logout-btn" type="button" onclick="adminLogout()">관리자 로그아웃</button><div class="sub">Firebase 제출데이터 실시간 조회 / 검색 / CSV 다운로드 / 하단 파일분석 도구</div><div class="badge" id="conn">연결 확인 중...</div>
+<div class="cards"><div class="card">전체 건수<div class="num" id="total">0</div></div><div class="card">오늘 제출<div class="num" id="today">0</div></div><div class="card">미확인<div class="num" id="s0">0</div></div><div class="card">확인완료<div class="num" id="s1">0</div></div><div class="card">보완요청<div class="num" id="s2">0</div></div></div>
+
+<div class="team-analysis" id="teamAnalysisBox">
+  <div class="team-analysis-head">
+    <h2>팀장 제출분석표</h2>
+    <div>
+      <button class="gray" type="button" onclick="loadTeamScheduleAnalysis()">분석 새로고침</button>
+      <button class="gray" type="button" onclick="toggleTeamScheduleAnalysis()">분석 접기</button>
+    </div>
+  </div>
+  <div class="notice">구글 일정표에서 분석된 팀장별 예정 점포와 실제 제출자료를 비교합니다. 오후 9시 이후 미제출이 있으면 빨간색으로 표시됩니다.</div>
+  <div class="team-analysis-tabs">
+    <button id="teamTodayTab" class="team-analysis-tab active" type="button" onclick="showTeamAnalysisMode('today')">오늘 분석표</button>
+    <button id="teamWeekTab" class="team-analysis-tab" type="button" onclick="showTeamAnalysisMode('week')">이번 주 분석표</button>
+  </div>
+  <div id="teamAnalysisSummary" class="team-analysis-summary">
+    <span class="team-chip total">예정 0건</span>
+    <span class="team-chip ok">제출 0건</span>
+    <span class="team-chip miss">미제출 0건</span>
+  </div>
+  <div id="teamAnalysisBody" style="overflow:auto;">
+    <table class="team-analysis-table">
+      <thead id="teamAnalysisThead"></thead>
+      <tbody id="teamAnalysisTbody"><tr><td>팀장 제출분석을 불러오는 중...</td></tr></tbody>
+    </table>
+  </div>
+</div>
 
 
 
+<div class="rbc-risk-box" id="rbcRiskBox">
+  <div class="rbc-risk-head">
+    <h2>위험 팀장 예측</h2>
+    <div>
+      <button id="rbcRiskRefreshBtn" class="rbc-risk-btn" type="button">위험도 새로고침</button>
+      <button id="rbcRiskFoldBtn" class="rbc-risk-btn" type="button">위험도 접기</button>
+    </div>
+  </div>
+  <div style="margin-top:8px;color:#7f1d1d;font-size:14px">
+    기준: 오후 7시 주의 · 오후 8시 위험 · 오후 9시 미제출 확정 / 제출마감 오후 9시
+  </div>
+  <div id="rbcRiskSummary" style="margin-top:10px">위험도 계산 중...</div>
+  <div id="rbcRiskBody" class="rbc-risk-list">
+    <div class="rbc-risk-row">위험도 데이터를 불러오는 중...</div>
+  </div>
+</div>
 
+<div class="rbc-monthly-box" id="rbcMonthlyBox">
+  <div class="rbc-monthly-head">
+    <h2>팀장 월간 성과분석표</h2>
+    <div>
+      <button id="rbcMonthlyRefreshBtn" class="rbc-monthly-btn" type="button">월간분석 새로고침</button>
+      <button id="rbcMonthlyFoldBtn" class="rbc-monthly-btn" type="button">월간분석 접기</button>
+    </div>
+  </div>
+  <div style="margin-top:8px;color:#64748b;font-size:14px">
+    이번 달 1일부터 말일까지 총 예정, 정상 제출, 지연 제출, 미제출, 정시 제출률, 보완요청 건수를 계산합니다.
+  </div>
+  <div id="rbcMonthlySummary" style="margin-top:10px">월간 성과 계산 중...</div>
+  <div id="rbcMonthlyBody">
+    <div class="rbc-rank-card" style="margin-top:12px">월간 데이터를 불러오는 중...</div>
+  </div>
+</div>
 
-
-
-
-
-
-
-
-
+<div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
+<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button class="red" type="button" style="background:#ef4444;color:#fff;" onclick="document.getElementById('adminDirectMessageModal').style.display='flex';setTimeout(function(){document.getElementById('adminDirectMessageTarget').focus();},100);">메세지보내기</button>
+<button id="rbcSubmitFoldBtn" class="rbc-submit-fold-btn" type="button">제출목록 접기</button></div>
+<div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th><th>관리</th></tr></thead><tbody id="tbody"><tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
+<div class="pagination-bar"><button id="prevPageBtn" type="button" onclick="prevPage()">이전</button><span id="pageInfo" class="pagination-info">1 / 1 페이지</span><button id="nextPageBtn" type="button" onclick="nextPage()">다음</button><select id="pageSizeSelect" class="page-size-select" onchange="changePageSize(this.value)"><option value="10" selected>10개씩</option><option value="20">20개씩</option><option value="50">50개씩</option></select></div>
 
 
 
 <!-- RAVEBIC_CORRECTION_MESSAGE_AUDIT_PANEL_FORCE_V2 -->
-<style style="display: none;">
+<style>
 #rbcCorrectionAuditBox{margin:18px 0;padding:16px;border:1px solid #fecaca;background:#fff7f7;border-radius:18px;display:block!important;clear:both}
 #rbcCorrectionAuditBox .rbc-correction-audit-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 #rbcCorrectionAuditBox h2{margin:0;color:#991b1b;font-size:22px}
@@ -922,8 +975,33 @@ select.status-pending {
 @media(max-width:768px){.rbc-correction-audit-controls{display:grid;grid-template-columns:1fr}.rbc-correction-audit-controls input{max-width:none}}
 </style>
 
-
-<script style="display: none;">
+<div class="rbc-correction-audit-box" id="rbcCorrectionAuditBox">
+  <div class="rbc-correction-audit-head">
+    <h2>보완메세지 발송 확인</h2>
+    <div>
+      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">발송내역 새로고침</button>
+      <button class="rbc-correction-audit-btn gray" type="button" onclick="rbcToggleCorrectionAudit()">접기/펼치기</button>
+    </div>
+  </div>
+  <div class="rbc-correction-audit-small" style="margin-top:8px">
+    밤 9시 이후 자동 발송된 보완메세지와 관리자가 직접 보낸 메세지를 확인합니다. 확인 대상: adminMessages, autoCorrectionLogs
+  </div>
+  <div id="rbcCorrectionAuditBody">
+    <div class="rbc-correction-audit-controls">
+      <input id="rbcCorrectionAuditDate" type="date">
+      <input id="rbcCorrectionAuditKeyword" placeholder="팀장명/점포명/메세지 검색">
+      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">조회</button>
+    </div>
+    <div id="rbcCorrectionAuditSummary" class="rbc-correction-audit-summary"><span class="rbc-correction-audit-chip info">대기</span></div>
+    <div class="rbc-correction-audit-table-wrap">
+      <table class="rbc-correction-audit-table">
+        <thead><tr><th>발송시간</th><th>대상</th><th>구분</th><th>메세지</th><th>읽음/상태</th><th>출처</th></tr></thead>
+        <tbody id="rbcCorrectionAuditTbody"><tr><td colspan="6">발송내역 새로고침을 눌러주세요.</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<script>
 /* RAVEBIC_CORRECTION_MESSAGE_AUDIT_FORCE_V2 */
 (function(){
   if(window.__RBC_CORRECTION_MESSAGE_AUDIT_FORCE_V2__) return;
@@ -970,203 +1048,63 @@ select.status-pending {
 </script>
 <!-- /RAVEBIC_CORRECTION_MESSAGE_AUDIT_PANEL_FORCE_V2 -->
 
+<div class="section">
 
+  <h2>구글 일정 승인 시스템</h2>
 
-
-
-
-
-
-<div id="rbcStoreSearchPage3" style="display: none;">
-        <div class="rbc-store3-head">
-          <h2>페이지3 가까운 점포검색</h2>
-          <div class="rbc-store3-badge" id="rbcStore3Status">점포 데이터 대기중</div>
-        </div>
-
-        <div class="rbc-store3-card">
-          <h3 style="margin:0 0 10px;color:#123f7a">지도</h3>
-          <div id="rbcStore3Map" class="rbc-store3-map"></div>
-          <div class="small" style="margin-top:8px">점포명을 클릭하면 지도 중심 이동 + 가까운 점포 15개가 아래 표에 표시됩니다.</div>
-        </div>
-
-        <div class="rbc-store3-card">
-          <h3 style="margin:0 0 10px;color:#123f7a">가까운 점포 15개</h3>
-          <div id="rbcStore3NearbyInfo" class="small">아래 점포 목록에서 파란 점포명을 클릭하세요.</div>
-          <div class="rbc-store3-table-wrap">
-            <table class="rbc-store3-table">
-              <thead>
-                <tr>
-                  <th>순위</th><th>브랜드</th><th>점포명</th><th>주소</th><th>거리</th><th>위도</th><th>경도</th>
-                </tr>
-              </thead>
-              <tbody id="rbcStore3NearbyTbody"><tr><td colspan="7">기준 점포를 선택하세요.</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-
-        <div class="rbc-store3-card">
-          <h3 style="margin:0 0 10px;color:#123f7a">점포 엑셀 추가 / 좌표 변환</h3>
-          <div class="small" style="margin-bottom:10px">신규 점포는 엑셀로 읽고 Firestore 저장하면 기존 점포는 점포코드 기준으로 덮어쓰기됩니다. 저장 후 좌표 변환 버튼을 사용하세요.</div>
-          <div class="rbc-store3-row2">
-            <select id="rbcStore3Brand">
-              <option value="세븐일레븐">세븐일레븐</option>
-              <option value="이마트24">이마트24</option>
-            </select>
-            <input id="rbcStore3FileInput" type="file" accept=".xlsx,.xls,.csv">
-          </div>
-          <div class="btns">
-            <button class="blue" type="button" onclick="rbcStore3ParseExcel()">엑셀 읽기</button>
-            <button class="green" type="button" onclick="rbcStore3UploadStores()">Firestore 저장</button>
-            <button class="blue" type="button" onclick="rbcStore3GeocodeVisible()">현재 목록 좌표 변환</button>
-            <button class="green" type="button" onclick="rbcStore3GeocodeAll()">전체 미변환 자동 변환</button>
-            <button class="gray" type="button" onclick="rbcStore3StopGeocode()">전체 변환 중지</button>
-            <button class="gray" type="button" onclick="rbcStore3DownloadFailed()">실패 점포 엑셀 다운로드</button>
-          </div>
-          <div id="rbcStore3UploadInfo" class="small">아직 읽은 파일이 없습니다.</div>
-        </div>
-
-        <div class="rbc-store3-card">
-          <h3 style="margin:0 0 10px;color:#123f7a">점포 삭제</h3>
-          <div class="small" style="margin-bottom:10px">점포명을 입력하고 삭제 버튼을 누르면 같은 이름의 점포를 삭제합니다. 중복 점포명이 있으면 한 번 더 확인합니다.</div>
-          <div class="rbc-store3-row3">
-            <input id="rbcStore3DeleteName" placeholder="삭제할 점포명 입력">
-            <button class="rbc-store3-danger" type="button" onclick="rbcStore3DeleteByName()">삭제</button>
-          </div>
-        </div>
-
-        <div class="rbc-store3-card">
-          <h3 style="margin:0 0 10px;color:#123f7a">점포 검색</h3>
-          <div class="rbc-store3-row">
-            <input id="rbcStore3SearchInput" placeholder="예: 강남, 대치, 여의도, 이마트24">
-            <button class="blue" type="button" onclick="rbcStore3Search()">검색</button>
-          </div>
-          <div class="btns">
-            <button class="gray" type="button" onclick="rbcStore3LoadStores()">저장된 점포 불러오기</button>
-            <button class="gray" type="button" onclick="rbcStore3Summary()">좌표 현황</button>
-            <button class="green" type="button" onclick="rbcStore3ShowAllOnMap()">지도에 전체 좌표 표시</button>
-          <button id="rbcStore3DownloadCoordinateBtn" class="green" type="button">좌표완료 점포 전체 엑셀 다운로드</button></div>
-          <div id="rbcStore3CountInfo" class="small">0개</div>
-          <div class="rbc-store3-table-wrap">
-            <table class="rbc-store3-table">
-              <thead>
-                <tr>
-                  <th>No</th><th>브랜드</th><th>점포명</th><th>주소</th><th>위도</th><th>경도</th><th>상태</th>
-                </tr>
-              </thead>
-              <tbody id="rbcStore3Tbody"><tr><td colspan="7">데이터가 없습니다. 저장된 점포 불러오기를 누르세요.</td></tr></tbody>
-            </table>
-          </div>
-        </div>
-      </div><div class="rbc-risk-box" id="rbcRiskBox" style="display: none;">
-  <div class="rbc-risk-head">
-    <h2>위험 팀장 예측</h2>
-    <div>
-      <button id="rbcRiskRefreshBtn" class="rbc-risk-btn" type="button">위험도 새로고침</button>
-      <button id="rbcRiskFoldBtn" class="rbc-risk-btn" type="button">위험도 접기</button>
-    </div>
+  <div class="notice">
+    현재 구글시트의 주황색 탭을 자동으로 읽어옵니다.
   </div>
-  <div style="margin-top:8px;color:#7f1d1d;font-size:14px">
-    기준: 오후 7시 주의 · 오후 8시 위험 · 오후 9시 미제출 확정 / 제출마감 오후 9시
+
+  <div class="btns">
+
+    <button class="blue" onclick="loadGoogleSchedule()">
+      구글 일정 불러오기
+    </button>
+
+    <button class="green" onclick="approveGoogleSchedule()">
+      직원용 일정표 승인 반영
+    </button>
+
+    <button class="gray" onclick="downloadGoogleScheduleExcel()">
+      불러온 일정 PDF 다시 열기
+    </button>
+
   </div>
-  <div id="rbcRiskSummary" style="margin-top:10px">위험도 계산 중...</div>
-  <div id="rbcRiskBody" class="rbc-risk-list">
-    <div class="rbc-risk-row">위험도 데이터를 불러오는 중...</div>
+
+  <div id="googleScheduleStatus" class="badge">아직 구글 일정을 불러오지 않았습니다.</div>
+  <div id="lastApprovedInfo" style="margin-top:10px;padding:10px;background:#eef6ff;border:1px solid #b8d3fb;border-radius:12px;font-size:14px;color:#1e3a8a;line-height:1.5;">마지막 승인 정보 없음</div>
+
+  
+</div>
+
+
+
+<div class="pin-manager">
+  <h2>직원 PIN 관리</h2>
+  <div class="notice">직원용 일정표는 여기 등록된 직원명/PIN이 맞아야 열립니다. 기본 PIN은 1111로 등록하면 됩니다.</div>
+  <div class="pin-form">
+    <input id="staffNameInput" placeholder="직원명 예: 인현태" value="인현태">
+    <input id="staffPinInput" placeholder="PIN 예: 1111" value="1111">
+    <button class="pin-save" type="button" id="saveStaffPinBtn">직원 추가/수정</button>
+    <button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" onclick="var box=document.getElementById('staffPinListArea'); if(!box){alert('직원 목록 영역을 찾지 못했습니다.');return false;} if(box.style.display==='none'){box.style.display='block';this.innerText='목록 접기';}else{box.style.display='none';this.innerText='목록 펼치기';} return false;">목록 접기</button>
   </div>
-</div><div class="rbc-alert-center" id="rbcAlertCenterBox">
-  <div class="rbc-alert-head">
-    <h2>관리자 알림센터</h2>
-    <div>
-      <button class="rbc-alert-btn" type="button" onclick="rbcLoadAlertCenter()">알림 새로고침</button>
-      <button class="rbc-alert-btn" type="button" onclick="document.getElementById(&#39;rbcAlertCenterBody&#39;).style.display=document.getElementById(&#39;rbcAlertCenterBody&#39;).style.display===&#39;none&#39;?&#39;grid&#39;:&#39;none&#39;">접기/펼치기</button>
-    </div>
-  </div>
-  <div style="margin-top:8px;color:#7f1d1d;font-size:14px">
-    오늘 기준 미제출 예상, 지연 위험, 보완요청, 제출 완료 현황을 자동 요약합니다.
-  </div>
-  <div id="rbcAlertCenterBody" class="rbc-alert-grid"><div class="rbc-alert-card info"><div class="rbc-alert-title">🔵 진행중: 미제출 예정</div><div class="rbc-alert-small">예정 18건 / 제출 11건 / 미제출 7건<br>기준일 2026-07-08<br><br>- 김경진 2건 미제출<br>- 박성호 2건 미제출<br>- 최윤진 2건 미제출<br>- 오세빈 1건 미제출</div></div><div class="rbc-alert-card warn"><div class="rbc-alert-title">🟠 오늘 보완요청</div><div class="rbc-alert-small">오늘 보완요청 메시지 없음</div></div><div class="rbc-alert-card ok"><div class="rbc-alert-title">🟢 제출 완료 팀장</div><div class="rbc-alert-small">- 권대훈 완료<br>- 김달영 완료<br>- 박승현 완료<br>- 박용운 완료</div></div><div class="rbc-alert-card info"><div class="rbc-alert-title">📌 오늘 운영 요약</div><div class="rbc-alert-small">현재 시간 기준: 오후 2:05:26<br>제출률: 61%<br>마감 기준: 오후 9시</div></div></div>
-</div><div class="team-analysis" id="teamAnalysisBox">
-  <div class="team-analysis-head">
-    <h2>팀장 제출분석표</h2>
-    <div>
-      <button class="gray" type="button" onclick="loadTeamScheduleAnalysis()">분석 새로고침</button>
-      <button class="gray" type="button" onclick="toggleTeamScheduleAnalysis()">분석 접기</button>
-    </div>
-  </div>
-  <div class="notice">구글 일정표에서 분석된 팀장별 예정 점포와 실제 제출자료를 비교합니다. 오후 9시 이후 미제출이 있으면 빨간색으로 표시됩니다.</div>
-  <div class="team-analysis-tabs">
-    <button id="teamYesterdayTab" class="team-analysis-tab" type="button">어제 분석표</button><button id="teamTodayTab" class="team-analysis-tab active" type="button" onclick="showTeamAnalysisMode(&#39;today&#39;)">오늘 분석표</button>
-    <button id="teamWeekTab" class="team-analysis-tab" type="button" onclick="showTeamAnalysisMode(&#39;week&#39;)">이번 주 분석표</button>
-  </div>
-  <div id="teamAnalysisSummary" class="team-analysis-summary"><span class="team-chip total">예정 18건</span><span class="team-chip ok">제출 11건</span><span class="team-chip miss">미제출 7건</span><span class="team-chip warn">기준일 2026-07-08</span></div>
-  <div id="teamAnalysisBody" style="overflow:auto;">
-    <table class="team-analysis-table">
-      <thead id="teamAnalysisThead"><tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr></thead>
-      <tbody id="teamAnalysisTbody"><tr class="team-row-ok"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>권대훈</b></td><td>2건</td><td>2건</td><td>0건</td><td>세븐 0 / 이마트 2 / 기타 0</td><td><div class="team-store-list">· 이마트24 / 지행태인점 09<br>· 이마트24 / 옥정타운점 13</div></td><td><span class="team-status-badge ok">정상</span></td></tr><tr class="team-row-warn"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>김경진</b></td><td>3건</td><td>1건</td><td>2건</td><td>세븐 2 / 이마트 1 / 기타 0</td><td><div class="team-store-list">· 세븐 / 가능태양점 09<br>· 이마트24 / 동두천신창비바점 12<br>· 세븐 / 양주운암점 15~16</div></td><td><span class="team-status-badge warn">진행중</span></td></tr><tr class="team-row-ok"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>김달영</b></td><td>2건</td><td>2건</td><td>0건</td><td>세븐 1 / 이마트 1 / 기타 0</td><td><div class="team-store-list">· 세븐 / 마포보석점 07<br>· 이마트24 / 서강대마태오관점 10~11</div></td><td><span class="team-status-badge ok">정상</span></td></tr><tr class="team-row-warn"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>박성호</b></td><td>2건</td><td>0건</td><td>2건</td><td>세븐 1 / 이마트 0 / 기타 1</td><td><div class="team-store-list">· 세븐 / 녹번현대점 08<br>· 기타 / 전자랜드 분평점 14</div></td><td><span class="team-status-badge warn">진행중</span></td></tr><tr class="team-row-ok"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>박승현</b></td><td>2건</td><td>2건</td><td>0건</td><td>세븐 1 / 이마트 1 / 기타 0</td><td><div class="team-store-list">· 이마트24 / 오산리기도원점 09<br>· 세븐 / 파주동산길점 13</div></td><td><span class="team-status-badge ok">정상</span></td></tr><tr class="team-row-warn"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>오세빈</b></td><td>3건</td><td>2건</td><td>1건</td><td>세븐 3 / 이마트 0 / 기타 0</td><td><div class="team-store-list">· 세븐 / 계산중앙점 직-가 08<br>· 세븐 / 신현점 13<br>· 세븐 / 효성은서점 16</div></td><td><span class="team-status-badge warn">진행중</span></td></tr><tr class="team-row-warn"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>최윤진</b></td><td>2건</td><td>0건</td><td>2건</td><td>세븐 0 / 이마트 2 / 기타 0</td><td><div class="team-store-list">· 이마트24 / 일산케렌시아점 08 노<br>· 이마트24 / 고양능곡점 13 노</div></td><td><span class="team-status-badge warn">진행중</span></td></tr><tr class="team-row-ok"><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>박용운</b></td><td>2건</td><td>2건</td><td>0건</td><td>세븐 2 / 이마트 0 / 기타 0</td><td><div class="team-store-list">· 세븐 / 대치공원점<br>· 세븐 / 서초샤르망점</div></td><td><span class="team-status-badge ok">정상</span></td></tr></tbody>
+  <div class="small" id="staffPinStatus">직원 PIN 목록을 불러오는 중...</div>
+  <div id="staffPinListArea" style="overflow:auto">
+    <table class="pin-table">
+      <thead><tr><th>직원명</th><th>PIN</th><th>등록/수정일</th><th>관리</th></tr></thead>
+      <tbody id="staffPinTbody"><tr><td colspan="4">불러오는 중...</td></tr></tbody>
     </table>
   </div>
-</div><div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div><div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button class="red" type="button" style="background:#ef4444;color:#fff;" onclick="document.getElementById(&#39;adminDirectMessageModal&#39;).style.display=&#39;flex&#39;;setTimeout(function(){document.getElementById(&#39;adminDirectMessageTarget&#39;).focus();},100);">메세지보내기</button>
-<button id="rbcSubmitFoldBtn" class="rbc-submit-fold-btn" type="button" data-bound="1">제출목록 접기</button></div><div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th><th>관리</th></tr></thead><tbody id="tbody"><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>권대훈</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;옥정타운점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 옥정타운점</button></td><td>서울경기</td><td>이마트24</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 이대곤 신효주
-건수: 3900건
-걸린시간: 2시간
-특이사항기재: 날짜경과상품많음 냉장 상온 전부</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(0)">📎 첨부파일 1개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;4OoEG7kJMm7K9CXoFlLK&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;4OoEG7kJMm7K9CXoFlLK&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>권대훈</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;지행태인점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 지행태인점</button></td><td>서울경기</td><td>이마트24</td><td>정기실사</td><td><span class="rbc-merged-note">총 2회 제출</span><div class="small">인원이름: 이대곤 신효주
-건수: 4600건
-걸린시간: 2시간30분
-특이사항기재: -</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(1)">📎 첨부파일 1개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;KN20cDUsag80LuChuyLb&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;KN20cDUsag80LuChuyLb&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>박용운</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;서초샤르망&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 서초샤르망</button></td><td>서울경기</td><td>세븐일레븐</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 종헌 청원 3명
-건수: 2154건
-걸린시간: 2시간
-특이사항기재: 특이상황없음</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(2)">📎 첨부파일 3개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;O1dcKUI3nXXbbv0ZhRl2&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;O1dcKUI3nXXbbv0ZhRl2&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>박용운</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;대치공원&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 대치공원</button></td><td>서울경기</td><td>세븐일레븐</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 청원 종헌 3명
-건수: 2732건
-걸린시간: 1시간50분
-특이사항기재: 특이상황 없음</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(3)">📎 첨부파일 3개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;Q9xmZtetB4dt8oDhwVII&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;Q9xmZtetB4dt8oDhwVII&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>김달영</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;서강대마태오관점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 서강대마태오관점</button></td><td>서울경기</td><td>이마트24</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 박하나
-건수: 2567건
-걸린시간: 2시간 30분
-특이사항기재: 특이사항 없음.</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(4)">📎 첨부파일 2개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;UcEoT3LMU2hbrhuiha0J&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;UcEoT3LMU2hbrhuiha0J&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>박승현</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;파주동산길점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 파주동산길점</button></td><td>서울경기</td><td>세븐일레븐</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 박승현 백민수
-건수: 2000건
-걸린시간: 2시간
-특이사항기재: 2인 적당함 정리잘되어있음</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(5)">📎 첨부파일 3개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;bpwFbQoL4J4umcRaUOQY&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;bpwFbQoL4J4umcRaUOQY&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>오세빈</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;계산중앙점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 계산중앙점</button></td><td>기타지역</td><td>세븐일레븐</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 상지훈
-건수: 2587건
-걸린시간: 2시간
-특이사항기재: 무난함,가맹으로 전환,경과상품없음</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(6)">📎 첨부파일 4개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;f6yuKMAR4Tihh5n9AmsY&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;f6yuKMAR4Tihh5n9AmsY&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>박승현</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;오산리기도원점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 오산리기도원점</button></td><td>서울경기</td><td>이마트24</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 박승현
-건수: 1234건
-걸린시간: 1시간 30분
-특이사항기재: 2인 쉬움 진열잘되어있음 재고잘맞음</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(7)">📎 첨부파일 2개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;jDk6PDEJFq2oYe52Xi7R&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;jDk6PDEJFq2oYe52Xi7R&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>김경진</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;가능태양점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 가능태양점</button></td><td>서울경기</td><td>세븐일레븐</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 김진태 남지엽
-건수: 2602건
-걸린시간: 2시간10분
-특이사항기재: 매대 식품양호, 봉지과자와 라인쪽 살짝 복잡/쿨러5도어 짧은 타입, 앵글 무난/창고는 재고확인 후 카운팅/외부에 아이스크림/폐점 물건이 혼합되어 있음</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(8)">📎 첨부파일 5개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;lhR2YTmWksLlZKq1SPH5&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;lhR2YTmWksLlZKq1SPH5&#39;)">제출삭제</button></td></tr><tr class="status-row-pending"><td>2026. 7. 8. 오후 12:00:00</td><td>오세빈</td><td data-history-bound="1" title="클릭하면 점포 히스토리를 봅니다" style="cursor: pointer; color: rgb(37, 99, 235); font-weight: 900;"><button type="button" onclick="if(typeof openStoreHistory===&#39;function&#39;){openStoreHistory(&#39;신현점&#39;)}" style="border:none;background:none;color:#2563eb;font-weight:bold;cursor:pointer;">▶ 신현점</button></td><td>기타지역</td><td>세븐일레븐</td><td>정기실사</td><td><span class="rbc-merged-note">총 1회 제출</span><div class="small">인원이름: 상지훈
-건수: 2965건
-걸린시간: 2시간
-특이사항기재: 점포커서 무난함,경영주님 재고 큰관심 없어보임</div></td><td><button class="file-view-btn" type="button" onclick="showMergedFiles(9)">📎 첨부파일 3개</button></td><td class="status-cell"><select onchange="changeStatus(&#39;sgNGUgtA1rOiaf5z8PEu&#39;,this.value)" class="status-pending"><option>미확인</option><option>확인완료</option><option>보완요청</option></select></td><td><button class="row-delete-btn" type="button" onclick="deleteSubmissionRow(&#39;sgNGUgtA1rOiaf5z8PEu&#39;)">제출삭제</button></td></tr></tbody></table></div><div class="pagination-bar"><button id="prevPageBtn" type="button" onclick="prevPage()" disabled="">이전</button><span id="pageInfo" class="pagination-info">1 / 113 페이지 · 총 1121개 점포그룹</span><button id="nextPageBtn" type="button" onclick="nextPage()">다음</button><select id="pageSizeSelect" class="page-size-select" onchange="changePageSize(this.value)"><option value="10" selected="">10개씩</option><option value="20">20개씩</option><option value="50">50개씩</option></select></div><div class="rbc-correction-audit-box" id="rbcCorrectionAuditBox" style="display: block;">
-  <div class="rbc-correction-audit-head">
-    <h2>보완메세지 발송 확인</h2>
-    <div>
-      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">발송내역 새로고침</button>
-      <button class="rbc-correction-audit-btn gray" type="button" onclick="rbcToggleCorrectionAudit()">접기/펼치기</button>
-    </div>
-  </div>
-  <div class="rbc-correction-audit-small" style="margin-top:8px">
-    밤 9시 이후 자동 발송된 보완메세지와 관리자가 직접 보낸 메세지를 확인합니다. 확인 대상: adminMessages, autoCorrectionLogs
-  </div>
-  <div id="rbcCorrectionAuditBody">
-    <div class="rbc-correction-audit-controls">
-      <input id="rbcCorrectionAuditDate" type="date">
-      <input id="rbcCorrectionAuditKeyword" placeholder="팀장명/점포명/메세지 검색">
-      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">조회</button>
-    </div>
-    <div id="rbcCorrectionAuditSummary" class="rbc-correction-audit-summary"><span class="rbc-correction-audit-chip info">전체 0건</span><span class="rbc-correction-audit-chip warn">자동 0건</span><span class="rbc-correction-audit-chip">안읽음 0건</span><span class="rbc-correction-audit-chip ok">기준일 2026-07-08</span></div>
-    <div class="rbc-correction-audit-table-wrap">
-      <table class="rbc-correction-audit-table">
-        <thead><tr><th>발송시간</th><th>대상</th><th>구분</th><th>메세지</th><th>읽음/상태</th><th>출처</th></tr></thead>
-        <tbody id="rbcCorrectionAuditTbody"><tr><td colspan="6">조회된 보완메세지 발송내역이 없습니다.</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div><div class="section"><h2>구글 일정 승인 시스템</h2><div class="notice">주황색 탭 자동수집 결과를 승인하면 직원용 일정표와 팀장 제출분석표에 반영됩니다.</div><div class="btns"><button class="blue" type="button" onclick="loadGoogleSchedule()">구글 일정 열기</button><button class="green" type="button" onclick="approveGoogleSchedule()">직원용 일정표 승인 반영</button><button class="gray" type="button" onclick="loadGoogleSchedule()">자동수집 상태 확인</button></div><div id="googleScheduleStatus" class="badge">승인/자동수집 상태 확인 전</div><div id="rbcScheduleApprovalBox" style="margin-top: 12px; padding: 12px; border: 1px solid rgb(184, 211, 251); border-radius: 12px; background: rgb(238, 246, 255); color: rgb(18, 63, 122);"><b>Apps Script 자동 수집 상태</b><br>구글시트 일정은 Apps Script가 자동으로 대기함에 저장하고, 관리자가 승인하면 팀장 제출분석표에 반영됩니다.<div id="rbcScheduleApprovalStatus" style="margin-top:8px;padding:8px;border:1px solid #b8d3fb;border-radius:10px;background:#fff;font-weight:800">상태 확인을 눌러주세요.</div></div><div id="lastApprovedInfo" style="margin-top:10px;padding:10px;background:#eef6ff;border:1px solid #b8d3fb;border-radius:12px;font-size:14px;color:#1e3a8a;line-height:1.5;">마지막 승인: 2026. 7. 8. 오후 1:51:06<br>승인자: 인현태<br>반영 건수: 107건</div><div id="rbcScheduleFinalApprovalBox" style="margin-top: 12px; padding: 12px; border: 1px solid rgb(184, 211, 251); border-radius: 12px; background: rgb(238, 246, 255); color: rgb(18, 63, 122); line-height: 1.55;"><b>일정 승인 운영 상태</b><div id="rbcScheduleFinalApprovalStatus" style="margin-top:8px;padding:9px;border:1px solid #b8d3fb;border-radius:10px;background:#fff;font-weight:800;">자동수집 상태 확인을 눌러주세요.</div></div></div><div class="section"><h2>업로드 파일 분석 도구</h2><div class="notice">관리자 화면 하단에 추가한 분석 기능입니다. 직원이 올린 파일을 내려받은 뒤, 아래에 다시 끌어다 놓으면 점포별 건수/시간/수량을 별도로 집계할 수 있습니다.</div>
-<div class="tabs"><button class="tab active" id="tabEmart" onclick="showAnalyzer(&#39;emart&#39;)">이마트24 엑셀 분석</button><button class="tab" id="tabSeven" onclick="showAnalyzer(&#39;seven&#39;)">세븐일레븐 J파일 분석</button></div>
+</div>
+
+<div class="section"><h2>업로드 파일 분석 도구</h2><div class="notice">관리자 화면 하단에 추가한 분석 기능입니다. 직원이 올린 파일을 내려받은 뒤, 아래에 다시 끌어다 놓으면 점포별 건수/시간/수량을 별도로 집계할 수 있습니다.</div>
+<div class="tabs"><button class="tab active" id="tabEmart" onclick="showAnalyzer('emart')">이마트24 엑셀 분석</button><button class="tab" id="tabSeven" onclick="showAnalyzer('seven')">세븐일레븐 J파일 분석</button></div>
 
 <div id="emartTool" class="tool-card">
 <h2>이마트24 업로드파일 분석</h2>
-<div id="emartDrop" class="drop"><div><p><b>엑셀 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 파일을 한 번에 올리거나, 나중에 추가로 올려도 결과가 계속 누적됩니다.</p><input id="emartFileInput" type="file" multiple=""></div></div>
-<div class="btns"><button id="emartDownloadBtn" class="green" disabled="">결과 엑셀 다운로드</button><button id="emartCsvBtn" class="gray" disabled="">CSV 다운로드</button><button id="emartResetBtn" class="red">전체 초기화</button></div>
+<div id="emartDrop" class="drop"><div><p><b>엑셀 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 파일을 한 번에 올리거나, 나중에 추가로 올려도 결과가 계속 누적됩니다.</p><input id="emartFileInput" type="file" multiple /></div></div>
+<div class="btns"><button id="emartDownloadBtn" class="green" disabled>결과 엑셀 다운로드</button><button id="emartCsvBtn" class="gray" disabled>CSV 다운로드</button><button id="emartResetBtn" class="red">전체 초기화</button></div>
 <div class="notice">기준: 점포명 = 파일명에서 확장자/괄호코드 제거 · 총건수 = 4번째 행부터의 데이터 행 수 · 총걸린시간 = 날짜시간값 중 최대값 - 최소값 · 실사수량1건수 = 실사수량 열에서 값이 1인 행 수</div>
 <div class="summary"><div class="box">파일 수<b id="emartSumFiles">0</b></div><div class="box">총건수 합계<b id="emartSumRows">0</b></div><div class="box">실사수량 1 합계<b id="emartSumOnes">0</b></div><div class="box">총걸린시간 합계<b id="emartSumTime">0초</b></div></div>
 <div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>점포명</th><th>총건수</th><th>총걸린시간</th><th>실사수량1건수</th><th>시작시간</th><th>종료시간</th><th>몇인실사</th><th>구간</th><th>비고</th><th>삭제</th></tr></thead><tbody id="emartTbody"><tr><td colspan="11">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
@@ -1174,79 +1112,12 @@ select.status-pending {
 
 <div id="sevenTool" class="tool-card hidden">
 <h2>세븐일레븐 J파일 분석</h2>
-<div id="sevenDrop" class="drop"><div><p><b>J파일/텍스트 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 번 끌어다 놓으면 계속 누적됩니다.</p><input type="file" id="sevenFileInput" multiple=""></div></div>
-<div class="btns"><button id="sevenExcelBtn" class="green" disabled="">엑셀 다운로드</button><button id="sevenClearBtn" class="red">전체 초기화</button></div>
+<div id="sevenDrop" class="drop"><div><p><b>J파일/텍스트 파일을 여기로 끌어다 놓으면 바로 분석됩니다.</b><br>여러 번 끌어다 놓으면 계속 누적됩니다.</p><input type="file" id="sevenFileInput" multiple></div></div>
+<div class="btns"><button id="sevenExcelBtn" class="green" disabled>엑셀 다운로드</button><button id="sevenClearBtn" class="red">전체 초기화</button></div>
 <div style="overflow:auto"><table class="analyzer-table"><thead><tr><th>No</th><th>파일명</th><th>건수</th><th>작업시간</th><th>1개건수</th><th>몇인실사</th><th>구간</th><th>삭제</th></tr></thead><tbody id="sevenTbody"><tr><td colspan="8">아직 분석된 파일이 없습니다.</td></tr></tbody></table></div>
 </div>
-</div><div class="rbc-score-box" id="rbcScoreBox" style="display: none;">
-  <div class="rbc-score-head">
-    <h2>팀장 신뢰도 점수</h2>
-    <div>
-      <button class="rbc-score-btn" onclick="rbcLoadScore()">신뢰도 새로고침</button>
-      <button class="rbc-score-btn" onclick="document.getElementById(&#39;rbcScoreBody&#39;).style.display=document.getElementById(&#39;rbcScoreBody&#39;).style.display===&#39;none&#39;?&#39;block&#39;:&#39;none&#39;">신뢰도 접기/펼치기</button>
-    </div>
-  </div>
-  <div style="color:#64748b">이번 달 기준 / 오후 9시 마감 / 제출률·정시율·미제출·지연·보완요청 반영</div>
-  <div id="rbcScoreSummary"><span class="rbc-score-chip rbc-a">A 0명</span><span class="rbc-score-chip rbc-b">B 0명</span><span class="rbc-score-chip rbc-c">C 0명</span><span class="rbc-score-chip rbc-d">D 10명</span></div>
-  <div id="rbcScoreBody"><table class="rbc-score-table"><thead><tr><th>순위</th><th>이름</th><th>등급</th><th>점수</th><th>예정</th><th>제출률</th><th>정시율</th><th>미제출</th><th>지연</th><th>보완</th></tr></thead><tbody><tr><td>1</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>권대훈</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>10</td><td>0%</td><td>0%</td><td>10</td><td>0</td><td>0</td></tr><tr><td>2</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>김경진</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>14</td><td>0%</td><td>0%</td><td>14</td><td>0</td><td>6</td></tr><tr><td>3</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>김달영</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>13</td><td>0%</td><td>0%</td><td>13</td><td>0</td><td>1</td></tr><tr><td>4</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>박성호</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>14</td><td>0%</td><td>0%</td><td>14</td><td>0</td><td>4</td></tr><tr><td>5</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>박승현</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>17</td><td>0%</td><td>0%</td><td>17</td><td>0</td><td>5</td></tr><tr><td>6</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>박용운</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>12</td><td>17%</td><td>17%</td><td>10</td><td>0</td><td>1</td></tr><tr><td>7</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>오세빈</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>14</td><td>0%</td><td>0%</td><td>14</td><td>0</td><td>4</td></tr><tr><td>8</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>최윤진</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>11</td><td>0%</td><td>0%</td><td>11</td><td>0</td><td>1</td></tr><tr><td>9</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>남지엽</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>2</td><td>0%</td><td>0%</td><td>2</td><td>0</td><td>1</td></tr><tr><td>10</td><td data-leader-click="1" class="rbc-leader-click" title="클릭하면 팀장 상세 성적을 봅니다"><b>인현태</b></td><td><span class="rbc-grade rbc-d">D</span></td><td>0점</td><td>0</td><td>0%</td><td>0%</td><td>0</td><td>0</td><td>6</td></tr></tbody></table></div>
-</div><div class="rbc-monthly-box" id="rbcMonthlyBox" style="display: none;">
-  <div class="rbc-monthly-head">
-    <h2>팀장 월간 성과분석표</h2>
-    <div>
-      <button id="rbcMonthlyRefreshBtn" class="rbc-monthly-btn" type="button">월간분석 새로고침</button>
-      <button id="rbcMonthlyFoldBtn" class="rbc-monthly-btn" type="button">월간분석 접기</button>
-    </div>
-  </div>
-  <div style="margin-top:8px;color:#64748b;font-size:14px">
-    이번 달 1일부터 말일까지 총 예정, 정상 제출, 지연 제출, 미제출, 정시 제출률, 보완요청 건수를 계산합니다.
-  </div>
-  <div id="rbcMonthlySummary" style="margin-top:10px">월간 성과 계산 중...</div>
-  <div id="rbcMonthlyBody">
-    <div class="rbc-rank-card" style="margin-top:12px">월간 데이터를 불러오는 중...</div>
-  </div>
-</div><div class="pin-manager" style="display: none;">
-  <h2>직원 PIN 관리</h2>
-  <div class="notice" data-office-notice="1">직원용 일정표는 직원명/PIN으로 열고, 관리자앱 첫 화면은 <b>사무실직원</b>으로 체크된 이름만 선택해서 들어갑니다. 직급순서는 숫자가 낮을수록 로그인 첫 화면 위에 표시됩니다.</div>
-  <div class="pin-form">
-    <input id="staffNameInput" placeholder="직원명 예: 인현태" value="인현태">
-    <input id="staffPinInput" placeholder="PIN 예: 1111" value="1111">
-    <input id="staffOrderInput" class="staff-order-input" type="number" min="1" placeholder="직급순서 예: 1"><label class="office-staff-line"><input id="officeStaffInput" type="checkbox"> 사무실직원</label><button class="pin-save" type="button" id="saveStaffPinBtn">직원 추가/수정</button>
-    <button class="gray" type="button" id="refreshStaffPinBtn">목록 새로고침</button><button class="pin-toggle-btn" type="button" onclick="var box=document.getElementById(&#39;staffPinListArea&#39;); if(!box){alert(&#39;직원 목록 영역을 찾지 못했습니다.&#39;);return false;} if(box.style.display===&#39;none&#39;){box.style.display=&#39;block&#39;;this.innerText=&#39;목록 접기&#39;;}else{box.style.display=&#39;none&#39;;this.innerText=&#39;목록 펼치기&#39;;} return false;">목록 접기</button>
-  </div>
-  <div class="small" id="staffPinStatus"><div class="rbc-staff-count-line">전체 직원 36명&nbsp;&nbsp;|&nbsp;&nbsp;사무실 직원 4명&nbsp;&nbsp;|&nbsp;&nbsp;현장 직원 32명</div></div>
-  <div id="staffPinListArea" style="overflow:auto">
-    <table class="pin-table">
-      <thead><tr><th>직원명</th><th>PIN</th><th>직급순서</th><th>사무실직원</th><th>등록/수정일</th><th>관리</th></tr></thead>
-      <tbody id="staffPinTbody"><tr><td>인현태</td><td>98765</td><td>1</td><td><b style="color:#166534">사무실직원</b></td><td>2026. 6. 12. 오후 5:26:50</td><td><button class="pin-del" type="button" data-staff-name="인현태">삭제</button></td></tr><tr><td>조정환</td><td>98765</td><td>2</td><td><b style="color:#166534">사무실직원</b></td><td>2026. 6. 12. 오후 5:27:04</td><td><button class="pin-del" type="button" data-staff-name="조정환">삭제</button></td></tr><tr><td>유성민</td><td>98765</td><td>3</td><td><b style="color:#166534">사무실직원</b></td><td>2026. 6. 12. 오후 5:27:13</td><td><button class="pin-del" type="button" data-staff-name="유성민">삭제</button></td></tr><tr><td>김미란</td><td>98765</td><td>4</td><td><b style="color:#166534">사무실직원</b></td><td>2026. 6. 12. 오후 5:26:58</td><td><button class="pin-del" type="button" data-staff-name="김미란">삭제</button></td></tr><tr><td>권대훈</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:45:19</td><td><button class="pin-del" type="button" data-staff-name="권대훈">삭제</button></td></tr><tr><td>김경진</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:45:33</td><td><button class="pin-del" type="button" data-staff-name="김경진">삭제</button></td></tr><tr><td>김달영</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:45:27</td><td><button class="pin-del" type="button" data-staff-name="김달영">삭제</button></td></tr><tr><td>김정민</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 1:00:25</td><td><button class="pin-del" type="button" data-staff-name="김정민">삭제</button></td></tr><tr><td>김진태</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:43</td><td><button class="pin-del" type="button" data-staff-name="김진태">삭제</button></td></tr><tr><td>남지엽</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:04</td><td><button class="pin-del" type="button" data-staff-name="남지엽">삭제</button></td></tr><tr><td>문종환</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:59</td><td><button class="pin-del" type="button" data-staff-name="문종환">삭제</button></td></tr><tr><td>박성호</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:45:41</td><td><button class="pin-del" type="button" data-staff-name="박성호">삭제</button></td></tr><tr><td>박승현</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:45:48</td><td><button class="pin-del" type="button" data-staff-name="박승현">삭제</button></td></tr><tr><td>박용운</td><td>1111</td><td>-</td><td>-</td><td>2026. 6. 10. 오후 6:09:35</td><td><button class="pin-del" type="button" data-staff-name="박용운">삭제</button></td></tr><tr><td>박천호</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:33</td><td><button class="pin-del" type="button" data-staff-name="박천호">삭제</button></td></tr><tr><td>박하나</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:49</td><td><button class="pin-del" type="button" data-staff-name="박하나">삭제</button></td></tr><tr><td>백민수</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:08</td><td><button class="pin-del" type="button" data-staff-name="백민수">삭제</button></td></tr><tr><td>상지훈</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:21</td><td><button class="pin-del" type="button" data-staff-name="상지훈">삭제</button></td></tr><tr><td>서윤미</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:13</td><td><button class="pin-del" type="button" data-staff-name="서윤미">삭제</button></td></tr><tr><td>송호근</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 1:00:50</td><td><button class="pin-del" type="button" data-staff-name="송호근">삭제</button></td></tr><tr><td>신효주</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:20</td><td><button class="pin-del" type="button" data-staff-name="신효주">삭제</button></td></tr><tr><td>안형섭</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:39</td><td><button class="pin-del" type="button" data-staff-name="안형섭">삭제</button></td></tr><tr><td>오세빈</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:57:57</td><td><button class="pin-del" type="button" data-staff-name="오세빈">삭제</button></td></tr><tr><td>오태명</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:52</td><td><button class="pin-del" type="button" data-staff-name="오태명">삭제</button></td></tr><tr><td>유재혁</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:36</td><td><button class="pin-del" type="button" data-staff-name="유재혁">삭제</button></td></tr><tr><td>윤여준</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 1:00:44</td><td><button class="pin-del" type="button" data-staff-name="윤여준">삭제</button></td></tr><tr><td>이대곤</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:01</td><td><button class="pin-del" type="button" data-staff-name="이대곤">삭제</button></td></tr><tr><td>이지훈</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 1:00:04</td><td><button class="pin-del" type="button" data-staff-name="이지훈">삭제</button></td></tr><tr><td>임정윤</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:13</td><td><button class="pin-del" type="button" data-staff-name="임정윤">삭제</button></td></tr><tr><td>정준호</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:55</td><td><button class="pin-del" type="button" data-staff-name="정준호">삭제</button></td></tr><tr><td>조영제</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:46</td><td><button class="pin-del" type="button" data-staff-name="조영제">삭제</button></td></tr><tr><td>조한렬</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 1:00:31</td><td><button class="pin-del" type="button" data-staff-name="조한렬">삭제</button></td></tr><tr><td>조현민</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 1:00:38</td><td><button class="pin-del" type="button" data-staff-name="조현민">삭제</button></td></tr><tr><td>조형근</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 1:00:12</td><td><button class="pin-del" type="button" data-staff-name="조형근">삭제</button></td></tr><tr><td>최윤진</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:58:30</td><td><button class="pin-del" type="button" data-staff-name="최윤진">삭제</button></td></tr><tr><td>최훈섭</td><td>1111</td><td>-</td><td>-</td><td>2026. 5. 19. 오후 12:59:27</td><td><button class="pin-del" type="button" data-staff-name="최훈섭">삭제</button></td></tr></tbody>
-    </table>
-  </div>
-</div><div class="rbc-archive-box" id="rbcArchiveBox" style="display: none;">
-  <div class="rbc-archive-head">
-    <h2>데이터 아카이브 관리</h2>
-    <button class="rbc-archive-btn gray" type="button" onclick="rbcToggleArchiveBox()">접기/펼치기</button>
-  </div>
-  <div id="rbcArchiveBody">
-    <div class="small" style="margin-top:8px;color:#64748b">
-      기준: submissions의 submittedAt 날짜가 지정 개월보다 오래된 자료를 archiveSubmissions로 복사하고, 원본은 archived:true로 표시해 제출목록에서 숨깁니다.
-    </div>
-    <div class="rbc-archive-controls">
-      <label style="font-weight:900">보관 기준</label>
-      <input id="rbcArchiveMonths" type="number" min="1" value="13">
-      <span class="small">개월 이전 자료</span>
-      <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
-      <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
-      <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
-      <button class="rbc-archive-btn gray" type="button" onclick="rbcLoadArchiveLogs()">로그 보기</button>
-    <button id="rbcArchiveZipDownloadBtn" type="button" class="rbc-archive-btn green" style="margin-left: 6px;">아카이브 첨부파일 ZIP 다운로드</button></div><div id="rbcArchiveAutoBackupSettingBox" data-month-style="Y"><h3 style="margin:0 0 8px;color:#123f7a">자동백업 설정</h3><div class="small" style="line-height:1.55">예전 방식처럼 <b>개월수</b>를 정하면, 그 개월수보다 오래된 제출자료를 자동백업 대상으로 설정합니다. 예: 13개월이면 13개월 이전 자료를 archiveSubmissions로 복사하고 원본은 숨김 처리합니다.</div><div class="rbc-archive-auto-grid"><select id="rbcArchiveAutoBackupEnabled"><option value="Y">자동백업 사용</option><option value="N">자동백업 중지</option></select><input id="rbcArchiveAutoBackupMonths" type="number" min="1" value="13"><span class="small">개월 이전 자료 자동백업</span><button class="green" type="button" onclick="rbcSaveArchiveAutoBackupMonthSetting()">설정 저장</button><button class="gray" type="button" onclick="rbcLoadArchiveAutoBackupMonthSetting()">불러오기</button></div><div class="btns" style="margin-top:10px"><button class="blue" type="button" onclick="rbcArchiveAutoBackupSimulation()">자동백업 대상 확인</button><button class="green" type="button" onclick="rbcArchiveAutoBackupRunNow()">지금 자동백업 실행</button></div><div id="rbcArchiveAutoBackupSettingStatus" class="rbc-archive-auto-status"><b>자동백업 설정 불러옴</b><br>상태: 사용<br>기준: 13개월 이전 자료<br>마지막 수정: 2026-06-19T01:58:54.697Z</div></div>
-    <div class="rbc-archive-warn">
-      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
-    </div>
-    <div id="rbcArchiveSummary" class="rbc-archive-summary">
-      <div class="rbc-archive-card">상태<b>대기</b></div>
-    </div>
-    <div id="rbcArchiveLog" class="rbc-archive-log">아직 실행 기록이 없습니다.</div>
-  </div>
-</div><div id="rbcArchiveBackupBox" class="rbc-page2-only" style="display: none;"><h2>데이터 아카이브 관리</h2><div class="notice">서버에 보관된 ARCHIVE 제출자료의 첨부파일을 ZIP으로 묶어 내 컴퓨터로 다운로드합니다. 관리자앱을 열지 않아도 밤 9시 자동 보완요청은 Firebase Functions에서 별도로 실행됩니다.</div><div class="rbc-archive-row"><button class="green" type="button" onclick="rbcDownloadArchiveZip()">ARCHIVE 첨부파일 ZIP 다운로드</button><button class="gray" type="button" onclick="rbcOpenFirebaseFunctionsHelp()">Functions 확인 안내</button></div><div id="rbcArchiveBackupStatus" class="rbc-archive-status">ZIP 다운로드 버튼을 누르면 새 창에서 다운로드가 시작됩니다.</div></div><div id="rbcBottomPageTabs" class="rbc-page-tabs"><button class="rbc-page-tab active" type="button">페이지1 제출관리</button><button class="rbc-page-tab" type="button">페이지2 분석/직원관리</button><button class="rbc-page-tab" type="button">페이지3 가까운 점포검색</button></div></div>
+</div>
+</div>
 
 <div id="correctionModal" class="correction-modal">
   <div class="correction-card">
@@ -1259,7 +1130,7 @@ select.status-pending {
     </div>
   </div>
 </div>
-<script src="./RAVEBIC 관리자 안정본 첨부파일 열기_files/firebase-app-compat.js.다운로드"></script><script src="./RAVEBIC 관리자 안정본 첨부파일 열기_files/firebase-firestore-compat.js.다운로드"></script><script src="./RAVEBIC 관리자 안정본 첨부파일 열기_files/firebase-storage-compat.js.다운로드"></script><script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script><script>
 const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13",measurementId:"G-EEN6GM72JT"};
 firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const storage=firebase.storage();
 let allRows=[];let filtered=[];let currentPage=1;let pageSize=10;function dtOf(r){
@@ -1996,7 +1867,7 @@ setTimeout(function(){
     <textarea id="adminDirectMessageText">서류 제출 또는 보완이 필요합니다. 확인 후 처리 부탁드립니다.</textarea>
 
     <div class="admin-message-actions">
-      <button class="gray" type="button" onclick="document.getElementById(&#39;adminDirectMessageModal&#39;).style.display=&#39;none&#39;;">닫기</button>
+      <button class="gray" type="button" onclick="document.getElementById('adminDirectMessageModal').style.display='none';">닫기</button>
       <button class="red" type="button" onclick="sendAdminDirectMessageForce()">직원용 보완요청함에 보내기</button>
     </div>
   </div>
@@ -2632,7 +2503,18 @@ setTimeout(loadTeamScheduleAnalysis, 1500);
 .rbc-a{background:#dcfce7;color:#166534}.rbc-b{background:#dbeafe;color:#1d4ed8}.rbc-c{background:#ffedd5;color:#9a3412}.rbc-d{background:#fee2e2;color:#991b1b}
 </style>
 
-
+<div class="rbc-score-box" id="rbcScoreBox">
+  <div class="rbc-score-head">
+    <h2>직원/팀장 신뢰도 점수</h2>
+    <div>
+      <button class="rbc-score-btn" onclick="rbcLoadScore()">신뢰도 새로고침</button>
+      <button class="rbc-score-btn" onclick="document.getElementById('rbcScoreBody').style.display=document.getElementById('rbcScoreBody').style.display==='none'?'block':'none'">신뢰도 접기/펼치기</button>
+    </div>
+  </div>
+  <div style="color:#64748b">이번 달 기준 / 오후 9시 마감 / 제출률·정시율·미제출·지연·보완요청 반영</div>
+  <div id="rbcScoreSummary">계산 중...</div>
+  <div id="rbcScoreBody">불러오는 중...</div>
+</div>
 
 <script>
 async function rbcLoadScore(){
@@ -3574,7 +3456,21 @@ function arrangePage2Boxes(){
 }
 </style>
 
-
+<div class="rbc-alert-center" id="rbcAlertCenterBox">
+  <div class="rbc-alert-head">
+    <h2>관리자 알림센터</h2>
+    <div>
+      <button class="rbc-alert-btn" type="button" onclick="rbcLoadAlertCenter()">알림 새로고침</button>
+      <button class="rbc-alert-btn" type="button" onclick="document.getElementById('rbcAlertCenterBody').style.display=document.getElementById('rbcAlertCenterBody').style.display==='none'?'grid':'none'">접기/펼치기</button>
+    </div>
+  </div>
+  <div style="margin-top:8px;color:#7f1d1d;font-size:14px">
+    오늘 기준 미제출 예상, 지연 위험, 보완요청, 제출 완료 현황을 자동 요약합니다.
+  </div>
+  <div id="rbcAlertCenterBody" class="rbc-alert-grid">
+    <div class="rbc-alert-card">알림 계산 중...</div>
+  </div>
+</div>
 
 <script>
 async function rbcLoadAlertCenter(){
@@ -4004,7 +3900,33 @@ window.debugTeamScheduleDate = async function(dateStr){
 @media(max-width:768px){.rbc-archive-controls{display:grid;grid-template-columns:1fr}.rbc-archive-controls input{width:100%}}
 </style>
 
-
+<div class="rbc-archive-box" id="rbcArchiveBox">
+  <div class="rbc-archive-head">
+    <h2>데이터 아카이브 관리</h2>
+    <button class="rbc-archive-btn gray" type="button" onclick="rbcToggleArchiveBox()">접기/펼치기</button>
+  </div>
+  <div id="rbcArchiveBody">
+    <div class="small" style="margin-top:8px;color:#64748b">
+      기준: submissions의 submittedAt 날짜가 지정 개월보다 오래된 자료를 archiveSubmissions로 복사하고, 원본은 archived:true로 표시해 제출목록에서 숨깁니다.
+    </div>
+    <div class="rbc-archive-controls">
+      <label style="font-weight:900">보관 기준</label>
+      <input id="rbcArchiveMonths" type="number" min="1" value="13">
+      <span class="small">개월 이전 자료</span>
+      <button class="rbc-archive-btn" type="button" onclick="rbcArchiveSimulation()">아카이브 시뮬레이션</button>
+      <button class="rbc-archive-btn green" type="button" onclick="rbcArchiveRun()">archive로 이동 후 숨김</button>
+      <button class="rbc-archive-btn red" type="button" onclick="rbcArchivePermanentDelete()">숨김 원본 영구삭제</button>
+      <button class="rbc-archive-btn gray" type="button" onclick="rbcLoadArchiveLogs()">로그 보기</button>
+    </div>
+    <div class="rbc-archive-warn">
+      안전장치: 처음에는 반드시 시뮬레이션을 먼저 실행하세요. 영구삭제는 archiveSubmissions에 복사되어 archived:true 처리된 원본만 대상으로 합니다.
+    </div>
+    <div id="rbcArchiveSummary" class="rbc-archive-summary">
+      <div class="rbc-archive-card">상태<b>대기</b></div>
+    </div>
+    <div id="rbcArchiveLog" class="rbc-archive-log">아직 실행 기록이 없습니다.</div>
+  </div>
+</div>
 
 <script>
 /* RAVEBIC_ARCHIVE_MANAGER_V1 */
@@ -7006,9 +6928,9 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 <!-- /RAVEBIC_FINAL_PENDING_TEAM_SAFE_PATCH_20260706 -->
 
+</body></html>
 
-
-
+<!-- RAVEBIC_ULTRA_STABLE_FIX_20260616_PAGINATION_PAGE_SCHEDULE -->
 <script>
 (function(){
   if(window.__RAVEBIC_ULTRA_STABLE_FIX_20260616__) return;
@@ -11658,9 +11580,9 @@ window.debugTeamScheduleDate = async function(dateStr){
 </script>
 <!-- /RAVEBIC_AUTO_SCHEDULE_FIRESTORE_STATUS_OVERRIDE_V12 -->
 
+</body></html>
 
-
-
+<!-- RAVEBIC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625 -->
 <script>
 (function(){
   if(window.__RBC_SCHEDULE_SERVER_FUNCTION_FIX_V4_20260625__) return;
@@ -12876,4 +12798,3 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 <!-- /RAVEBIC_PAGE2_DUPLICATE_BOX_FIX_V33 -->
-</body></html>
