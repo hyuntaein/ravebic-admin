@@ -12798,3 +12798,46 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 <!-- /RAVEBIC_PAGE2_DUPLICATE_BOX_FIX_V33 -->
+
+<script>
+/* RAVEBIC_WEEK_TAB_FIX_V34 */
+/* 문제: "이번 주 분석표" 버튼을 눌러도 이전 패치들이 겹치면서 주간 전용 렌더러
+   (renderTeamWeekAnalysis, 7일 칼럼 표)로 연결되지 않고 "어제 분석표"와 동일한
+   단일 날짜용 렌더러가 대신 실행되어 숫자가 똑같이 보였습니다.
+   이 스크립트는 파일 맨 마지막에 실행되므로, 버튼 클릭 시 모드에 따라
+   확실하게 올바른 함수를 호출하도록 최종적으로 다시 연결합니다. */
+(function(){
+  window.loadTeamScheduleAnalysis = async function(){
+    var tbody = document.getElementById('teamAnalysisTbody');
+    if(tbody) tbody.innerHTML = '<tr><td>팀장 제출분석을 불러오는 중...</td></tr>';
+
+    var mode = window.teamAnalysisMode || 'today';
+
+    if(mode === 'week'){
+      if(typeof renderTeamWeekAnalysis === 'function') return renderTeamWeekAnalysis();
+      if(typeof window.renderTeamWeekAnalysis === 'function') return window.renderTeamWeekAnalysis();
+    }
+    if(mode === 'yesterday' && typeof window.renderTeamYesterdayAnalysis === 'function'){
+      return window.renderTeamYesterdayAnalysis();
+    }
+    if(typeof window.renderTeamTodayAnalysis === 'function'){
+      return window.renderTeamTodayAnalysis();
+    }
+  };
+
+  window.showTeamAnalysisMode = function(mode){
+    if(mode !== 'yesterday' && mode !== 'today' && mode !== 'week') mode = 'today';
+    window.teamAnalysisMode = mode;
+
+    var y = document.getElementById('teamYesterdayTab');
+    var t = document.getElementById('teamTodayTab');
+    var w = document.getElementById('teamWeekTab');
+    if(y) y.classList.toggle('active', mode === 'yesterday');
+    if(t) t.classList.toggle('active', mode === 'today');
+    if(w) w.classList.toggle('active', mode === 'week');
+
+    window.loadTeamScheduleAnalysis();
+  };
+})();
+</script>
+<!-- /RAVEBIC_WEEK_TAB_FIX_V34 -->
