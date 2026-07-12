@@ -4880,6 +4880,19 @@ window.debugTeamScheduleDate = async function(dateStr){
         </div>
 
         <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">브랜드별 전체 삭제</h3>
+          <div class="small" style="margin-bottom:10px">선택한 브랜드의 점포를 전부 삭제합니다. 다른 브랜드는 영향받지 않습니다. 재업로드로 중복/충돌이 생겼을 때, 깨끗하게 지우고 다시 올릴 때 사용하세요.</div>
+          <div class="rbc-store3-row3">
+            <select id="rbcStore3DeleteBrandSelect">
+              <option value="">브랜드 선택</option>
+              <option value="세븐일레븐">세븐일레븐</option>
+              <option value="이마트24">이마트24</option>
+            </select>
+            <button class="rbc-store3-danger" type="button" onclick="rbcStore3DeleteByBrand()">브랜드 전체 삭제</button>
+          </div>
+        </div>
+
+        <div class="rbc-store3-card">
           <h3 style="margin:0 0 10px;color:#123f7a">점포 검색</h3>
           <div class="rbc-store3-row">
             <input id="rbcStore3SearchInput" placeholder="예: 강남, 대치, 여의도, 이마트24">
@@ -5325,6 +5338,60 @@ window.debugTeamScheduleDate = async function(dateStr){
     setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
+  async function deleteByBrand(){
+    await ensureStoresLoaded();
+
+    const select = document.getElementById("rbcStore3DeleteBrandSelect");
+    const brand = select ? select.value : "";
+    if(!brand){
+      alert("삭제할 브랜드를 선택하세요.");
+      return;
+    }
+
+    const matches = allStores.filter(function(s){
+      return (s.brand || "") === brand;
+    });
+
+    if(!matches.length){
+      alert("해당 브랜드의 점포가 없습니다.");
+      return;
+    }
+
+    if(!confirm(
+      "'" + brand + "' 브랜드 점포 " + matches.length.toLocaleString() + "개를 전부 삭제할까요?\n\n" +
+      "다른 브랜드 데이터는 전혀 영향받지 않습니다.\n" +
+      "이 작업은 Firestore에서 실제 삭제되며 되돌릴 수 없습니다."
+    )){
+      return;
+    }
+
+    if(!confirm("정말 진행할까요? '" + brand + "' " + matches.length.toLocaleString() + "개 삭제, 최종 확인입니다.")){
+      return;
+    }
+
+    let deleted = 0;
+    for(let i=0;i<matches.length;i+=400){
+      const batch = db.batch();
+      const chunk = matches.slice(i,i+400);
+      chunk.forEach(function(s){
+        if(s.id){
+          batch.delete(db.collection(COLLECTION_NAME).doc(s.id));
+        }
+      });
+      await batch.commit();
+      deleted += chunk.length;
+      setStatus("브랜드 전체 삭제 중... " + deleted.toLocaleString() + " / " + matches.length.toLocaleString());
+    }
+
+    alert("'" + brand + "' 삭제 완료: " + deleted.toLocaleString() + "개");
+    allStores = allStores.filter(function(s){
+      return (s.brand || "") !== brand;
+    });
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
+  }
+
   async function focus(index){
     const store = currentRows[index];
     if(!store) return;
@@ -5664,6 +5731,7 @@ window.debugTeamScheduleDate = async function(dateStr){
   window.rbcStore3ParseExcel = parseExcel;
   window.rbcStore3UploadStores = uploadStores;
   window.rbcStore3DeleteByName = deleteByName;
+  window.rbcStore3DeleteByBrand = deleteByBrand;
   window.rbcStore3GeocodeVisible = geocodeVisible;
   window.rbcStore3GeocodeAll = geocodeAll;
   window.rbcStore3StopGeocode = stopGeocode;
@@ -7996,6 +8064,19 @@ window.debugTeamScheduleDate = async function(dateStr){
         </div>
 
         <div class="rbc-store3-card">
+          <h3 style="margin:0 0 10px;color:#123f7a">브랜드별 전체 삭제</h3>
+          <div class="small" style="margin-bottom:10px">선택한 브랜드의 점포를 전부 삭제합니다. 다른 브랜드는 영향받지 않습니다. 재업로드로 중복/충돌이 생겼을 때, 깨끗하게 지우고 다시 올릴 때 사용하세요.</div>
+          <div class="rbc-store3-row3">
+            <select id="rbcStore3DeleteBrandSelect">
+              <option value="">브랜드 선택</option>
+              <option value="세븐일레븐">세븐일레븐</option>
+              <option value="이마트24">이마트24</option>
+            </select>
+            <button class="rbc-store3-danger" type="button" onclick="rbcStore3DeleteByBrand()">브랜드 전체 삭제</button>
+          </div>
+        </div>
+
+        <div class="rbc-store3-card">
           <h3 style="margin:0 0 10px;color:#123f7a">점포 검색</h3>
           <div class="rbc-store3-row">
             <input id="rbcStore3SearchInput" placeholder="예: 강남, 대치, 여의도, 이마트24">
@@ -8441,6 +8522,60 @@ window.debugTeamScheduleDate = async function(dateStr){
     setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
+  async function deleteByBrand(){
+    await ensureStoresLoaded();
+
+    const select = document.getElementById("rbcStore3DeleteBrandSelect");
+    const brand = select ? select.value : "";
+    if(!brand){
+      alert("삭제할 브랜드를 선택하세요.");
+      return;
+    }
+
+    const matches = allStores.filter(function(s){
+      return (s.brand || "") === brand;
+    });
+
+    if(!matches.length){
+      alert("해당 브랜드의 점포가 없습니다.");
+      return;
+    }
+
+    if(!confirm(
+      "'" + brand + "' 브랜드 점포 " + matches.length.toLocaleString() + "개를 전부 삭제할까요?\n\n" +
+      "다른 브랜드 데이터는 전혀 영향받지 않습니다.\n" +
+      "이 작업은 Firestore에서 실제 삭제되며 되돌릴 수 없습니다."
+    )){
+      return;
+    }
+
+    if(!confirm("정말 진행할까요? '" + brand + "' " + matches.length.toLocaleString() + "개 삭제, 최종 확인입니다.")){
+      return;
+    }
+
+    let deleted = 0;
+    for(let i=0;i<matches.length;i+=400){
+      const batch = db.batch();
+      const chunk = matches.slice(i,i+400);
+      chunk.forEach(function(s){
+        if(s.id){
+          batch.delete(db.collection(COLLECTION_NAME).doc(s.id));
+        }
+      });
+      await batch.commit();
+      deleted += chunk.length;
+      setStatus("브랜드 전체 삭제 중... " + deleted.toLocaleString() + " / " + matches.length.toLocaleString());
+    }
+
+    alert("'" + brand + "' 삭제 완료: " + deleted.toLocaleString() + "개");
+    allStores = allStores.filter(function(s){
+      return (s.brand || "") !== brand;
+    });
+    renderRows(allStores.slice(0,100));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
+  }
+
   async function focus(index){
     const store = currentRows[index];
     if(!store) return;
@@ -8780,6 +8915,7 @@ window.debugTeamScheduleDate = async function(dateStr){
   window.rbcStore3ParseExcel = parseExcel;
   window.rbcStore3UploadStores = uploadStores;
   window.rbcStore3DeleteByName = deleteByName;
+  window.rbcStore3DeleteByBrand = deleteByBrand;
   window.rbcStore3GeocodeVisible = geocodeVisible;
   window.rbcStore3GeocodeAll = geocodeAll;
   window.rbcStore3StopGeocode = stopGeocode;
