@@ -957,7 +957,7 @@ select.status-pending {
 
 <!-- RAVEBIC_CORRECTION_MESSAGE_AUDIT_PANEL_FORCE_V2 -->
 <style>
-#rbcCorrectionAuditBox{margin:18px 0;padding:16px;border:1px solid #fecaca;background:#fff7f7;border-radius:18px;display:block!important;clear:both}
+#rbcCorrectionAuditBox{margin:18px 0;padding:16px;border:1px solid #fecaca;background:#fff7f7;border-radius:18px;clear:both}
 #rbcCorrectionAuditBox .rbc-correction-audit-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 #rbcCorrectionAuditBox h2{margin:0;color:#991b1b;font-size:22px}
 .rbc-correction-audit-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
@@ -12874,3 +12874,82 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 <!-- /RAVEBIC_CORRECTION_BOX_PAGE_FIX_FINAL_V35 -->
+
+<!-- RAVEBIC_INFLOW_BOTTOM_PAGE_NAV_V2 -->
+<style>
+#rbcInFlowBottomNav{
+  margin:22px 0 8px;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  justify-content:center;
+  padding:14px;
+  border-top:2px dashed #cfe0f8;
+}
+#rbcInFlowBottomNav button{
+  padding:12px 16px;
+  border-radius:12px;
+  font-weight:900;
+  font-size:14px;
+  border:0;
+  cursor:pointer;
+  background:#e5e7eb;
+  color:#111;
+  min-width:150px;
+}
+#rbcInFlowBottomNav button.active{
+  background:#2563eb;
+  color:#fff;
+}
+</style>
+<script>
+(function(){
+  if(window.__RBC_INFLOW_BOTTOM_PAGE_NAV_V2__) return;
+  window.__RBC_INFLOW_BOTTOM_PAGE_NAV_V2__ = true;
+
+  function hasPage3(){
+    return !!(document.getElementById('rbcStoreSearchPage3') || document.getElementById('rbcPage3Btn'));
+  }
+
+  function goPage(p){
+    window.__rbcCurrentPage = p;
+    if(typeof window.showRbcPage === 'function') window.showRbcPage(p, {manual:true});
+  }
+
+  function ensureBar(){
+    var wrap = document.querySelector('.wrap');
+    if(!wrap) return;
+    var bar = document.getElementById('rbcInFlowBottomNav');
+    var want3 = hasPage3();
+    var wantCount = want3 ? 3 : 2;
+    if(!bar || bar.getAttribute('data-btns') !== String(wantCount)){
+      if(!bar){
+        bar = document.createElement('div');
+        bar.id = 'rbcInFlowBottomNav';
+      }
+      bar.setAttribute('data-btns', String(wantCount));
+      bar.innerHTML =
+        '<button type="button" data-page="1">▲ 페이지1 제출관리</button>' +
+        '<button type="button" data-page="2">▲ 페이지2 분석/직원관리</button>' +
+        (want3 ? '<button type="button" data-page="3">▲ 페이지3 가까운 점포검색</button>' : '');
+      Array.from(bar.querySelectorAll('button')).forEach(function(b){
+        b.onclick = function(){ goPage(Number(b.getAttribute('data-page'))); };
+      });
+    }
+    // always keep it as the very last element so it sits right after
+    // whichever page's content is currently visible
+    if(wrap.lastElementChild !== bar) wrap.appendChild(bar);
+
+    var cur = window.__rbcCurrentPage || 1;
+    Array.from(bar.querySelectorAll('button')).forEach(function(b){
+      b.classList.toggle('active', Number(b.getAttribute('data-page')) === cur);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', ensureBar);
+  setTimeout(ensureBar, 500);
+  setTimeout(ensureBar, 1500);
+  setInterval(ensureBar, 1000);
+})();
+</script>
+<!-- /RAVEBIC_INFLOW_BOTTOM_PAGE_NAV_V2 -->
