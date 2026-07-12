@@ -955,98 +955,7 @@ select.status-pending {
 
 
 
-<!-- RAVEBIC_CORRECTION_MESSAGE_AUDIT_PANEL_FORCE_V2 -->
-<style>
-#rbcCorrectionAuditBox{margin:18px 0;padding:16px;border:1px solid #fecaca;background:#fff7f7;border-radius:18px;display:block!important;clear:both}
-#rbcCorrectionAuditBox .rbc-correction-audit-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
-#rbcCorrectionAuditBox h2{margin:0;color:#991b1b;font-size:22px}
-.rbc-correction-audit-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:12px 0}
-.rbc-correction-audit-controls input{max-width:180px}
-.rbc-correction-audit-btn{background:#ef4444!important;color:#fff!important;border:0!important;border-radius:13px!important;padding:12px 15px!important;font-weight:900!important;cursor:pointer!important}
-.rbc-correction-audit-btn.gray{background:#64748b!important}
-.rbc-correction-audit-summary{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
-.rbc-correction-audit-chip{display:inline-block;padding:8px 11px;border-radius:999px;font-size:13px;font-weight:900;background:#fee2e2;color:#991b1b}
-.rbc-correction-audit-chip.ok{background:#dcfce7;color:#166534}.rbc-correction-audit-chip.info{background:#dbeafe;color:#1d4ed8}.rbc-correction-audit-chip.warn{background:#ffedd5;color:#9a3412}
-.rbc-correction-audit-table-wrap{overflow:auto;background:#fff;border:1px solid #e2e8f0;border-radius:14px;margin-top:10px}
-.rbc-correction-audit-table{width:100%;border-collapse:collapse;font-size:13px}
-.rbc-correction-audit-table th,.rbc-correction-audit-table td{border-bottom:1px solid #e2e8f0;padding:9px;text-align:left;vertical-align:top}
-.rbc-correction-audit-table th{background:#fee2e2;color:#991b1b;white-space:nowrap}
-.rbc-correction-audit-small{font-size:12px;color:#64748b;line-height:1.45}
-@media(max-width:768px){.rbc-correction-audit-controls{display:grid;grid-template-columns:1fr}.rbc-correction-audit-controls input{max-width:none}}
-</style>
-
-<div class="rbc-correction-audit-box" id="rbcCorrectionAuditBox">
-  <div class="rbc-correction-audit-head">
-    <h2>보완메세지 발송 확인</h2>
-    <div>
-      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">발송내역 새로고침</button>
-      <button class="rbc-correction-audit-btn gray" type="button" onclick="rbcToggleCorrectionAudit()">접기/펼치기</button>
-    </div>
-  </div>
-  <div class="rbc-correction-audit-small" style="margin-top:8px">
-    밤 9시 이후 자동 발송된 보완메세지와 관리자가 직접 보낸 메세지를 확인합니다. 확인 대상: adminMessages, autoCorrectionLogs
-  </div>
-  <div id="rbcCorrectionAuditBody">
-    <div class="rbc-correction-audit-controls">
-      <input id="rbcCorrectionAuditDate" type="date">
-      <input id="rbcCorrectionAuditKeyword" placeholder="팀장명/점포명/메세지 검색">
-      <button class="rbc-correction-audit-btn" type="button" onclick="rbcLoadCorrectionAudit()">조회</button>
-    </div>
-    <div id="rbcCorrectionAuditSummary" class="rbc-correction-audit-summary"><span class="rbc-correction-audit-chip info">대기</span></div>
-    <div class="rbc-correction-audit-table-wrap">
-      <table class="rbc-correction-audit-table">
-        <thead><tr><th>발송시간</th><th>대상</th><th>구분</th><th>메세지</th><th>읽음/상태</th><th>출처</th></tr></thead>
-        <tbody id="rbcCorrectionAuditTbody"><tr><td colspan="6">발송내역 새로고침을 눌러주세요.</td></tr></tbody>
-      </table>
-    </div>
-  </div>
-</div>
-<script>
-/* RAVEBIC_CORRECTION_MESSAGE_AUDIT_FORCE_V2 */
-(function(){
-  if(window.__RBC_CORRECTION_MESSAGE_AUDIT_FORCE_V2__) return;
-  window.__RBC_CORRECTION_MESSAGE_AUDIT_FORCE_V2__=true;
-  function esc(v){return String(v == null ? '' : v).replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});}
-  function ymd(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-  function dt(r){try{if(r.createdAt&&r.createdAt.toDate)return r.createdAt.toDate();if(r.sentAt&&r.sentAt.toDate)return r.sentAt.toDate();if(r.requestedAt&&r.requestedAt.toDate)return r.requestedAt.toDate();if(r.autoSentAt&&r.autoSentAt.toDate)return r.autoSentAt.toDate();return new Date(r.createdAtText||r.sentAtText||r.requestedAtText||r.autoSentAtText||r.date||0);}catch(e){return new Date(0);}}
-  function target(r){return r.targetName||r.name||r.staffName||r.leader||r.recipientName||r.to||r.manager||'미지정';}
-  function msg(r){return r.message||r.correctionMessage||r.text||r.body||r.content||r.note||r.reason||'';}
-  function typ(r){var t=String(r.type||r.messageType||r.kind||'').trim();if(t)return t;if(r.auto===true||r.isAuto===true||/auto/i.test(String(r.source||'')))return 'auto';return 'manual';}
-  function stat(r){if(r.read===true||r.correctionRead===true)return '읽음';if(r.status)return r.status;if(r.read===false||r.correctionRead===false)return '안읽음';return '-';}
-  window.rbcToggleCorrectionAudit=function(){var b=document.getElementById('rbcCorrectionAuditBody');if(b)b.style.display=b.style.display==='none'?'block':'none';};
-  async function getCol(name){try{var snap=await db.collection(name).get();var rows=[];snap.forEach(function(doc){rows.push(Object.assign({id:doc.id,__source:name},doc.data()||{}));});return rows;}catch(e){console.warn('skip correction audit '+name,e);return [];}}
-  window.rbcLoadCorrectionAudit=async function(){
-    var tbody=document.getElementById('rbcCorrectionAuditTbody'), summary=document.getElementById('rbcCorrectionAuditSummary'), dateEl=document.getElementById('rbcCorrectionAuditDate'), keyEl=document.getElementById('rbcCorrectionAuditKeyword');
-    if(!tbody||typeof db==='undefined')return;
-    if(dateEl&&!dateEl.value)dateEl.value=ymd(new Date());
-    var dateVal=dateEl?dateEl.value:'', keyword=(keyEl?keyEl.value:'').trim().toLowerCase();
-    tbody.innerHTML='<tr><td colspan="6">보완메세지 발송내역 불러오는 중...</td></tr>';
-    if(summary)summary.innerHTML='<span class="rbc-correction-audit-chip info">조회 중</span>';
-    try{
-      var rows=[]; rows=rows.concat(await getCol('adminMessages')).concat(await getCol('autoCorrectionLogs'));
-      var filtered=rows.filter(function(r){var d=dt(r); if(dateVal&&ymd(d)!==dateVal)return false; var hay=[target(r),msg(r),typ(r),r.store,r.storeName,r.brand,r.workType,r.__source,r.source].join(' ').toLowerCase(); return !keyword||hay.includes(keyword);}).sort(function(a,b){return dt(b)-dt(a);});
-      var autoCount=filtered.filter(function(r){return /auto|자동|night|9pm/i.test([typ(r),r.source,r.__source].join(' '));}).length;
-      var unread=filtered.filter(function(r){return r.read===false||r.correctionRead===false||String(r.status||'').toLowerCase()==='unread';}).length;
-      if(summary)summary.innerHTML='<span class="rbc-correction-audit-chip info">전체 '+filtered.length+'건</span><span class="rbc-correction-audit-chip warn">자동 '+autoCount+'건</span><span class="rbc-correction-audit-chip">안읽음 '+unread+'건</span><span class="rbc-correction-audit-chip ok">기준일 '+esc(dateVal||'전체')+'</span>';
-      if(!filtered.length){tbody.innerHTML='<tr><td colspan="6">조회된 보완메세지 발송내역이 없습니다.</td></tr>';return;}
-      tbody.innerHTML=filtered.slice(0,250).map(function(r){var d=dt(r);return '<tr><td>'+esc(!isNaN(d.getTime())?d.toLocaleString():'-')+'</td><td><b>'+esc(target(r))+'</b><br><span class="rbc-correction-audit-small">'+esc(r.store||r.storeName||'')+'</span></td><td>'+esc(typ(r))+'</td><td>'+esc(msg(r)).replace(/\n/g,'<br>')+'</td><td>'+esc(stat(r))+'</td><td>'+esc(r.__source||r.source||'-')+'</td></tr>';}).join('');
-    }catch(e){tbody.innerHTML='<tr><td colspan="6">발송내역 조회 실패: '+esc(e.message||e)+'</td></tr>';if(summary)summary.innerHTML='<span class="rbc-correction-audit-chip">조회 실패</span>';}
-  };
-  function movePanel(){
-    var box=document.getElementById('rbcCorrectionAuditBox'); if(!box)return;
-    var wrap=document.querySelector('.wrap'); if(wrap&&box.parentElement!==wrap)wrap.appendChild(box);
-    var sections=Array.from(document.querySelectorAll('.section'));
-    var schedule=sections.find(function(s){return (s.innerText||'').includes('구글 일정 승인 시스템');});
-    if(schedule&&box.nextElementSibling!==schedule)schedule.parentNode.insertBefore(box,schedule);
-    box.style.display='block'; box.classList.remove('hidden');
-  }
-  var prevShow=window.showRbcPage;
-  if(typeof prevShow==='function'&&!window.__RBC_CORRECTION_AUDIT_PAGE_WRAP__){window.__RBC_CORRECTION_AUDIT_PAGE_WRAP__=true;window.showRbcPage=function(page){prevShow.apply(this,arguments);movePanel();var box=document.getElementById('rbcCorrectionAuditBox');if(box)box.style.display=(page===1?'block':'none');};}
-  document.addEventListener('DOMContentLoaded',function(){movePanel();setTimeout(function(){var d=document.getElementById('rbcCorrectionAuditDate');if(d&&!d.value)d.value=ymd(new Date()); if(typeof rbcLoadCorrectionAudit==='function')rbcLoadCorrectionAudit();},900);});
-  setTimeout(movePanel,300);setTimeout(movePanel,1000);setTimeout(movePanel,2500);setInterval(movePanel,3000);
-})();
-</script>
-<!-- /RAVEBIC_CORRECTION_MESSAGE_AUDIT_PANEL_FORCE_V2 -->
+<!-- 페이지3 중복 보완메세지 발송 확인 패널 삭제됨 -->
 
 <div class="section">
 
@@ -5224,6 +5133,18 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     renderRows(rows);
     drawMarkers(rows);
+
+    // 검색 결과 중 좌표가 있는 첫 점포를 자동 기준점으로 선택하여
+    // 가까운 점포 15개 표와 지도까지 즉시 갱신합니다.
+    const firstLocatedIndex = rows.findIndex(hasLatLng);
+    if(firstLocatedIndex >= 0){
+      focus(firstLocatedIndex);
+    }else{
+      const info = document.getElementById("rbcStore3NearbyInfo");
+      const tb = document.getElementById("rbcStore3NearbyTbody");
+      if(info) info.innerHTML = '<b>검색 결과에 좌표가 설정된 점포가 없습니다.</b> 좌표 변환 후 다시 검색하세요.';
+      if(tb) tb.innerHTML = '<tr><td colspan="7">검색 결과 점포의 좌표 변환이 필요합니다.</td></tr>';
+    }
   }
 
   async function deleteByName(){
@@ -8286,6 +8207,18 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     renderRows(rows);
     drawMarkers(rows);
+
+    // 검색 결과 중 좌표가 있는 첫 점포를 자동 기준점으로 선택하여
+    // 가까운 점포 15개 표와 지도까지 즉시 갱신합니다.
+    const firstLocatedIndex = rows.findIndex(hasLatLng);
+    if(firstLocatedIndex >= 0){
+      focus(firstLocatedIndex);
+    }else{
+      const info = document.getElementById("rbcStore3NearbyInfo");
+      const tb = document.getElementById("rbcStore3NearbyTbody");
+      if(info) info.innerHTML = '<b>검색 결과에 좌표가 설정된 점포가 없습니다.</b> 좌표 변환 후 다시 검색하세요.';
+      if(tb) tb.innerHTML = '<tr><td colspan="7">검색 결과 점포의 좌표 변환이 필요합니다.</td></tr>';
+    }
   }
 
   async function deleteByName(){
