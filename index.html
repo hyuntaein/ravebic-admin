@@ -5699,17 +5699,36 @@ window.debugTeamScheduleDate = async function(dateStr){
     XLSX.writeFile(wb, "ravebic_좌표_미변환_" + rows.length + "개_" + date + ".xlsx");
   }
 
-  function summary(){
+  async function summary(){
+    await ensureStoresLoaded();
     const total = allStores.length;
     const done = allStores.filter(hasLatLng).length;
     const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
     const pending = total - done - failed;
+
+    const byBrand = {};
+    allStores.forEach(function(s){
+      const b = s.brand || "미지정";
+      if(!byBrand[b]) byBrand[b] = {total:0, done:0, pending:0, failed:0};
+      byBrand[b].total++;
+      if(hasLatLng(s)) byBrand[b].done++;
+      else if(s.geocodeFailed) byBrand[b].failed++;
+      else byBrand[b].pending++;
+    });
+
+    const brandLines = Object.keys(byBrand).sort().map(function(b){
+      const v = byBrand[b];
+      return "· " + b + ": 전체 " + v.total.toLocaleString() + "개 (완료 " + v.done.toLocaleString() +
+        " / 미변환 " + v.pending.toLocaleString() + " / 실패 " + v.failed.toLocaleString() + ")";
+    }).join("\n");
+
     alert(
       "점포 좌표 현황\n" +
       "전체 점포: " + total.toLocaleString() + "개\n" +
       "좌표 완료: " + done.toLocaleString() + "개\n" +
       "미변환: " + pending.toLocaleString() + "개\n" +
-      "실패: " + failed.toLocaleString() + "개"
+      "실패: " + failed.toLocaleString() + "개\n\n" +
+      "[브랜드별]\n" + brandLines
     );
   }
 
@@ -8883,17 +8902,36 @@ window.debugTeamScheduleDate = async function(dateStr){
     XLSX.writeFile(wb, "ravebic_좌표_미변환_" + rows.length + "개_" + date + ".xlsx");
   }
 
-  function summary(){
+  async function summary(){
+    await ensureStoresLoaded();
     const total = allStores.length;
     const done = allStores.filter(hasLatLng).length;
     const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
     const pending = total - done - failed;
+
+    const byBrand = {};
+    allStores.forEach(function(s){
+      const b = s.brand || "미지정";
+      if(!byBrand[b]) byBrand[b] = {total:0, done:0, pending:0, failed:0};
+      byBrand[b].total++;
+      if(hasLatLng(s)) byBrand[b].done++;
+      else if(s.geocodeFailed) byBrand[b].failed++;
+      else byBrand[b].pending++;
+    });
+
+    const brandLines = Object.keys(byBrand).sort().map(function(b){
+      const v = byBrand[b];
+      return "· " + b + ": 전체 " + v.total.toLocaleString() + "개 (완료 " + v.done.toLocaleString() +
+        " / 미변환 " + v.pending.toLocaleString() + " / 실패 " + v.failed.toLocaleString() + ")";
+    }).join("\n");
+
     alert(
       "점포 좌표 현황\n" +
       "전체 점포: " + total.toLocaleString() + "개\n" +
       "좌표 완료: " + done.toLocaleString() + "개\n" +
       "미변환: " + pending.toLocaleString() + "개\n" +
-      "실패: " + failed.toLocaleString() + "개"
+      "실패: " + failed.toLocaleString() + "개\n\n" +
+      "[브랜드별]\n" + brandLines
     );
   }
 
