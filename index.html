@@ -4772,6 +4772,36 @@ window.debugTeamScheduleDate = async function(dateStr){
     return -1;
   }
 
+  // "주소" 헤더가 시/도 · 시/군구 · 상세주소 세 칸으로 병합되어 있는 엑셀의 경우,
+  // 헤더 텍스트가 걸린 첫 칸은 "충북"처럼 짧은 지역명만 들어있고,
+  // 실제 상세주소는 그 오른쪽 칸(자체 헤더 없음)에 들어있는 경우가 많습니다.
+  // 후보 칸들 중 데이터 평균 글자수가 가장 긴 칸을 실제 주소 칸으로 선택합니다.
+  function pickBestAddressCol_(rows, headerRowIndex, headers, initialCol){
+    if(initialCol < 0) return initialCol;
+
+    const candidates = [initialCol];
+    for(let off = 1; off <= 2; off++){
+      const c = initialCol + off;
+      if(c < headers.length && !headers[c]) candidates.push(c);
+    }
+    if(candidates.length === 1) return initialCol;
+
+    const sampleRows = rows.slice(headerRowIndex + 1, headerRowIndex + 1 + 30);
+    let best = initialCol, bestAvg = -1;
+
+    candidates.forEach(function(c){
+      let total = 0, n = 0;
+      sampleRows.forEach(function(r){
+        const v = String((r && r[c]) || "").trim();
+        if(v){ total += v.length; n++; }
+      });
+      const avg = n ? total / n : 0;
+      if(avg > bestAvg){ bestAvg = avg; best = c; }
+    });
+
+    return best;
+  }
+
   function toNumberOrNull(v){
     if(v === null || v === undefined || v === "") return null;
     const n = Number(String(v).replace(/,/g,"").trim());
@@ -5129,7 +5159,11 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     const brandCol = findColumn(headers, ["brand","브랜드"]);
     const nameCol = findColumn(headers, ["점포명","점포","상호","매장명","점명","storeName","name"]);
-    const addressCol = findColumn(headers, ["주소","소재지","점포주소","매장주소","address"]);
+    const addressColRaw = findColumn(headers, ["주소","소재지","점포주소","매장주소","address"]);
+    // "주소" 헤더가 시/도·시/군구·상세주소로 병합되어 3칸에 걸쳐 있는 엑셀(예: 이마트24 리스트)의 경우
+    // 헤더 텍스트가 있는 첫 칸(예: "충북")이 아니라, 실제 상세주소가 들어있는 칸을 찾아야 합니다.
+    // 후보 칸들(오른쪽으로 자체 헤더가 없는 병합 하위 칸) 중 평균 글자수가 가장 긴 칸을 상세주소로 선택합니다.
+    const addressCol = pickBestAddressCol_(rows, headerRowIndex, headers, addressColRaw);
     const codeCol = findColumn(headers, ["점포코드","코드","점코드","storeCode","storeCo"]);
     const latCol = findColumn(headers, ["위도","lat","latitude"]);
     const lngCol = findColumn(headers, ["경도","lng","lon","longitude"]);
@@ -7854,6 +7888,36 @@ window.debugTeamScheduleDate = async function(dateStr){
     return -1;
   }
 
+  // "주소" 헤더가 시/도 · 시/군구 · 상세주소 세 칸으로 병합되어 있는 엑셀의 경우,
+  // 헤더 텍스트가 걸린 첫 칸은 "충북"처럼 짧은 지역명만 들어있고,
+  // 실제 상세주소는 그 오른쪽 칸(자체 헤더 없음)에 들어있는 경우가 많습니다.
+  // 후보 칸들 중 데이터 평균 글자수가 가장 긴 칸을 실제 주소 칸으로 선택합니다.
+  function pickBestAddressCol_(rows, headerRowIndex, headers, initialCol){
+    if(initialCol < 0) return initialCol;
+
+    const candidates = [initialCol];
+    for(let off = 1; off <= 2; off++){
+      const c = initialCol + off;
+      if(c < headers.length && !headers[c]) candidates.push(c);
+    }
+    if(candidates.length === 1) return initialCol;
+
+    const sampleRows = rows.slice(headerRowIndex + 1, headerRowIndex + 1 + 30);
+    let best = initialCol, bestAvg = -1;
+
+    candidates.forEach(function(c){
+      let total = 0, n = 0;
+      sampleRows.forEach(function(r){
+        const v = String((r && r[c]) || "").trim();
+        if(v){ total += v.length; n++; }
+      });
+      const avg = n ? total / n : 0;
+      if(avg > bestAvg){ bestAvg = avg; best = c; }
+    });
+
+    return best;
+  }
+
   function toNumberOrNull(v){
     if(v === null || v === undefined || v === "") return null;
     const n = Number(String(v).replace(/,/g,"").trim());
@@ -8211,7 +8275,11 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     const brandCol = findColumn(headers, ["brand","브랜드"]);
     const nameCol = findColumn(headers, ["점포명","점포","상호","매장명","점명","storeName","name"]);
-    const addressCol = findColumn(headers, ["주소","소재지","점포주소","매장주소","address"]);
+    const addressColRaw = findColumn(headers, ["주소","소재지","점포주소","매장주소","address"]);
+    // "주소" 헤더가 시/도·시/군구·상세주소로 병합되어 3칸에 걸쳐 있는 엑셀(예: 이마트24 리스트)의 경우
+    // 헤더 텍스트가 있는 첫 칸(예: "충북")이 아니라, 실제 상세주소가 들어있는 칸을 찾아야 합니다.
+    // 후보 칸들(오른쪽으로 자체 헤더가 없는 병합 하위 칸) 중 평균 글자수가 가장 긴 칸을 상세주소로 선택합니다.
+    const addressCol = pickBestAddressCol_(rows, headerRowIndex, headers, addressColRaw);
     const codeCol = findColumn(headers, ["점포코드","코드","점코드","storeCode","storeCo"]);
     const latCol = findColumn(headers, ["위도","lat","latitude"]);
     const lngCol = findColumn(headers, ["경도","lng","lon","longitude"]);
