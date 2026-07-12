@@ -12939,6 +12939,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     // always keep it as the very last element so it sits right after
     // whichever page's content is currently visible
     if(wrap.lastElementChild !== bar) wrap.appendChild(bar);
+    bar.style.display = 'flex';
 
     var cur = window.__rbcCurrentPage || 1;
     Array.from(bar.querySelectorAll('button')).forEach(function(b){
