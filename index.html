@@ -1525,7 +1525,7 @@ document.getElementById('sevenFileInput').addEventListener('change',function(e){
 const GOOGLE_SCHEDULE_API_URL = "https://script.google.com/macros/s/AKfycbz4wx8Xd67Rna9gKZDEhtUhBLdfl90BUSzYttf0qS18bvN50EZfODxRcN-OAVtiwEWv/exec";
 
 let latestGoogleScheduleSheetName = '주황색 탭';
-let latestGoogleScheduleRange = 'E1:K79';
+let latestGoogleScheduleRange = 'E1:K104';
 let latestGoogleSchedulePdfUrl = GOOGLE_SCHEDULE_API_URL;
 
 function openPdfInBrowser(url) {
@@ -4542,7 +4542,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       const url = (typeof GOOGLE_SCHEDULE_API_URL !== 'undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl !== 'undefined' ? latestGoogleSchedulePdfUrl : ''));
       await db.collection('settings').doc('approvedSchedule').set({
         sheetName: (typeof latestGoogleScheduleSheetName !== 'undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
-        range: (typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        range: (typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K104'),
         pdfUrl:url,
         scheduleUrl:url,
         approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -6127,7 +6127,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
       await db.collection('settings').doc('approvedSchedule').set({
         sheetName:(typeof latestGoogleScheduleSheetName !== 'undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
-        range:(typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        range:(typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K104'),
         pdfUrl:url,
         scheduleUrl:url,
         approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -6352,12 +6352,17 @@ window.debugTeamScheduleDate = async function(dateStr){
     return grids;
   }
 
+  function rowsFromGridIsSunday(d){
+    if(!d) return false;
+    var dt=new Date(d+'T00:00:00');
+    return !isNaN(dt.getTime()) && dt.getDay()===0;
+  }
   function rowsFromGrid(grid,set,sheetName){
     var out=[], colDates={}, lastLeader={}, lastBrand={};
     grid=(grid||[]).map(function(r){return Array.isArray(r)?r:[];});
     for(var r=0;r<Math.min(grid.length,12);r++){
       for(var c=0;c<grid[r].length;c++){
-        var d=parseDateLoose(grid[r][c]); if(d) colDates[c]=d;
+        var d=parseDateLoose(grid[r][c]); if(d && !rowsFromGridIsSunday(d)) colDates[c]=d;
       }
     }
     for(var r=0;r<grid.length;r++){
@@ -6365,7 +6370,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       for(var c=0;c<row.length;c++){
         var text=cleanCell(row[c]); if(!text)continue;
         var cellDate=parseDateLoose(text);
-        if(cellDate){colDates[c]=cellDate;continue;}
+        if(cellDate){ if(!rowsFromGridIsSunday(cellDate)) colDates[c]=cellDate; else delete colDates[c]; continue;}
         var date=colDates[c]||'';
         var leader=leaderInText(text,set)||lastLeader[c]||'';
         var brand=brandOf(text)||lastBrand[c]||'';
@@ -6511,7 +6516,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:(typeof latestGoogleSchedulePdfUrl!=='undefined'?latestGoogleSchedulePdfUrl:''));
     try{
       if(status)status.textContent='직원용 일정 승인 저장 중...';
-      await withTimeout(db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_grid_import_fix_v7'},{merge:true}),12000,'승인 저장');
+      await withTimeout(db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K104'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_grid_import_fix_v7'},{merge:true}),12000,'승인 저장');
       var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
       if(!result.ok||!result.count)throw new Error(result.message||'분석 일정 0건');
       if(info)info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 일정 반영: '+Number(result.count||0)+'건<br>기존 중복 정리: '+Number(result.deleted||0)+'건';
@@ -8753,11 +8758,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 <!-- RAVEBIC_PAGE_ORDER_UPDATE_V1_20260618 -->
 <style>
 #rbcBottomPageTabs{
-  margin:18px 0 6px;
-  display:flex;
-  gap:10px;
-  flex-wrap:wrap;
-  justify-content:center;
+  display:none!important;
 }
 #rbcBottomPageTabs .rbc-page-tab{
   min-width:150px;
@@ -10466,7 +10467,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
       await db.collection('settings').doc('approvedSchedule').set({
         sheetName:(typeof latestGoogleScheduleSheetName !== 'undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
-        range:(typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        range:(typeof latestGoogleScheduleRange !== 'undefined' ? latestGoogleScheduleRange : 'E1:K104'),
         pdfUrl:url,
         scheduleUrl:url,
         approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -10691,12 +10692,17 @@ window.debugTeamScheduleDate = async function(dateStr){
     return grids;
   }
 
+  function rowsFromGridIsSunday(d){
+    if(!d) return false;
+    var dt=new Date(d+'T00:00:00');
+    return !isNaN(dt.getTime()) && dt.getDay()===0;
+  }
   function rowsFromGrid(grid,set,sheetName){
     var out=[], colDates={}, lastLeader={}, lastBrand={};
     grid=(grid||[]).map(function(r){return Array.isArray(r)?r:[];});
     for(var r=0;r<Math.min(grid.length,12);r++){
       for(var c=0;c<grid[r].length;c++){
-        var d=parseDateLoose(grid[r][c]); if(d) colDates[c]=d;
+        var d=parseDateLoose(grid[r][c]); if(d && !rowsFromGridIsSunday(d)) colDates[c]=d;
       }
     }
     for(var r=0;r<grid.length;r++){
@@ -10704,7 +10710,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       for(var c=0;c<row.length;c++){
         var text=cleanCell(row[c]); if(!text)continue;
         var cellDate=parseDateLoose(text);
-        if(cellDate){colDates[c]=cellDate;continue;}
+        if(cellDate){ if(!rowsFromGridIsSunday(cellDate)) colDates[c]=cellDate; else delete colDates[c]; continue;}
         var date=colDates[c]||'';
         var leader=leaderInText(text,set)||lastLeader[c]||'';
         var brand=brandOf(text)||lastBrand[c]||'';
@@ -10850,7 +10856,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:(typeof latestGoogleSchedulePdfUrl!=='undefined'?latestGoogleSchedulePdfUrl:''));
     try{
       if(status)status.textContent='직원용 일정 승인 저장 중...';
-      await withTimeout(db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_grid_import_fix_v7'},{merge:true}),12000,'승인 저장');
+      await withTimeout(db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K104'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_grid_import_fix_v7'},{merge:true}),12000,'승인 저장');
       var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
       if(!result.ok||!result.count)throw new Error(result.message||'분석 일정 0건');
       if(info)info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 일정 반영: '+Number(result.count||0)+'건<br>기존 중복 정리: '+Number(result.deleted||0)+'건';
@@ -11273,7 +11279,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:(typeof latestGoogleSchedulePdfUrl!=='undefined'?latestGoogleSchedulePdfUrl:''));
       await db.collection('settings').doc('approvedSchedule').set({
         sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),
-        range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),
+        range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K104'),
         pdfUrl:url,
         scheduleUrl:url,
         approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -11786,7 +11792,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined' ? GOOGLE_SCHEDULE_API_URL : (typeof latestGoogleSchedulePdfUrl!=='undefined' ? latestGoogleSchedulePdfUrl : ''));
       await db.collection('settings').doc('approvedSchedule').set({
         sheetName:(typeof latestGoogleScheduleSheetName!=='undefined' ? latestGoogleScheduleSheetName : '주황색 탭'),
-        range:(typeof latestGoogleScheduleRange!=='undefined' ? latestGoogleScheduleRange : 'E1:K79'),
+        range:(typeof latestGoogleScheduleRange!=='undefined' ? latestGoogleScheduleRange : 'E1:K104'),
         pdfUrl:url,
         scheduleUrl:url,
         approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
@@ -12006,7 +12012,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     try{
       if(status) status.textContent='직원용 일정 승인 저장 및 분석 일정 직접 반영 중...';
       var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:(typeof latestGoogleSchedulePdfUrl!=='undefined'?latestGoogleSchedulePdfUrl:''));
-      await db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_proxy_import_fix_v5'},{merge:true});
+      await db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K104'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_proxy_import_fix_v5'},{merge:true});
       var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
       if(!result.ok || !result.count) throw new Error(result.message||'분석 일정 0건');
       if(info) info.innerHTML='마지막 승인: '+new Date().toLocaleString()+'<br>승인자: '+esc(approver)+'<br>분석 일정 반영: '+Number(result.count||0)+'건';
@@ -12203,7 +12209,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     var url=(typeof GOOGLE_SCHEDULE_API_URL!=='undefined'?GOOGLE_SCHEDULE_API_URL:(typeof latestGoogleSchedulePdfUrl!=='undefined'?latestGoogleSchedulePdfUrl:''));
     try{
       if(status) status.textContent='직원용 일정 승인 저장 중...';
-      await withTimeout(db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K79'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_no_hang_fix_v6'},{merge:true}),10000,'승인 저장');
+      await withTimeout(db.collection('settings').doc('approvedSchedule').set({sheetName:(typeof latestGoogleScheduleSheetName!=='undefined'?latestGoogleScheduleSheetName:'주황색 탭'),range:(typeof latestGoogleScheduleRange!=='undefined'?latestGoogleScheduleRange:'E1:K104'),pdfUrl:url,scheduleUrl:url,approvedAt:firebase.firestore.FieldValue.serverTimestamp(),approvedAtText:new Date().toISOString(),approvedBy:approver,source:'admin_no_hang_fix_v6'},{merge:true}),10000,'승인 저장');
       if(status) status.textContent='직원용 승인 저장 완료 · 분석 일정 반영 시도 중...';
       var result=await window.rbcImportGoogleScheduleRowsFromAppsScript();
       if(!result.ok || !result.count) throw new Error(result.message||'분석 일정 0건');
