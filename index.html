@@ -5407,11 +5407,26 @@ window.debugTeamScheduleDate = async function(dateStr){
   function focusNearby(index){
     const store = currentNearby[index];
     if(!store || !hasLatLng(store)) return;
+
+    // 근처 15개 목록에서 점포를 클릭하면, 그 점포를 새 기준점으로 삼아
+    // 다시 가까운 15개를 재계산합니다 (드릴다운 탐색).
     const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
     storeMap.setCenter(pos);
-    storeMap.setZoom(17);
-    const marker = nearbyMarkers[index];
-    if(marker) openInfo(marker, store);
+    storeMap.setZoom(16);
+
+    if(selectedMarker) selectedMarker.setMap(null);
+    selectedMarker = new naver.maps.Marker({
+      position:pos,
+      map:storeMap,
+      title:"기준: " + (store.storeName || store.store || ""),
+      icon:{
+        content:'<div style="background:#dc2626;color:white;border-radius:999px;padding:7px 10px;font-weight:900;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25)">기준</div>',
+        anchor:new naver.maps.Point(20,20)
+      }
+    });
+
+    openInfo(selectedMarker, store);
+    showNearby(store);
   }
 
   async function geocodeOne(store){
@@ -8474,11 +8489,26 @@ window.debugTeamScheduleDate = async function(dateStr){
   function focusNearby(index){
     const store = currentNearby[index];
     if(!store || !hasLatLng(store)) return;
+
+    // 근처 15개 목록에서 점포를 클릭하면, 그 점포를 새 기준점으로 삼아
+    // 다시 가까운 15개를 재계산합니다 (드릴다운 탐색).
     const pos = new naver.maps.LatLng(Number(store.lat), Number(store.lng));
     storeMap.setCenter(pos);
-    storeMap.setZoom(17);
-    const marker = nearbyMarkers[index];
-    if(marker) openInfo(marker, store);
+    storeMap.setZoom(16);
+
+    if(selectedMarker) selectedMarker.setMap(null);
+    selectedMarker = new naver.maps.Marker({
+      position:pos,
+      map:storeMap,
+      title:"기준: " + (store.storeName || store.store || ""),
+      icon:{
+        content:'<div style="background:#dc2626;color:white;border-radius:999px;padding:7px 10px;font-weight:900;border:2px solid white;box-shadow:0 2px 8px rgba(0,0,0,.25)">기준</div>',
+        anchor:new naver.maps.Point(20,20)
+      }
+    });
+
+    openInfo(selectedMarker, store);
+    showNearby(store);
   }
 
   async function geocodeOne(store){
