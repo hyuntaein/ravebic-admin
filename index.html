@@ -1136,7 +1136,21 @@ select.status-pending {
 const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13",measurementId:"G-EEN6GM72JT"};
 firebase.initializeApp(firebaseConfig);const db=firebase.firestore();const storage=firebase.storage();
 let allRows=[];let filtered=[];let currentPage=1;let pageSize=10;function dtOf(r){
-  const workDateValue = r.workDateText || r.inspectionDateText || r.inspectionDate || r.date || r.submittedAtText || 0;
+  // 실제 제출 시각(정확한 시:분:초 포함)을 최우선으로 사용합니다.
+  // 이전에는 작업일자(날짜만 있고 시간 정보가 없는 값)를 먼저 썼는데,
+  // 그 값은 항상 임시로 "낮 12시"를 붙여서 보여주고 있어 실제 제출 시간과 무관했습니다.
+  if(r.submittedAt && typeof r.submittedAt.toDate === 'function'){
+    return r.submittedAt.toDate();
+  }
+  if(r.createdAt && typeof r.createdAt.toDate === 'function'){
+    return r.createdAt.toDate();
+  }
+  if(r.submittedAtText){
+    const d = new Date(r.submittedAtText);
+    if(!isNaN(d.getTime())) return d;
+  }
+
+  const workDateValue = r.workDateText || r.inspectionDateText || r.inspectionDate || r.date || 0;
   if(/^\d{4}-\d{2}-\d{2}$/.test(String(workDateValue))){
     return new Date(String(workDateValue) + 'T12:00:00');
   }
