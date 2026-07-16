@@ -5055,7 +5055,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     clearMarkers();
 
-    const valid = (rows || []).filter(hasLatLng).slice(0,350);
+    const valid = (rows || []).filter(hasLatLng).slice(0,5000);
     if(!valid.length) return;
 
     const bounds = new naver.maps.LatLngBounds();
@@ -5143,7 +5143,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString());
 
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
   }
 
   async function ensureStoresLoaded(){
@@ -5348,7 +5348,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       return !matches.some(function(m){ return m.id === s.id; });
     });
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
     setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
@@ -5402,7 +5402,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       return (s.brand || "") !== brand;
     });
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
     setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
@@ -5672,7 +5672,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
     setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString() + " / 실패 " + failed.toLocaleString());
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
 
     alert("전체 좌표 변환 종료\n성공: " + success.toLocaleString() + "개\n실패: " + fail.toLocaleString() + "개");
   }
@@ -8258,7 +8258,7 @@ window.debugTeamScheduleDate = async function(dateStr){
 
     clearMarkers();
 
-    const valid = (rows || []).filter(hasLatLng).slice(0,350);
+    const valid = (rows || []).filter(hasLatLng).slice(0,5000);
     if(!valid.length) return;
 
     const bounds = new naver.maps.LatLngBounds();
@@ -8346,7 +8346,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString());
 
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
   }
 
   async function ensureStoresLoaded(){
@@ -8551,7 +8551,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       return !matches.some(function(m){ return m.id === s.id; });
     });
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
     setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
@@ -8605,7 +8605,7 @@ window.debugTeamScheduleDate = async function(dateStr){
       return (s.brand || "") !== brand;
     });
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
     setStatus("삭제 완료 · 전체 " + allStores.length.toLocaleString() + "개");
   }
 
@@ -8875,7 +8875,7 @@ window.debugTeamScheduleDate = async function(dateStr){
     const failed = allStores.filter(function(s){ return !hasLatLng(s) && s.geocodeFailed; }).length;
     setStatus("전체 " + allStores.length.toLocaleString() + " / 좌표 완료 " + done.toLocaleString() + " / 실패 " + failed.toLocaleString());
     renderRows(allStores.slice(0,100));
-    drawMarkers(allStores.filter(hasLatLng).slice(0,350));
+    drawMarkers(allStores.filter(hasLatLng).slice(0,5000));
 
     alert("전체 좌표 변환 종료\n성공: " + success.toLocaleString() + "개\n실패: " + fail.toLocaleString() + "개");
   }
