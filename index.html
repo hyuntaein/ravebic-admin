@@ -2139,6 +2139,23 @@ async function loadTeamScheduleRows(dateStr){
       const leaderText = String(d.leader || '').replace(/\s+/g,'');
       const dateSheetKey = item.scheduleDate + '|' + item.sheetName;
 
+      // 휴무·교육 등 실제 점포 일정이 아닌 행은 예정 건수에서 완전히 제외합니다.
+      // leader 칸에 정상 직원명이 남아 있어도 store/rawText 쪽에 팀장휴무가 있으면 집계하지 않습니다.
+      const scheduleText = [
+        d.store,
+        d.rawText,
+        d.text,
+        d.memo,
+        d.note,
+        d.sourceText,
+        d.workType,
+        d.brand
+      ].filter(Boolean).join(' ').replace(/\s+/g,'');
+      const storeTextForFilter = String(d.store || '').replace(/\s+/g,'');
+
+      if(!storeTextForFilter) return;
+      if(/팀장휴무|담당휴무|휴무|교육|차량|사무실|마감|수정/.test(scheduleText)) return;
+
       let resolvedLeader = resolveRavebicScheduleLeader(d);
 
       // Google 일정표가 병합셀 구조일 때 두 번째 점포 행의 leader가 비거나 전화번호/메모로 들어오는 경우가 있습니다.
