@@ -891,6 +891,7 @@ select.status-pending {
     <div>
       <button class="gray" type="button" onclick="loadTeamScheduleAnalysis()">분석 새로고침</button>
       <button class="gray" type="button" onclick="toggleTeamScheduleAnalysis()">분석 접기</button>
+      <button class="gray" type="button" onclick="window.renderTeamCrossCheck32 && window.renderTeamCrossCheck32()">분석표·실제제출 교차검증</button>
     </div>
   </div>
   <div class="notice">구글 일정표에서 분석된 팀장별 예정 점포와 실제 제출자료를 비교합니다. 오후 9시 이후 미제출이 있으면 빨간색으로 표시됩니다.</div>
@@ -908,6 +909,11 @@ select.status-pending {
       <thead id="teamAnalysisThead"></thead>
       <tbody id="teamAnalysisTbody"><tr><td>팀장 제출분석을 불러오는 중...</td></tr></tbody>
     </table>
+  </div>
+  <div id="teamCrossCheckBox" style="display:none;margin-top:14px;border:2px solid #f59e0b;background:#fffbeb;border-radius:14px;padding:14px;">
+    <div style="font-weight:900;color:#92400e;margin-bottom:6px;">분석표·실제제출 교차검증 (자동 매칭에 실패한 건만 표시)</div>
+    <div style="font-size:13px;color:#92400e;margin-bottom:10px;">아래는 시스템이 "미제출"로 판단했지만, 실제로는 이름이 조금 달라서(오타/줄임말 등) 매칭이 안 된 것일 수 있는 건입니다. 왼쪽(예정 점포)과 오른쪽(그 팀장이 오늘 실제 제출한 건) 을 직접 비교해서 같은 점포인지 확인해주세요.</div>
+    <div id="teamCrossCheckContent">불러오는 중...</div>
   </div>
 </div>
 
@@ -12962,7 +12968,8 @@ window.debugTeamScheduleDate = async function(dateStr){
     .replace(/\b\d{1,2}\s*(시|이후|합류)?\*?$/,'')
     .replace(/\s+/g,'')
     .replace(/[·ㆍ.\-_/]/g,'')
-    .trim();}
+    .trim()
+    .toLowerCase();}
   function bad(v){return /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|담당휴무|휴무|교육|차량|수정|마감/.test(nm(v));}
   function dtSubmission(r){try{if(typeof dtOf==='function')return dtOf(r);}catch(e){} var v=(r&&(r.workDateText||r.inspectionDateText||r.inspectionDate||r.date||r.submittedAtText))||0; return /^\d{4}-\d{2}-\d{2}$/.test(String(v))?new Date(String(v)+'T12:00:00'):new Date(v);}
 
@@ -13052,6 +13059,43 @@ window.debugTeamScheduleDate = async function(dateStr){
     tb.innerHTML=rows.map(function(r){var cls=r.missing?(after7?'danger':'warn'):'ok'; var tr=cls==='ok'?'team-row-ok':(cls==='danger'?'team-row-danger':'team-row-warn'); var stores=r.stores.map(function(s){var b=s.brand==='세븐일레븐'?'세븐':(s.brand==='이마트24'?'이마트24':(s.brand||'기타'));return '· '+esc(b)+' / '+esc(s.store);}).join('<br>'); return '<tr class="'+tr+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+stores+'</div></td><td><span class="team-status-badge '+cls+'">'+(r.missing?(after7?'미제출':'진행중'):'정상')+'</span></td></tr>';}).join('');
   };
   window.loadTeamScheduleAnalysis=async function(){var tb=document.getElementById('teamAnalysisTbody'); if(tb)tb.innerHTML='<tr><td>팀장 제출분석을 불러오는 중...</td></tr>'; return window.renderTeamTodayAnalysis();};
+
+  window.renderTeamCrossCheck32=async function(){
+    var box=document.getElementById('teamCrossCheckBox'), content=document.getElementById('teamCrossCheckContent');
+    if(!box||!content)return;
+    box.style.display='block'; content.innerHTML='불러오는 중...';
+    try{
+      var today=ymd(new Date());
+      var rows=await window.loadTeamScheduleRows(today);
+      var teamData=window.buildTeamDayDataFromRows(rows,today);
+      var arr=[]; try{arr=allRows||window.allRows||[];}catch(e){arr=window.allRows||[];}
+      var todaysSubs=arr.filter(function(r){var d=dtSubmission(r); return d&&!isNaN(d.getTime())&&ymd(d)===today;});
+
+      var html='';
+      teamData.forEach(function(t){
+        var plans=t.stores.map(function(s){return {brand:s.brand,store:s.store,key:sk(s.store)};});
+        var subsForLeader=todaysSubs.filter(function(r){return nm(r.name)===nm(t.leader);});
+        var subKeys=subsForLeader.map(function(r){return {store:r.store,key:sk(r.store)};});
+        var unmatchedPlans=plans.filter(function(p){return !subKeys.some(function(s){return s.key===p.key||s.key.indexOf(p.key)>-1||p.key.indexOf(s.key)>-1;});});
+        var unmatchedSubs=subKeys.filter(function(s){return !plans.some(function(p){return s.key===p.key||s.key.indexOf(p.key)>-1||p.key.indexOf(s.key)>-1;});});
+        if(!unmatchedPlans.length&&!unmatchedSubs.length)return;
+        html+='<div style="margin-bottom:12px;padding:10px;background:#fff;border-radius:10px;border:1px solid #fde68a;">'+
+          '<b>'+esc(t.leader)+'</b>'+
+          '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap;">'+
+            '<div style="flex:1;min-width:200px;"><div style="font-weight:700;color:#b45309;">예정인데 매칭 안 된 점포</div>'+
+              (unmatchedPlans.length?unmatchedPlans.map(function(p){return '· '+esc(p.brand)+' / '+esc(p.store);}).join('<br>'):'<span style="color:#94a3b8;">없음</span>')+
+            '</div>'+
+            '<div style="flex:1;min-width:200px;"><div style="font-weight:700;color:#2563eb;">오늘 이 팀장 제출인데 매칭 안 된 건</div>'+
+              (unmatchedSubs.length?unmatchedSubs.map(function(s){return '· '+esc(s.store);}).join('<br>'):'<span style="color:#94a3b8;">없음</span>')+
+            '</div>'+
+          '</div>'+
+        '</div>';
+      });
+      content.innerHTML=html||'<div style="color:#166534;font-weight:700;">모든 건이 정상 매칭되었습니다.</div>';
+    }catch(e){
+      content.innerHTML='교차검증 실패: '+esc(e.message||e);
+    }
+  };
   window.rbcLoadAlertCenter=async function(){
     var body=document.getElementById('rbcAlertCenterBody'); if(!body)return; body.innerHTML='<div class="rbc-alert-card">알림 계산 중...</div>';
     try{try{if(typeof loadData==='function'&&(!(window.allRows||[]).length))await loadData();}catch(e){}
