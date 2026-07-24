@@ -13444,7 +13444,14 @@ window.debugTeamScheduleDate = async function(dateStr){
         html += '<table><thead><tr><th>날짜</th><th>알바이름</th><th>전화번호</th><th>나이</th><th>등록한 직원</th><th>등록일시</th></tr></thead><tbody>';
         byRegion[region].forEach(function(r){
           var t = r.submittedAtText ? new Date(r.submittedAtText).toLocaleString() : '-';
-          html += '<tr><td>'+esc(r.workDate||'-')+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.phone)+'</td><td>'+esc(r.age)+'</td><td>'+esc(r.submittedBy)+'</td><td>'+esc(t)+'</td></tr>';
+          var phoneDigits = String(r.phone||'').replace(/[^\d+]/g,'');
+          var phoneCell = r.phone
+            ? '<div style="white-space:nowrap;">'+esc(r.phone)+'<br>'+
+              '<a href="sms:'+esc(phoneDigits)+'" style="display:inline-block;margin-top:4px;margin-right:6px;padding:4px 8px;background:#2563eb;color:#fff;border-radius:8px;font-size:12px;text-decoration:none;font-weight:800;">문자</a>'+
+              '<a href="tel:'+esc(phoneDigits)+'" style="display:inline-block;margin-top:4px;padding:4px 8px;background:#16a34a;color:#fff;border-radius:8px;font-size:12px;text-decoration:none;font-weight:800;">전화</a>'+
+              '</div>'
+            : '-';
+          html += '<tr><td>'+esc(r.workDate||'-')+'</td><td>'+esc(r.name)+'</td><td>'+phoneCell+'</td><td>'+esc(r.age)+'</td><td>'+esc(r.submittedBy)+'</td><td>'+esc(t)+'</td></tr>';
         });
         html += '</tbody></table>';
       });
