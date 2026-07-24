@@ -13060,14 +13060,19 @@ window.debugTeamScheduleDate = async function(dateStr){
   };
   window.loadTeamScheduleAnalysis=async function(){var tb=document.getElementById('teamAnalysisTbody'); if(tb)tb.innerHTML='<tr><td>팀장 제출분석을 불러오는 중...</td></tr>'; return window.renderTeamTodayAnalysis();};
 
+  function currentTeamAnalysisDate32(){
+    var d=new Date();
+    var y=document.getElementById('teamYesterdayTab');
+    if(y && y.classList.contains('active')) d.setDate(d.getDate()-1);
+    return ymd(d);
+  }
+
   window.renderTeamCrossCheck32=async function(){
     var box=document.getElementById('teamCrossCheckBox'), content=document.getElementById('teamCrossCheckContent');
     if(!box||!content)return;
     box.style.display='block'; content.innerHTML='불러오는 중...';
     try{
-      var today=ymd(new Date());
-      var rows=await window.loadTeamScheduleRows(today);
-      var teamData=window.buildTeamDayDataFromRows(rows,today);
+      var today=currentTeamAnalysisDate32(); var teamData=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
       var arr=[]; try{arr=allRows||window.allRows||[];}catch(e){arr=window.allRows||[];}
       var todaysSubs=arr.filter(function(r){var d=dtSubmission(r); return d&&!isNaN(d.getTime())&&ymd(d)===today;});
 
@@ -13091,7 +13096,7 @@ window.debugTeamScheduleDate = async function(dateStr){
           '</div>'+
         '</div>';
       });
-      content.innerHTML=html||'<div style="color:#166534;font-weight:700;">모든 건이 정상 매칭되었습니다.</div>';
+      content.innerHTML=(html||'<div style="color:#166534;font-weight:700;">모든 건이 정상 매칭되었습니다.</div>')+'<div style="margin-top:8px;font-size:12px;color:#92400e;">기준일: '+esc(today)+'</div>';
     }catch(e){
       content.innerHTML='교차검증 실패: '+esc(e.message||e);
     }
@@ -13311,3 +13316,191 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 <!-- /RAVEBIC_INFLOW_BOTTOM_PAGE_NAV_V2 -->
+
+<!-- RAVEBIC_PAGE4_PARTTIME_STAFF_V1 -->
+<style>
+#rbcPage4Box{display:none;}
+#rbcPage4Box .rbc-p4-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
+#rbcPage4Box .rbc-p4-tab{padding:10px 14px;border-radius:10px;border:0;font-weight:900;cursor:pointer;background:#e5e7eb;color:#111;}
+#rbcPage4Box .rbc-p4-tab.active{background:#2563eb;color:#fff;}
+#rbcPage4Box table{width:100%;border-collapse:collapse;margin-top:10px;}
+#rbcPage4Box th,#rbcPage4Box td{border:1px solid #e2e8f0;padding:8px 10px;font-size:14px;text-align:left;}
+#rbcPage4Box th{background:#f1f5f9;}
+</style>
+<script>
+(function(){
+  if(window.__RBC_PAGE4_PARTTIME_STAFF_V1__) return;
+  window.__RBC_PAGE4_PARTTIME_STAFF_V1__ = true;
+
+  var REGIONS = ['전체','서울경기','충청도','경상도','기타지역'];
+  var currentRegion = '전체';
+
+  function esc(v){return String(v==null?'':v).replace(/[&<>'"]/g,function(s){return {'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[s];});}
+
+  function ensureBox(){
+    var wrap=document.querySelector('.wrap');
+    if(!wrap) return null;
+    var box=document.getElementById('rbcPage4Box');
+    if(!box){
+      box=document.createElement('div');
+      box.id='rbcPage4Box';
+      box.innerHTML =
+        '<h2>페이지4 알바관리</h2>' +
+        '<div class="rbc-p4-tabs" id="rbcP4RegionTabs"></div>' +
+        '<div id="rbcP4Summary" style="font-weight:700;color:#334155;margin-bottom:6px;"></div>' +
+        '<div id="rbcP4ListWrap">불러오는 중...</div>';
+      wrap.appendChild(box);
+    }
+    return box;
+  }
+
+  function ensureTabButton(){
+    var tabs=document.getElementById('rbcPageTabs');
+    if(tabs && !document.getElementById('rbcPage4Btn')){
+      var b=document.createElement('button');
+      b.id='rbcPage4Btn';
+      b.className='rbc-page-tab';
+      b.type='button';
+      b.textContent='페이지4 알바관리';
+      b.onclick=function(){ window.showRbcPage(4,{manual:true}); };
+      tabs.appendChild(b);
+    }
+    var bottom=document.getElementById('rbcBottomPageTabs');
+    if(bottom && !bottom.querySelector('[data-p4]')){
+      var b2=document.createElement('button');
+      b2.className='rbc-page-tab';
+      b2.type='button';
+      b2.setAttribute('data-p4','1');
+      b2.textContent='페이지4 알바관리';
+      b2.onclick=function(){ window.showRbcPage(4,{manual:true}); };
+      bottom.appendChild(b2);
+    }
+  }
+
+  async function loadPartTimeStaff(){
+    var listWrap=document.getElementById('rbcP4ListWrap');
+    var summary=document.getElementById('rbcP4Summary');
+    if(!listWrap) return;
+    listWrap.innerHTML='불러오는 중...';
+    try{
+      var snap=await db.collection('partTimeStaff').get();
+      var rows=[];
+      snap.forEach(function(doc){
+        var d=doc.data()||{};
+        rows.push({
+          id:doc.id,
+          region:d.region||'',
+          name:d.name||'',
+          phone:d.phone||'',
+          age:d.age||'',
+          workDate:d.workDate||'',
+          submittedBy:d.submittedBy||'',
+          submittedAtText:d.submittedAtText||''
+        });
+      });
+      rows.sort(function(a,b){return String(b.submittedAtText).localeCompare(String(a.submittedAtText));});
+
+      var filtered = currentRegion==='전체' ? rows : rows.filter(function(r){return r.region===currentRegion;});
+
+      if(summary) summary.textContent = '전체 '+rows.length+'명 중 '+filtered.length+'명 표시 ('+currentRegion+')';
+
+      if(!filtered.length){
+        listWrap.innerHTML='<div style="padding:16px;color:#94a3b8;">등록된 알바가 없습니다.</div>';
+        return;
+      }
+
+      var byRegion={};
+      filtered.forEach(function(r){
+        var k=r.region||'미지정';
+        if(!byRegion[k]) byRegion[k]=[];
+        byRegion[k].push(r);
+      });
+
+      var html='';
+      Object.keys(byRegion).forEach(function(region){
+        html += '<h3 style="margin:16px 0 4px;">'+esc(region)+' ('+byRegion[region].length+'명)</h3>';
+        html += '<table><thead><tr><th>날짜</th><th>알바이름</th><th>전화번호</th><th>나이</th><th>등록한 직원</th><th>등록일시</th></tr></thead><tbody>';
+        byRegion[region].forEach(function(r){
+          var t = r.submittedAtText ? new Date(r.submittedAtText).toLocaleString() : '-';
+          html += '<tr><td>'+esc(r.workDate||'-')+'</td><td>'+esc(r.name)+'</td><td>'+esc(r.phone)+'</td><td>'+esc(r.age)+'</td><td>'+esc(r.submittedBy)+'</td><td>'+esc(t)+'</td></tr>';
+        });
+        html += '</tbody></table>';
+      });
+
+      listWrap.innerHTML = html;
+    }catch(e){
+      listWrap.innerHTML = '불러오기 실패: '+esc(e.message||e);
+    }
+  }
+
+  function renderTabs(){
+    var tabsBox=document.getElementById('rbcP4RegionTabs');
+    if(!tabsBox) return;
+    tabsBox.innerHTML = REGIONS.map(function(r){
+      return '<button type="button" class="rbc-p4-tab'+(r===currentRegion?' active':'')+'" data-region="'+esc(r)+'">'+esc(r)+'</button>';
+    }).join('');
+    Array.from(tabsBox.querySelectorAll('button')).forEach(function(b){
+      b.onclick=function(){
+        currentRegion=b.getAttribute('data-region');
+        renderTabs();
+        loadPartTimeStaff();
+      };
+    });
+  }
+
+  window.rbcLoadPartTimeStaffPage=function(){
+    ensureBox();
+    renderTabs();
+    loadPartTimeStaff();
+  };
+
+  var prevShowP4 = window.showRbcPage;
+  window.showRbcPage = function(page, opts){
+    page = Number(page);
+    ensureBox();
+    ensureTabButton();
+
+    if(page === 4){
+      var wrap=document.querySelector('.wrap');
+      if(wrap){
+        Array.from(wrap.children).forEach(function(el){
+          if(el.id==='rbcPageTabs') return;
+          if(el.id==='rbcBottomPageTabs') return;
+          if(el.id==='rbcInFlowBottomNav') return;
+          if(el.classList && el.classList.contains('admin-main-title')) return;
+          if(el.classList && el.classList.contains('admin-logout-btn')) return;
+          if(el.classList && el.classList.contains('sub')) return;
+          if(el.id==='conn') return;
+          if(el.classList && el.classList.contains('cards')) return;
+          if(el.id==='rbcPage4Box') return;
+          el.style.display='none';
+        });
+      }
+      var box=document.getElementById('rbcPage4Box');
+      if(box) box.style.display='block';
+      window.rbcLoadPartTimeStaffPage();
+      window.__rbcCurrentPage=4;
+
+      ['rbcPage1Btn','rbcPage2Btn','rbcPage3Btn','rbcPage4Btn'].forEach(function(id){
+        var b=document.getElementById(id);
+        if(b) b.classList.toggle('active', id==='rbcPage4Btn');
+      });
+      return;
+    }
+
+    var box4=document.getElementById('rbcPage4Box');
+    if(box4) box4.style.display='none';
+
+    if(typeof prevShowP4 === 'function') prevShowP4(page, opts);
+
+    var b4=document.getElementById('rbcPage4Btn');
+    if(b4) b4.classList.toggle('active', false);
+  };
+
+  document.addEventListener('DOMContentLoaded', function(){ setTimeout(ensureTabButton, 600); });
+  setTimeout(ensureTabButton, 800);
+  setTimeout(ensureTabButton, 2000);
+  setInterval(ensureTabButton, 2500);
+})();
+</script>
+<!-- /RAVEBIC_PAGE4_PARTTIME_STAFF_V1 -->
