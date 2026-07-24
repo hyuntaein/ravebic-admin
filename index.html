@@ -13356,15 +13356,21 @@ window.debugTeamScheduleDate = async function(dateStr){
 
   function ensureTabButton(){
     var tabs=document.getElementById('rbcPageTabs');
-    if(tabs && !document.getElementById('rbcPage4Btn')){
-      var b=document.createElement('button');
-      b.id='rbcPage4Btn';
-      b.className='rbc-page-tab';
-      b.type='button';
-      b.textContent='페이지4 알바관리';
-      b.onclick=function(){ window.showRbcPage(4,{manual:true}); };
-      tabs.appendChild(b);
+    if(tabs){
+      var b=document.getElementById('rbcPage4Btn');
+      if(!b){
+        b=document.createElement('button');
+        b.id='rbcPage4Btn';
+        b.className='rbc-page-tab';
+        b.type='button';
+        b.textContent='페이지4 알바관리';
+        b.onclick=function(){ window.showRbcPage(4,{manual:true}); };
+        tabs.appendChild(b);
+      }
+      // 페이지3 탭이 나중에 추가되는 경우가 있어서, 매번 페이지4를 맨 뒤로 재배치합니다.
+      if(tabs.lastElementChild !== b) tabs.appendChild(b);
     }
+
     var bottom=document.getElementById('rbcBottomPageTabs');
     if(bottom && !bottom.querySelector('[data-p4]')){
       var b2=document.createElement('button');
@@ -13374,6 +13380,22 @@ window.debugTeamScheduleDate = async function(dateStr){
       b2.textContent='페이지4 알바관리';
       b2.onclick=function(){ window.showRbcPage(4,{manual:true}); };
       bottom.appendChild(b2);
+    }
+
+    // 실제로 화면에 보이는 하단 내비게이션(▲ 페이지... 버튼들)에도 페이지4를 추가합니다.
+    var inflow=document.getElementById('rbcInFlowBottomNav');
+    if(inflow){
+      var b3=inflow.querySelector('[data-page="4"]');
+      if(!b3){
+        b3=document.createElement('button');
+        b3.type='button';
+        b3.setAttribute('data-page','4');
+        b3.textContent='▲ 페이지4 알바관리';
+        b3.onclick=function(){ window.__rbcCurrentPage=4; window.showRbcPage(4,{manual:true}); };
+        inflow.appendChild(b3);
+      }
+      if(inflow.lastElementChild !== b3) inflow.appendChild(b3);
+      b3.classList.toggle('active', (window.__rbcCurrentPage||1)===4);
     }
   }
 
