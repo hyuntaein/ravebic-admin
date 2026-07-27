@@ -13327,9 +13327,19 @@ window.debugTeamScheduleDate = async function(dateStr){
 #rbcPage4Box .rbc-p4-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0;}
 #rbcPage4Box .rbc-p4-tab{padding:10px 14px;border-radius:10px;border:0;font-weight:900;cursor:pointer;background:#e5e7eb;color:#111;}
 #rbcPage4Box .rbc-p4-tab.active{background:#2563eb;color:#fff;}
-#rbcPage4Box table{width:100%;border-collapse:collapse;margin-top:10px;}
-#rbcPage4Box th,#rbcPage4Box td{border:1px solid #e2e8f0;padding:8px 10px;font-size:14px;text-align:left;}
+#rbcPage4Box .p4-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:10px;border-radius:10px;}
+#rbcPage4Box table{width:100%;min-width:620px;border-collapse:collapse;}
+#rbcPage4Box th,#rbcPage4Box td{border:1px solid #e2e8f0;padding:8px 10px;font-size:14px;text-align:left;white-space:nowrap;}
 #rbcPage4Box th{background:#f1f5f9;}
+#rbcPage4Box tr.p4-result-x{background:#fee2e2;}
+#rbcPage4Box .p4-result-btn{border:0;border-radius:8px;padding:5px 10px;font-weight:900;cursor:pointer;margin-right:4px;font-size:13px;}
+#rbcPage4Box .p4-result-btn.o{background:#dcfce7;color:#166534;}
+#rbcPage4Box .p4-result-btn.o.active{background:#16a34a;color:#fff;}
+#rbcPage4Box .p4-result-btn.x{background:#fee2e2;color:#991b1b;}
+#rbcPage4Box .p4-result-btn.x.active{background:#dc2626;color:#fff;}
+@media(max-width:700px){
+  #rbcPage4Box th,#rbcPage4Box td{font-size:12.5px;padding:6px 8px;}
+}
 </style>
 <script>
 (function(){
@@ -13403,6 +13413,15 @@ window.debugTeamScheduleDate = async function(dateStr){
     }
   }
 
+  window.rbcSetPartTimeResult=async function(id,val){
+    try{
+      await db.collection('partTimeStaff').doc(id).update({result:val});
+      loadPartTimeStaff();
+    }catch(e){
+      alert('결과 저장 실패: '+(e.message||e));
+    }
+  };
+
   async function loadPartTimeStaff(){
     var listWrap=document.getElementById('rbcP4ListWrap');
     var summary=document.getElementById('rbcP4Summary');
@@ -13421,7 +13440,8 @@ window.debugTeamScheduleDate = async function(dateStr){
           age:d.age||'',
           workDate:d.workDate||'',
           submittedBy:d.submittedBy||'',
-          submittedAtText:d.submittedAtText||''
+          submittedAtText:d.submittedAtText||'',
+          result:d.result||''
         });
       });
       rows.sort(function(a,b){return String(b.submittedAtText).localeCompare(String(a.submittedAtText));});
@@ -13444,20 +13464,29 @@ window.debugTeamScheduleDate = async function(dateStr){
 
       var html='';
       Object.keys(byRegion).forEach(function(region){
-        html += '<h3 style="margin:16px 0 4px;">'+esc(region)+' ('+byRegion[region].length+'명)</h3>';
-        html += '<table><thead><tr><th>날짜</th><th>알바이름</th><th>전화번호</th><th>나이</th><th>등록한 직원</th><th>등록일시</th></tr></thead><tbody>';
-        byRegion[region].forEach(function(r){
+        var list=byRegion[region].slice().sort(function(a,b){
+          var ax=a.result==='X'?1:0, bx=b.result==='X'?1:0;
+          if(ax!==bx) return ax-bx;
+          return String(b.submittedAtText).localeCompare(String(a.submittedAtText));
+        });
+        html += '<h3 style="margin:16px 0 4px;">'+esc(region)+' ('+list.length+'명)</h3>';
+        html += '<div class="p4-table-wrap"><table><thead><tr><th>날짜</th><th>알바이름</th><th>전화번호</th><th>나이</th><th>등록한 직원</th><th>등록일시</th><th>결과</th></tr></thead><tbody>';
+        list.forEach(function(r){
           var t = r.submittedAtText ? new Date(r.submittedAtText).toLocaleString() : '-';
           var phoneDigits = String(r.phone||'').replace(/[^\d+]/g,'');
           var phoneCell = r.phone
-            ? '<div style="white-space:nowrap;">'+esc(r.phone)+'<br>'+
+            ? '<div>'+esc(r.phone)+'<br>'+
               '<a href="sms:'+esc(phoneDigits)+'" style="display:inline-block;margin-top:4px;margin-right:6px;padding:4px 8px;background:#2563eb;color:#fff;border-radius:8px;font-size:12px;text-decoration:none;font-weight:800;">문자</a>'+
               '<a href="tel:'+esc(phoneDigits)+'" style="display:inline-block;margin-top:4px;padding:4px 8px;background:#16a34a;color:#fff;border-radius:8px;font-size:12px;text-decoration:none;font-weight:800;">전화</a>'+
               '</div>'
             : '-';
-          html += '<tr><td>'+esc(r.workDate||'-')+'</td><td>'+esc(r.name)+'</td><td>'+phoneCell+'</td><td>'+esc(r.age)+'</td><td>'+esc(r.submittedBy)+'</td><td>'+esc(t)+'</td></tr>';
+          var resultCell =
+            '<button type="button" class="p4-result-btn o'+(r.result==='O'?' active':'')+'" onclick="rbcSetPartTimeResult(\''+esc(r.id)+'\',\'O\')">O</button>'+
+            '<button type="button" class="p4-result-btn x'+(r.result==='X'?' active':'')+'" onclick="rbcSetPartTimeResult(\''+esc(r.id)+'\',\'X\')">X</button>';
+          var rowClass = r.result==='X' ? ' class="p4-result-x"' : '';
+          html += '<tr'+rowClass+'><td>'+esc(r.workDate||'-')+'</td><td>'+esc(r.name)+'</td><td>'+phoneCell+'</td><td>'+esc(r.age)+'</td><td>'+esc(r.submittedBy)+'</td><td>'+esc(t)+'</td><td>'+resultCell+'</td></tr>';
         });
-        html += '</tbody></table>';
+        html += '</tbody></table></div>';
       });
 
       listWrap.innerHTML = html;
