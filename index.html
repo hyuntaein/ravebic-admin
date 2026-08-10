@@ -4549,11 +4549,38 @@ window.debugTeamScheduleDate = async function(dateStr){
     if(!name) return;
     if(!confirm(name + ' 직원 PIN을 삭제할까요?')) return;
     try{
-      await db.collection('staffPins').doc(name).delete();
+      const targetIds = new Set();
+      targetIds.add(name);
+      targetIds.add(String(name).trim());
+
+      // 이름 필드가 일치하는 문서도 전부 찾아서 함께 지웁니다.
+      // (예전 버전 코드가 문서ID를 다르게 저장한 적이 있어서, 같은 이름의
+      //  문서가 중복으로 남아있는 경우 하나만 지우면 다시 나타나는 문제가 있었습니다)
+      const byNameSnap = await db.collection('staffPins').where('name','==',name).get();
+      byNameSnap.forEach(function(doc){ targetIds.add(doc.id); });
+
+      let deletedCount = 0;
+      for(const id of targetIds){
+        try{
+          const docRef = db.collection('staffPins').doc(id);
+          const docSnap = await docRef.get();
+          if(docSnap.exists){
+            await docRef.delete();
+            deletedCount++;
+          }
+        }catch(innerErr){
+          console.error('개별 삭제 실패:', id, innerErr);
+        }
+      }
+
       if(typeof invalidateRavebicValidStaffNames === 'function') invalidateRavebicValidStaffNames();
       await window.loadStaffPins();
       if(typeof loadTeamScheduleAnalysis === 'function') loadTeamScheduleAnalysis();
       if(typeof rbcLoadScore === 'function') rbcLoadScore();
+
+      if(deletedCount === 0){
+        alert('삭제할 문서를 찾지 못했습니다. 화면을 새로고침한 뒤 다시 시도해주세요.');
+      }
     }catch(err){alert('삭제 실패:\n\n' + (err.message || err));}
   };
 
