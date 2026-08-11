@@ -12990,13 +12990,20 @@ window.debugTeamScheduleDate = async function(dateStr){
   function nm(v){return String(v||'').replace(/\s+/g,'').trim();}
   function sk(v){return String(v||'')
     .replace(/^\s*\d{2,5}\s*(노\s*)?/,'')
-    .replace(/\(\s*\d+\s*\)/g,'')
+    .replace(/\([^)]*\)/g,'')
     .replace(/\*+/g,'')
     .replace(/\b\d{1,2}\s*(시|이후|합류)?\*?$/,'')
     .replace(/\s+/g,'')
     .replace(/[·ㆍ.\-_/]/g,'')
     .trim()
-    .toLowerCase();}
+    .toLowerCase()
+    .replace(/점$/,'');}
+  function keyMatch32(a,b){
+    if(!a||!b)return false;
+    if(a===b||a.indexOf(b)>-1||b.indexOf(a)>-1)return true;
+    var as=a.split('').sort().join(''), bs=b.split('').sort().join('');
+    return as===bs;
+  }
   function bad(v){return /양수도|꼼꼼히|정기실사|인수실사|폐점|업무|사무실|타입변경|팀장휴무|담당휴무|휴무|교육|차량|수정|마감/.test(nm(v));}
   function dtSubmission(r){try{if(typeof dtOf==='function')return dtOf(r);}catch(e){} var v=(r&&(r.workDateText||r.inspectionDateText||r.inspectionDate||r.date||r.submittedAtText))||0; return /^\d{4}-\d{2}-\d{2}$/.test(String(v))?new Date(String(v)+'T12:00:00'):new Date(v);}
 
@@ -13062,12 +13069,48 @@ window.debugTeamScheduleDate = async function(dateStr){
     try{await approvedInfo32(); var rows=await normalize32(await readScheduleDocs32('teamSchedules',dateStr),dateStr); if(!rows.length) rows=await normalize32(await readScheduleDocs32('pendingTeamSchedules',dateStr),dateStr); return rows;}catch(e){console.error('V32 loadTeamScheduleRows failed',e);return [];}
   };
 
+  window.__rbcManualOverrides32=window.__rbcManualOverrides32||{};
+  async function loadManualOverrides32(dateStr){
+    var set=new Set();
+    try{
+      var snap=await db.collection('scheduleManualApprovals').where('date','==',dateStr).get();
+      snap.forEach(function(doc){var d=doc.data()||{}; if(d.leader&&d.planKey)set.add(nm(d.leader)+'|'+d.planKey);});
+    }catch(e){console.warn('manual overrides load failed',e);}
+    window.__rbcManualOverrides32[dateStr]=set;
+    return set;
+  }
+  function isManuallyApproved32(dateStr,leader,planKey){
+    var set=window.__rbcManualOverrides32[dateStr];
+    return !!(set&&set.has(nm(leader)+'|'+planKey));
+  }
+  window.rbcManualApprove32=async function(dateStr,leader,planKey,storeLabel){
+    if(!confirm('"'+storeLabel+'" 건을 수동으로 승인 처리할까요?\n(오타 등으로 자동매칭이 안 된 건을 제출완료로 인정합니다)'))return;
+    try{
+      var id=(dateStr+'_'+leader+'_'+planKey).replace(/[^\w가-힣\-]+/g,'_').substring(0,140);
+      await db.collection('scheduleManualApprovals').doc(id).set({
+        date:dateStr,
+        leader:leader,
+        planKey:planKey,
+        storeLabel:storeLabel,
+        approvedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        approvedAtText:new Date().toISOString(),
+        approvedBy:sessionStorage.getItem('ravebicAdminStaffName')||'관리자'
+      });
+      await loadManualOverrides32(dateStr);
+      if(typeof window.loadTeamScheduleAnalysis==='function')await window.loadTeamScheduleAnalysis();
+      await window.renderTeamCrossCheck32();
+      alert('승인 처리 완료');
+    }catch(e){
+      alert('승인 처리 실패:\n\n'+(e.message||e));
+    }
+  };
+
   function countSubmit32(leader,dateStr,stores){
     var plans=(stores||[]).map(function(s){return sk(s.store||s);}).filter(Boolean);
     var submitted=new Set(); var arr=[]; try{arr=allRows||window.allRows||[];}catch(e){arr=window.allRows||[];}
-    arr.forEach(function(r){var d=dtSubmission(r); if(!d||isNaN(d.getTime())||ymd(d)!==dateStr)return; if(nm(r.name)!==nm(leader))return; var st=sk(r.store); if(!st)return; if(!plans.length||plans.some(function(p){return st===p||st.indexOf(p)>-1||p.indexOf(st)>-1;}))submitted.add(st);});
+    arr.forEach(function(r){var d=dtSubmission(r); if(!d||isNaN(d.getTime())||ymd(d)!==dateStr)return; if(nm(r.name)!==nm(leader))return; var st=sk(r.store); if(!st)return; if(!plans.length||plans.some(function(p){return keyMatch32(st,p);}))submitted.add(st);});
     if(!plans.length)return submitted.size;
-    var cnt=0; plans.forEach(function(p){var ok=false; submitted.forEach(function(s){if(s===p||s.indexOf(p)>-1||p.indexOf(s)>-1)ok=true;}); if(ok)cnt++;}); return cnt;
+    var cnt=0; plans.forEach(function(p){var ok=false; submitted.forEach(function(s){if(keyMatch32(s,p))ok=true;}); if(!ok&&isManuallyApproved32(dateStr,leader,p))ok=true; if(ok)cnt++;}); return cnt;
   }
   window.buildTeamDayDataFromRows=function(rows,dateStr){
     var map={};
@@ -13075,16 +13118,20 @@ window.debugTeamScheduleDate = async function(dateStr){
     Object.keys(map).forEach(function(k){map[k].submitted=countSubmit32(k,dateStr,map[k].stores); map[k].missing=Math.max(0,map[k].planned-map[k].submitted);});
     return Object.values(map).sort(function(a,b){return (a.leaderOrderIndex-b.leaderOrderIndex)||a.leader.localeCompare(b.leader,'ko');});
   };
-  window.renderTeamTodayAnalysis=async function(){
+  window.renderTeamDayAnalysis32=async function(dateStr,label){
     var th=document.getElementById('teamAnalysisThead'), tb=document.getElementById('teamAnalysisTbody'), sm=document.getElementById('teamAnalysisSummary'); if(!th||!tb)return;
-    var today=ymd(new Date()); var rows=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
+    await loadManualOverrides32(dateStr);
+    var rows=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(dateStr),dateStr);
     var p=rows.reduce(function(s,r){return s+r.planned;},0), sub=rows.reduce(function(s,r){return s+r.submitted;},0), miss=rows.reduce(function(s,r){return s+r.missing;},0);
     th.innerHTML='<tr><th>팀장</th><th>예정</th><th>제출</th><th>미제출</th><th>브랜드별 예정</th><th>예정 점포</th><th>상태</th></tr>';
-    if(sm)sm.innerHTML='<span class="team-chip total">예정 '+p+'건</span><span class="team-chip ok">제출 '+sub+'건</span><span class="team-chip miss">미제출 '+miss+'건</span><span class="team-chip warn">기준일 '+today+'</span>';
-    if(!rows.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900">오늘('+today+') 승인된 일정이 없습니다. 자동수집 상태 확인 후 직원용 일정표 승인 반영을 눌러주세요.</td></tr>';return;}
-    var after7=new Date().getHours()>=19;
-    tb.innerHTML=rows.map(function(r){var cls=r.missing?(after7?'danger':'warn'):'ok'; var tr=cls==='ok'?'team-row-ok':(cls==='danger'?'team-row-danger':'team-row-warn'); var stores=r.stores.map(function(s){var b=s.brand==='세븐일레븐'?'세븐':(s.brand==='이마트24'?'이마트24':(s.brand||'기타'));return '· '+esc(b)+' / '+esc(s.store);}).join('<br>'); return '<tr class="'+tr+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+stores+'</div></td><td><span class="team-status-badge '+cls+'">'+(r.missing?(after7?'미제출':'진행중'):'정상')+'</span></td></tr>';}).join('');
+    if(sm)sm.innerHTML='<span class="team-chip total">예정 '+p+'건</span><span class="team-chip ok">제출 '+sub+'건</span><span class="team-chip miss">미제출 '+miss+'건</span><span class="team-chip warn">기준일 '+dateStr+'</span>';
+    if(!rows.length){tb.innerHTML='<tr><td colspan="7" style="text-align:center;padding:18px;color:#b45309;font-weight:900">'+label+'('+dateStr+') 승인된 일정이 없습니다. 자동수집 상태 확인 후 직원용 일정표 승인 반영을 눌러주세요.</td></tr>';return;}
+    var isToday=(dateStr===ymd(new Date()));
+    var after7=isToday&&new Date().getHours()>=19;
+    tb.innerHTML=rows.map(function(r){var cls=r.missing?(isToday?(after7?'danger':'warn'):'danger'):'ok'; var tr=cls==='ok'?'team-row-ok':(cls==='danger'?'team-row-danger':'team-row-warn'); var stores=r.stores.map(function(s){var b=s.brand==='세븐일레븐'?'세븐':(s.brand==='이마트24'?'이마트24':(s.brand||'기타'));return '· '+esc(b)+' / '+esc(s.store);}).join('<br>'); return '<tr class="'+tr+'"><td><b>'+esc(r.leader)+'</b></td><td>'+r.planned+'건</td><td>'+r.submitted+'건</td><td>'+r.missing+'건</td><td>세븐 '+r.seven+' / 이마트 '+r.emart+' / 기타 '+r.etc+'</td><td><div class="team-store-list">'+stores+'</div></td><td><span class="team-status-badge '+cls+'">'+(r.missing?(isToday&&!after7?'진행중':'미제출'):'정상')+'</span></td></tr>';}).join('');
   };
+  window.renderTeamTodayAnalysis=async function(){return window.renderTeamDayAnalysis32(ymd(new Date()),'오늘');};
+  window.renderTeamYesterdayAnalysis=async function(){var d=new Date(); d.setDate(d.getDate()-1); return window.renderTeamDayAnalysis32(ymd(d),'어제');};
   window.loadTeamScheduleAnalysis=async function(){var tb=document.getElementById('teamAnalysisTbody'); if(tb)tb.innerHTML='<tr><td>팀장 제출분석을 불러오는 중...</td></tr>'; return window.renderTeamTodayAnalysis();};
 
   function currentTeamAnalysisDate32(){
@@ -13099,7 +13146,9 @@ window.debugTeamScheduleDate = async function(dateStr){
     if(!box||!content)return;
     box.style.display='block'; content.innerHTML='불러오는 중...';
     try{
-      var today=currentTeamAnalysisDate32(); var teamData=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
+      var today=currentTeamAnalysisDate32();
+      await loadManualOverrides32(today);
+      var teamData=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
       var arr=[]; try{arr=allRows||window.allRows||[];}catch(e){arr=window.allRows||[];}
       var todaysSubs=arr.filter(function(r){var d=dtSubmission(r); return d&&!isNaN(d.getTime())&&ymd(d)===today;});
 
@@ -13108,14 +13157,19 @@ window.debugTeamScheduleDate = async function(dateStr){
         var plans=t.stores.map(function(s){return {brand:s.brand,store:s.store,key:sk(s.store)};});
         var subsForLeader=todaysSubs.filter(function(r){return nm(r.name)===nm(t.leader);});
         var subKeys=subsForLeader.map(function(r){return {store:r.store,key:sk(r.store)};});
-        var unmatchedPlans=plans.filter(function(p){return !subKeys.some(function(s){return s.key===p.key||s.key.indexOf(p.key)>-1||p.key.indexOf(s.key)>-1;});});
-        var unmatchedSubs=subKeys.filter(function(s){return !plans.some(function(p){return s.key===p.key||s.key.indexOf(p.key)>-1||p.key.indexOf(s.key)>-1;});});
+        var unmatchedPlans=plans.filter(function(p){return !subKeys.some(function(s){return keyMatch32(s.key,p.key);})&&!isManuallyApproved32(today,t.leader,p.key);});
+        var unmatchedSubs=subKeys.filter(function(s){return !plans.some(function(p){return keyMatch32(s.key,p.key);});});
         if(!unmatchedPlans.length&&!unmatchedSubs.length)return;
         html+='<div style="margin-bottom:12px;padding:10px;background:#fff;border-radius:10px;border:1px solid #fde68a;">'+
           '<b>'+esc(t.leader)+'</b>'+
           '<div style="display:flex;gap:16px;margin-top:6px;flex-wrap:wrap;">'+
-            '<div style="flex:1;min-width:200px;"><div style="font-weight:700;color:#b45309;">예정인데 매칭 안 된 점포</div>'+
-              (unmatchedPlans.length?unmatchedPlans.map(function(p){return '· '+esc(p.brand)+' / '+esc(p.store);}).join('<br>'):'<span style="color:#94a3b8;">없음</span>')+
+            '<div style="flex:1;min-width:220px;"><div style="font-weight:700;color:#b45309;">예정인데 매칭 안 된 점포</div>'+
+              (unmatchedPlans.length?unmatchedPlans.map(function(p){
+                var label=esc(p.brand)+' / '+esc(p.store);
+                return '<div style="margin:4px 0;">· '+label+
+                  ' <button type="button" onclick="rbcManualApprove32(\''+esc(today)+'\',\''+esc(t.leader)+'\',\''+esc(p.key)+'\',\''+esc(p.store).replace(/\'/g,"")+'\')" style="margin-left:6px;border:none;background:#16a34a;color:#fff;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:800;cursor:pointer;">승인</button>'+
+                '</div>';
+              }).join(''):'<span style="color:#94a3b8;">없음</span>')+
             '</div>'+
             '<div style="flex:1;min-width:200px;"><div style="font-weight:700;color:#2563eb;">오늘 이 팀장 제출인데 매칭 안 된 건</div>'+
               (unmatchedSubs.length?unmatchedSubs.map(function(s){return '· '+esc(s.store);}).join('<br>'):'<span style="color:#94a3b8;">없음</span>')+
@@ -13123,7 +13177,7 @@ window.debugTeamScheduleDate = async function(dateStr){
           '</div>'+
         '</div>';
       });
-      content.innerHTML=(html||'<div style="color:#166534;font-weight:700;">모든 건이 정상 매칭되었습니다.</div>')+'<div style="margin-top:8px;font-size:12px;color:#92400e;">기준일: '+esc(today)+'</div>';
+      content.innerHTML=(html||'<div style="color:#166534;font-weight:700;">모든 건이 정상 매칭되었습니다.</div>')+'<div style="margin-top:8px;font-size:12px;color:#92400e;">기준일: '+esc(today)+' · "승인" 버튼을 누르면 자동매칭 실패 건을 제출완료로 인정합니다.</div>';
     }catch(e){
       content.innerHTML='교차검증 실패: '+esc(e.message||e);
     }
@@ -13131,7 +13185,7 @@ window.debugTeamScheduleDate = async function(dateStr){
   window.rbcLoadAlertCenter=async function(){
     var body=document.getElementById('rbcAlertCenterBody'); if(!body)return; body.innerHTML='<div class="rbc-alert-card">알림 계산 중...</div>';
     try{try{if(typeof loadData==='function'&&(!(window.allRows||[]).length))await loadData();}catch(e){}
-      var today=ymd(new Date()); var rows=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
+      var today=ymd(new Date()); await loadManualOverrides32(today); var rows=window.buildTeamDayDataFromRows(await window.loadTeamScheduleRows(today),today);
       var p=rows.reduce(function(s,r){return s+r.planned;},0), sub=rows.reduce(function(s,r){return s+r.submitted;},0), miss=rows.reduce(function(s,r){return s+r.missing;},0), h=new Date().getHours();
       var missing=rows.filter(function(r){return r.missing>0;}); var done=rows.filter(function(r){return r.planned>0&&r.missing===0;});
       var cls=miss?(h>=21?'danger':(h>=19?'warn':'info')):'ok'; var title=miss?(h>=21?'🔴 미제출 확정':(h>=19?'🟠 미제출 주의':'🔵 진행중: 미제출 예정')):'🟢 오늘 제출 완료';
