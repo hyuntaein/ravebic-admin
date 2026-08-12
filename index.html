@@ -2550,7 +2550,7 @@ setTimeout(loadTeamScheduleAnalysis, 1500);
       <button class="rbc-score-btn" onclick="document.getElementById('rbcScoreBody').style.display=document.getElementById('rbcScoreBody').style.display==='none'?'block':'none'">신뢰도 접기/펼치기</button>
     </div>
   </div>
-  <div style="color:#64748b">이번 달 기준 / 오후 9시 마감 / 제출률·정시율·미제출·지연·보완요청 반영</div>
+  <div style="color:#64748b">이번 달 기준(2026-08-13부터 반영) / 오후 9시 마감 / 제출률·정시율·미제출·지연·보완요청 반영 / 대상: 권대훈·김경진·최윤진·박성호·오세빈·김달영·박승현·남지엽</div>
   <div id="rbcScoreSummary">계산 중...</div>
   <div id="rbcScoreBody">불러오는 중...</div>
 </div>
@@ -2567,8 +2567,11 @@ async function rbcLoadScore(){
   function grade(s){return s>=90?'a':s>=80?'b':s>=65?'c':'d'}
   function gt(g){return g==='a'?'A':g==='b'?'B':g==='c'?'C':'D'}
 
+  const ALLOWED_LEADERS_SCORE=['권대훈','김경진','최윤진','박성호','오세빈','김달영','박승현','남지엽'];
   const now=new Date();
-  const start=new Date(now.getFullYear(),now.getMonth(),1);
+  const monthStart=new Date(now.getFullYear(),now.getMonth(),1);
+  const dataFloor=new Date(2026,7,13); // 2026-08-13부터 데이터 반영 (그 이전 기록은 신뢰도 점수에서 제외)
+  const start=monthStart>dataFloor?monthStart:dataFloor;
   const end=new Date(now.getFullYear(),now.getMonth()+1,0,23,59,59);
   const sy=ymd(start), ey=ymd(end);
   await loadRavebicValidStaffNames();
@@ -2630,7 +2633,7 @@ async function rbcLoadScore(){
     result[name].fix++;
   });
 
-  const rows=Object.values(result).map(r=>{
+  const rows=Object.values(result).filter(r=>ALLOWED_LEADERS_SCORE.includes(String(r.name||'').trim())).map(r=>{
     const submitRate=r.planned?Math.round(r.submitted/r.planned*100):0;
     const onTimeRate=r.planned?Math.round(r.onTime/r.planned*100):0;
     let score=Math.round(submitRate*.45+onTimeRate*.45+10)-r.missing*8-r.late*3-r.fix*2;
