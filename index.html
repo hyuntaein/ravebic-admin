@@ -13463,8 +13463,35 @@ window.debugTeamScheduleDate = async function(dateStr){
         '</div>' +
         '<div class="rbc-p4-tabs" id="rbcP4RegionTabs"></div>' +
         '<div id="rbcP4Summary" style="font-weight:700;color:#334155;margin-bottom:6px;"></div>' +
-        '<div id="rbcP4ListWrap">불러오는 중...</div>';
+        '<div id="rbcP4ListWrap">불러오는 중...</div>' +
+        '<div id="rbcP4EditOverlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:9999;align-items:center;justify-content:center;">' +
+          '<div style="background:#fff;border-radius:14px;padding:20px;width:min(420px,90vw);">' +
+            '<div style="font-weight:900;font-size:16px;margin-bottom:12px;">알바 정보 수정</div>' +
+            '<input type="hidden" id="rbcP4EditId">' +
+            '<label style="display:block;margin-bottom:8px;font-size:13px;color:#64748b;">지역<br>' +
+              '<select id="rbcP4ERegion" style="width:100%;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-top:4px;"></select></label>' +
+            '<label style="display:block;margin-bottom:8px;font-size:13px;color:#64748b;">알바이름<br>' +
+              '<input id="rbcP4EName" style="width:100%;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-top:4px;"></label>' +
+            '<label style="display:block;margin-bottom:8px;font-size:13px;color:#64748b;">전화번호<br>' +
+              '<input id="rbcP4EPhone" style="width:100%;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-top:4px;"></label>' +
+            '<label style="display:block;margin-bottom:8px;font-size:13px;color:#64748b;">나이<br>' +
+              '<input id="rbcP4EAge" style="width:100%;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-top:4px;"></label>' +
+            '<label style="display:block;margin-bottom:14px;font-size:13px;color:#64748b;">날짜<br>' +
+              '<input id="rbcP4EDate" type="date" style="width:100%;padding:8px;border-radius:8px;border:1px solid #cbd5e1;margin-top:4px;"></label>' +
+            '<div style="display:flex;gap:8px;justify-content:flex-end;">' +
+              '<button type="button" onclick="rbcCancelPartTimeEdit()" style="padding:9px 16px;background:#e5e7eb;border:0;border-radius:8px;font-weight:800;cursor:pointer;">취소</button>' +
+              '<button type="button" onclick="rbcSavePartTimeEdit()" style="padding:9px 16px;background:#2563eb;color:#fff;border:0;border-radius:8px;font-weight:900;cursor:pointer;">저장</button>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
       wrap.appendChild(box);
+
+      var editRegionSelect=document.getElementById('rbcP4ERegion');
+      REGIONS.filter(function(r){return r!=='전체';}).forEach(function(r){
+        var opt=document.createElement('option');
+        opt.value=r; opt.textContent=r;
+        editRegionSelect.appendChild(opt);
+      });
 
       var regionSelect=document.getElementById('rbcP4MRegion');
       REGIONS.filter(function(r){return r!=='전체';}).forEach(function(r){
@@ -13475,6 +13502,54 @@ window.debugTeamScheduleDate = async function(dateStr){
     }
     return box;
   }
+
+  window.rbcEditPartTimeStart=async function(id){
+    try{
+      var doc=await db.collection('partTimeStaff').doc(id).get();
+      if(!doc.exists){alert('해당 항목을 찾을 수 없습니다.');return;}
+      var d=doc.data()||{};
+      document.getElementById('rbcP4EditId').value=id;
+      document.getElementById('rbcP4ERegion').value=d.region||'';
+      document.getElementById('rbcP4EName').value=d.name||'';
+      document.getElementById('rbcP4EPhone').value=d.phone||'';
+      document.getElementById('rbcP4EAge').value=d.age||'';
+      document.getElementById('rbcP4EDate').value=d.workDate||'';
+      var overlay=document.getElementById('rbcP4EditOverlay');
+      overlay.style.display='flex';
+    }catch(e){
+      alert('불러오기 실패:\n\n'+(e.message||e));
+    }
+  };
+
+  window.rbcCancelPartTimeEdit=function(){
+    document.getElementById('rbcP4EditOverlay').style.display='none';
+  };
+
+  window.rbcSavePartTimeEdit=async function(){
+    var id=document.getElementById('rbcP4EditId').value;
+    var region=document.getElementById('rbcP4ERegion').value;
+    var name=document.getElementById('rbcP4EName').value.trim();
+    var phone=document.getElementById('rbcP4EPhone').value.trim();
+    var age=document.getElementById('rbcP4EAge').value.trim();
+    var workDate=document.getElementById('rbcP4EDate').value.trim();
+
+    if(!name){alert('알바이름을 입력해주세요.');return;}
+    if(!phone){alert('전화번호를 입력해주세요.');return;}
+    if(!age){alert('나이를 입력해주세요.');return;}
+    if(!workDate){alert('날짜를 선택해주세요.');return;}
+
+    try{
+      await db.collection('partTimeStaff').doc(id).update({
+        region:region, name:name, phone:phone, age:age, workDate:workDate,
+        editedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        editedAtText:new Date().toISOString()
+      });
+      window.rbcCancelPartTimeEdit();
+      window.rbcLoadPartTimeStaffPage();
+    }catch(e){
+      alert('저장 실패:\n\n'+(e.message||e));
+    }
+  };
 
   window.rbcAddPartTimeManual=async function(){
     var region=document.getElementById('rbcP4MRegion').value;
@@ -13613,7 +13688,7 @@ window.debugTeamScheduleDate = async function(dateStr){
           return String(b.submittedAtText).localeCompare(String(a.submittedAtText));
         });
         html += '<h3 style="margin:16px 0 4px;">'+esc(region)+' ('+list.length+'명)</h3>';
-        html += '<div class="p4-table-wrap"><table><thead><tr><th>날짜</th><th>알바이름</th><th>전화번호</th><th>나이</th><th>등록한 직원</th><th>등록일시</th><th>결과</th></tr></thead><tbody>';
+        html += '<div class="p4-table-wrap"><table><thead><tr><th>날짜</th><th>알바이름</th><th>전화번호</th><th>나이</th><th>등록한 직원</th><th>등록일시</th><th>결과</th><th>관리</th></tr></thead><tbody>';
         list.forEach(function(r){
           var t = r.submittedAtText ? new Date(r.submittedAtText).toLocaleString() : '-';
           var phoneDigits = String(r.phone||'').replace(/[^\d+]/g,'');
@@ -13626,8 +13701,9 @@ window.debugTeamScheduleDate = async function(dateStr){
           var resultCell =
             '<button type="button" class="p4-result-btn o'+(r.result==='O'?' active':'')+'" onclick="rbcSetPartTimeResult(\''+esc(r.id)+'\',\'O\')">O</button>'+
             '<button type="button" class="p4-result-btn x'+(r.result==='X'?' active':'')+'" onclick="rbcSetPartTimeResult(\''+esc(r.id)+'\',\'X\')">X</button>';
+          var editBtn = '<button type="button" onclick="rbcEditPartTimeStart(\''+esc(r.id)+'\')" style="border:0;background:#f59e0b;color:#fff;border-radius:8px;padding:5px 10px;font-weight:900;cursor:pointer;font-size:13px;">수정</button>';
           var rowClass = r.result==='X' ? ' class="p4-result-x"' : '';
-          html += '<tr'+rowClass+'><td>'+esc(r.workDate||'-')+'</td><td>'+esc(r.name)+'</td><td>'+phoneCell+'</td><td>'+esc(r.age)+'</td><td>'+esc(r.submittedBy)+'</td><td>'+esc(t)+'</td><td>'+resultCell+'</td></tr>';
+          html += '<tr'+rowClass+' id="p4row_'+esc(r.id)+'"><td>'+esc(r.workDate||'-')+'</td><td>'+esc(r.name)+'</td><td>'+phoneCell+'</td><td>'+esc(r.age)+'</td><td>'+esc(r.submittedBy)+'</td><td>'+esc(t)+'</td><td>'+resultCell+'</td><td>'+editBtn+'</td></tr>';
         });
         html += '</tbody></table></div>';
       });
