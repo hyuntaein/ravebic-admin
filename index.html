@@ -954,7 +954,7 @@ select.status-pending {
 </div>
 
 <div class="filters"><input id="q" placeholder="직원명/점포명/특이사항"><input id="from" type="date"><input id="to" type="date"><select id="region"><option value="">지역 전체</option><option>서울경기</option><option>충청도</option><option>경상도</option><option>기타지역</option></select><select id="brand"><option value="">브랜드 전체</option><option>이마트24</option><option>세븐일레븐</option><option>기타</option></select><select id="workType"><option value="">업무 전체</option><option>정기실사</option><option>인수실사</option><option>양수도</option><option>폐점</option></select></div>
-<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="gray" onclick="loadData()">새로고침</button><button class="red" type="button" style="background:#ef4444;color:#fff;" onclick="document.getElementById('adminDirectMessageModal').style.display='flex';setTimeout(function(){document.getElementById('adminDirectMessageTarget').focus();},100);">메세지보내기</button>
+<div class="btns"><button class="blue" onclick="applyFilters()">검색/필터 적용</button><button class="gray" onclick="resetFilters()">초기화</button><button class="green" onclick="downloadCSV()">엑셀용 CSV 다운로드</button><button class="green" onclick="showPerfSummary()">실적요약 보기</button><button class="gray" onclick="loadData()">새로고침</button><button class="red" type="button" style="background:#ef4444;color:#fff;" onclick="document.getElementById('adminDirectMessageModal').style.display='flex';setTimeout(function(){document.getElementById('adminDirectMessageTarget').focus();},100);">메세지보내기</button>
 <button id="rbcSubmitFoldBtn" class="rbc-submit-fold-btn" type="button">제출목록 접기</button></div>
 <div style="overflow:auto"><table><thead><tr><th>제출시간</th><th>직원명</th><th>점포명</th><th>지역</th><th>브랜드</th><th>업무</th><th>특이사항</th><th>첨부파일</th><th>상태</th><th>관리</th></tr></thead><tbody id="tbody"><tr><td colspan="10" style="text-align:center;padding:35px">불러오는 중...</td></tr></tbody></table></div>
 <div class="pagination-bar"><button id="prevPageBtn" type="button" onclick="prevPage()">이전</button><span id="pageInfo" class="pagination-info">1 / 1 페이지</span><button id="nextPageBtn" type="button" onclick="nextPage()">다음</button><select id="pageSizeSelect" class="page-size-select" onchange="changePageSize(this.value)"><option value="10" selected>10개씩</option><option value="20">20개씩</option><option value="50">50개씩</option></select></div>
@@ -1441,6 +1441,41 @@ function cleanDash(v){
   v = String(v == null ? '' : v).trim();
   return v === '-' ? '' : v;
 }
+function showPerfSummary(){
+  const tbody=document.getElementById('perfSummaryTbody');
+  const rows=filtered.map(r=>{
+    const rawNote = String(r.note || '');
+    const teamMembers = cleanDash(r.workerNames || extractNotePart(rawNote, '인원이름'));
+    const workCount = cleanDash(r.workCount || extractNotePart(rawNote, '건수')).replace(/건$/,'');
+    const workDuration = cleanDash(r.workDuration || extractNotePart(rawNote, '걸린시간'));
+    const noteDetail = cleanDash(r.noteDetail || extractNotePart(rawNote, '특이사항기재') || rawNote);
+    return [dtOf(r).toLocaleString(), r.store||'', teamMembers, workCount, workDuration, noteDetail];
+  });
+
+  if(!rows.length){
+    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#94a3b8;">표시할 데이터가 없습니다. 먼저 검색/필터를 적용해주세요.</td></tr>';
+  }else{
+    tbody.innerHTML=rows.map(cols=>'<tr>'+cols.map(v=>'<td contenteditable="true" style="border:1px solid #e2e8f0;padding:6px 8px;min-width:80px;">'+esc(v)+'</td>').join('')+'</tr>').join('');
+  }
+  document.getElementById('perfSummaryModal').style.display='flex';
+}
+
+function exportPerfSummaryXlsx(){
+  const tbody=document.getElementById('perfSummaryTbody');
+  const headers=['제출시간','점포명','인원(팀장)','건수','시간','특이사항'];
+  const data=[headers];
+  Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
+    const cells=Array.from(tr.querySelectorAll('td')).map(td=>td.textContent);
+    if(cells.length) data.push(cells);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(data);
+  ws['!cols']=[{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:50}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'실적요약');
+  const stamp=new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb,'실적요약_'+stamp+'.xlsx');
+}
+
 function downloadCSV(){
   const headers=['제출시간','브랜드','점포명','팀장','팀원','업무','특이사항','건수','시간'];
   const lines=[headers.join(',')];
@@ -1891,6 +1926,34 @@ setTimeout(function(){
     <div class="admin-message-actions">
       <button class="gray" type="button" onclick="document.getElementById('adminDirectMessageModal').style.display='none';">닫기</button>
       <button class="red" type="button" onclick="sendAdminDirectMessageForce()">직원용 보완요청함에 보내기</button>
+    </div>
+  </div>
+</div>
+
+<div id="perfSummaryModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:20px;width:min(1100px,95vw);max-height:88vh;display:flex;flex-direction:column;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <h3 style="margin:0;">실적요약 (인원/건수/시간/특이사항)</h3>
+      <div style="display:flex;gap:8px;">
+        <button class="green" type="button" onclick="exportPerfSummaryXlsx()">엑셀(.xlsx) 다운로드</button>
+        <button class="gray" type="button" onclick="document.getElementById('perfSummaryModal').style.display='none';">닫기</button>
+      </div>
+    </div>
+    <div style="font-size:13px;color:#64748b;margin-bottom:8px;">현재 검색/필터가 적용된 결과 기준입니다. 표 안의 칸을 직접 클릭해서 수정할 수 있고, 수정한 내용은 엑셀 다운로드에 그대로 반영됩니다.</div>
+    <div style="overflow:auto;border:1px solid #e2e8f0;border-radius:10px;flex:1;">
+      <table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead style="position:sticky;top:0;background:#f1f5f9;">
+          <tr>
+            <th style="border:1px solid #e2e8f0;padding:8px;">제출시간</th>
+            <th style="border:1px solid #e2e8f0;padding:8px;">점포명</th>
+            <th style="border:1px solid #e2e8f0;padding:8px;">인원(팀장)</th>
+            <th style="border:1px solid #e2e8f0;padding:8px;">건수</th>
+            <th style="border:1px solid #e2e8f0;padding:8px;">시간</th>
+            <th style="border:1px solid #e2e8f0;padding:8px;">특이사항</th>
+          </tr>
+        </thead>
+        <tbody id="perfSummaryTbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
