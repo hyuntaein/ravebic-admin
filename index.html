@@ -1449,7 +1449,11 @@ function showPerfSummary(){
     const rawNote = String(r.note || '');
     const teamMembersRaw = cleanDash(r.workerNames || extractNotePart(rawNote, '인원이름'));
     const leaderName = r.name || '';
-    const teamMembers = teamMembersRaw && teamMembersRaw===leaderName ? '' : teamMembersRaw;
+    const teamMembers = teamMembersRaw
+      .split(',')
+      .map(s=>s.trim())
+      .filter(s=>s && s!==leaderName.trim())
+      .join(',');
     const workCount = cleanDash(r.workCount || extractNotePart(rawNote, '건수')).replace(/건$/,'');
     const workDuration = cleanDash(r.workDuration || extractNotePart(rawNote, '걸린시간'));
     const noteDetail = cleanDash(r.noteDetail || extractNotePart(rawNote, '특이사항기재') || rawNote);
