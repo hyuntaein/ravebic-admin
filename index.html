@@ -1468,6 +1468,20 @@ function showPerfSummary(){
   document.getElementById('perfSummaryModal').style.display='flex';
 }
 
+function parseDurationToMinutes(str){
+  const s=String(str||'');
+  const h=s.match(/(\d+)\s*시간/);
+  const m=s.match(/(\d+)\s*분/);
+  return (h?parseInt(h[1],10):0)*60 + (m?parseInt(m[1],10):0);
+}
+function minutesToDurationStr(mins){
+  const total=Math.round(mins);
+  const h=Math.floor(total/60), m=total%60;
+  if(h&&m) return h+'시간'+m+'분';
+  if(h) return h+'시간';
+  return m+'분';
+}
+
 function exportPerfSummaryXlsx(){
   const tbody=document.getElementById('perfSummaryTbody');
   const headers=['날짜','점포명','팀장','인원','건수','시간','특이사항'];
@@ -1482,7 +1496,40 @@ function exportPerfSummaryXlsx(){
     groups[key].push(cells);
   });
 
+  // 월별 팀장 평균 건수/시간 집계
+  const avgHeaders=['월','팀장','제출횟수','건수 합계','평균 건수','평균 시간(1회당)'];
+  const avgRows=[];
+  order.forEach(function(key){
+    const byLeader={};
+    const leaderOrder=[];
+    groups[key].forEach(function(cells){
+      const leader=(cells[2]||'').trim();
+      if(!leader) return;
+      if(!byLeader[leader]){byLeader[leader]={count:0,sumCount:0,sumMinutes:0};leaderOrder.push(leader);}
+      const cnt=parseInt(String(cells[4]||'').replace(/[^\d]/g,''),10)||0;
+      const mins=parseDurationToMinutes(cells[5]);
+      byLeader[leader].count++;
+      byLeader[leader].sumCount+=cnt;
+      byLeader[leader].sumMinutes+=mins;
+    });
+    leaderOrder.forEach(function(leader){
+      const d=byLeader[leader];
+      avgRows.push([
+        key, leader, d.count, d.sumCount,
+        d.count? Math.round(d.sumCount/d.count*10)/10 : 0,
+        d.count? minutesToDurationStr(d.sumMinutes/d.count) : ''
+      ]);
+    });
+  });
+
   const wb=XLSX.utils.book_new();
+
+  const avgData=[avgHeaders].concat(avgRows);
+  const avgWs=XLSX.utils.aoa_to_sheet(avgData);
+  avgWs['!cols']=[{wch:12},{wch:12},{wch:10},{wch:10},{wch:10},{wch:14}];
+  avgWs['!autofilter']={ref:'A1:F1'};
+  XLSX.utils.book_append_sheet(wb,avgWs,'월별팀장평균');
+
   order.forEach(function(key){
     const data=[headers].concat(groups[key]);
     const ws=XLSX.utils.aoa_to_sheet(data);
