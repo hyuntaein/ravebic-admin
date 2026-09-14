@@ -1449,7 +1449,7 @@ function showPerfSummary(){
     const workCount = cleanDash(r.workCount || extractNotePart(rawNote, '건수')).replace(/건$/,'');
     const workDuration = cleanDash(r.workDuration || extractNotePart(rawNote, '걸린시간'));
     const noteDetail = cleanDash(r.noteDetail || extractNotePart(rawNote, '특이사항기재') || rawNote);
-    return [dtOf(r).toLocaleString(), r.store||'', teamMembers, workCount, workDuration, noteDetail];
+    return [r.name||'', dtOf(r).toLocaleString(), r.store||'', teamMembers, workCount, workDuration, noteDetail];
   });
 
   if(!rows.length){
@@ -1462,14 +1462,14 @@ function showPerfSummary(){
 
 function exportPerfSummaryXlsx(){
   const tbody=document.getElementById('perfSummaryTbody');
-  const headers=['제출시간','점포명','인원(팀장)','건수','시간','특이사항'];
+  const headers=['팀장','제출시간','점포명','인원(팀장)','건수','시간','특이사항'];
   const data=[headers];
   Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
     const cells=Array.from(tr.querySelectorAll('td')).map(td=>td.textContent);
     if(cells.length) data.push(cells);
   });
   const ws=XLSX.utils.aoa_to_sheet(data);
-  ws['!cols']=[{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:50}];
+  ws['!cols']=[{wch:12},{wch:18},{wch:16},{wch:16},{wch:10},{wch:14},{wch:50}];
   const wb=XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb,ws,'실적요약');
   const stamp=new Date().toISOString().slice(0,10);
@@ -1944,6 +1944,7 @@ setTimeout(function(){
       <table style="width:100%;border-collapse:collapse;font-size:14px;">
         <thead style="position:sticky;top:0;background:#f1f5f9;">
           <tr>
+            <th style="border:1px solid #e2e8f0;padding:8px;">팀장</th>
             <th style="border:1px solid #e2e8f0;padding:8px;">제출시간</th>
             <th style="border:1px solid #e2e8f0;padding:8px;">점포명</th>
             <th style="border:1px solid #e2e8f0;padding:8px;">인원(팀장)</th>
