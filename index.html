@@ -1449,17 +1449,15 @@ function showPerfSummary(){
     const rawNote = String(r.note || '');
     const teamMembersRaw = cleanDash(r.workerNames || extractNotePart(rawNote, '인원이름'));
     const leaderName = r.name || '';
-    const teamMembers = teamMembersRaw && teamMembersRaw.includes(leaderName)
-      ? teamMembersRaw
-      : [leaderName, teamMembersRaw].filter(Boolean).join(',');
+    const teamMembers = teamMembersRaw && teamMembersRaw===leaderName ? '' : teamMembersRaw;
     const workCount = cleanDash(r.workCount || extractNotePart(rawNote, '건수')).replace(/건$/,'');
     const workDuration = cleanDash(r.workDuration || extractNotePart(rawNote, '걸린시간'));
     const noteDetail = cleanDash(r.noteDetail || extractNotePart(rawNote, '특이사항기재') || rawNote);
-    return [ymdOf(dtOf(r)), r.store||'', teamMembers, workCount, workDuration, noteDetail];
+    return [ymdOf(dtOf(r)), r.store||'', leaderName, teamMembers, workCount, workDuration, noteDetail];
   });
 
   if(!rows.length){
-    tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#94a3b8;">표시할 데이터가 없습니다. 먼저 검색/필터를 적용해주세요.</td></tr>';
+    tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px;color:#94a3b8;">표시할 데이터가 없습니다. 먼저 검색/필터를 적용해주세요.</td></tr>';
   }else{
     tbody.innerHTML=rows.map(cols=>'<tr>'+cols.map(v=>'<td contenteditable="true" style="border:1px solid #e2e8f0;padding:6px 8px;min-width:80px;">'+esc(v)+'</td>').join('')+'</tr>').join('');
   }
@@ -1468,7 +1466,7 @@ function showPerfSummary(){
 
 function exportPerfSummaryXlsx(){
   const tbody=document.getElementById('perfSummaryTbody');
-  const headers=['날짜','점포명','인원','건수','시간','특이사항'];
+  const headers=['날짜','점포명','팀장','인원','건수','시간','특이사항'];
   const groups={};
   const order=[];
   Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
@@ -1484,8 +1482,8 @@ function exportPerfSummaryXlsx(){
   order.forEach(function(key){
     const data=[headers].concat(groups[key]);
     const ws=XLSX.utils.aoa_to_sheet(data);
-    ws['!cols']=[{wch:12},{wch:16},{wch:16},{wch:10},{wch:14},{wch:50}];
-    ws['!autofilter']={ref:'A1:F1'};
+    ws['!cols']=[{wch:12},{wch:16},{wch:12},{wch:16},{wch:10},{wch:14},{wch:50}];
+    ws['!autofilter']={ref:'A1:G1'};
     const sheetName=key.replace(/[\\\/\?\*\[\]:]/g,'').substring(0,31);
     XLSX.utils.book_append_sheet(wb,ws,sheetName);
   });
@@ -1964,6 +1962,7 @@ setTimeout(function(){
           <tr>
             <th style="border:1px solid #e2e8f0;padding:8px;">날짜</th>
             <th style="border:1px solid #e2e8f0;padding:8px;">점포명</th>
+            <th style="border:1px solid #e2e8f0;padding:8px;">팀장</th>
             <th style="border:1px solid #e2e8f0;padding:8px;">인원</th>
             <th style="border:1px solid #e2e8f0;padding:8px;">건수</th>
             <th style="border:1px solid #e2e8f0;padding:8px;">시간</th>
