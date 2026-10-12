@@ -1174,9 +1174,8 @@ function buildFileActions(r){
     const name = esc(f.name || ('첨부 '+(i+1)));
     const viewUrl = esc(f.url || '#');
     return '<div class="file-actions">' +
-      '<a class="file-view-btn" target="_blank" href="'+viewUrl+'">첨부 '+(i+1)+' 열기</a>' +
+      '<a class="file-view-btn" target="_blank" href="'+viewUrl+'">📎 '+name+'</a>' +
       '<button class="file-delete-btn" type="button" onclick="deleteAttachedFile(\''+r.id+'\','+i+',\''+fileData+'\')">삭제</button>' +
-      '<span class="small">'+name+'</span>' +
       '</div>';
   }).join('');
 }
@@ -3784,6 +3783,9 @@ function showMergedFiles(idx){
 
  files.forEach((x,i)=>{
 
+   const fName = (x.file && x.file.name) ? String(x.file.name) : ('첨부 ' + (i+1));
+   const fNameEsc = fName.replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
    html += `
    <div style="
       margin:8px 0;
@@ -3794,7 +3796,7 @@ function showMergedFiles(idx){
         href="${x.file.url}"
         target="_blank"
         style="font-weight:bold;color:#2563eb">
-        첨부 ${i+1} 보기
+        📎 ${fNameEsc}
       </a>
    </div>
    `;
@@ -3900,25 +3902,29 @@ function makeRavebicDownloadUrl(url, filename){
     document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a, .store-history-modal a, .correction-modal a').forEach(function(a, idx){
       var href = a.getAttribute('href') || '';
       if(!href || href === '#') return;
+      if(!a.classList.contains('rbc-attachment-open-link')){
+        a.setAttribute('target','_blank');
+        a.removeAttribute('download');
+        a.classList.add('rbc-attachment-open-link');
+      }
 
       var txt = (a.textContent || '').replace(/\s+/g,'');
-      var m = txt.match(/첨부\s*(\d+)(보기|열기)?|첨부(\d+)(보기|열기)?/);
-      if(!m) return;
+      var m = txt.match(/^첨부\s*(\d+)(보기|열기)?$|^첨부(\d+)(보기|열기)?$/);
+      var no = m ? (m[1] || m[3] || (idx + 1)) : (idx + 1);
+      if(m){
+        a.textContent = '📎 첨부 ' + no + ' 열기';
+      }
 
-      var no = m[1] || m[3] || (idx + 1);
-      a.textContent = '📎 첨부 ' + no + ' 열기';
-      a.setAttribute('target','_blank');
-      a.removeAttribute('download');
-      a.classList.add('rbc-attachment-open-link');
+      var rawName = (a.textContent || '').replace(/^📎\s*/,'').trim() || ('첨부파일_' + no);
 
       if(a.nextElementSibling && a.nextElementSibling.classList && a.nextElementSibling.classList.contains('rbc-attachment-save-link')){
         return;
       }
 
       var save = document.createElement('a');
-      save.href = makeRavebicDownloadUrl(href, '첨부파일_' + no);
+      save.href = makeRavebicDownloadUrl(href, rawName);
       save.target = '_blank';
-      save.download = '첨부파일_' + no;
+      save.download = rawName;
       save.className = 'rbc-attachment-save-link';
       save.textContent = '⬇ 저장';
       a.insertAdjacentElement('afterend', save);
@@ -3929,22 +3935,24 @@ function makeRavebicDownloadUrl(url, filename){
       if(!href || href === '#') return;
 
       var txt = (a.textContent || '').replace(/\s+/g,'');
-      var m = txt.match(/첨부\s*(\d+)(보기|열기)?|첨부(\d+)(보기|열기)?/);
-      if(!m) return;
-
-      var no = m[1] || m[3] || (idx + 1);
-      a.textContent = '첨부 ' + no + ' 열기';
+      var m = txt.match(/^첨부\s*(\d+)(보기|열기)?$|^첨부(\d+)(보기|열기)?$/);
+      var no = m ? (m[1] || m[3] || (idx + 1)) : (idx + 1);
+      if(m){
+        a.textContent = '첨부 ' + no + ' 열기';
+      }
       a.setAttribute('target','_blank');
       a.removeAttribute('download');
+
+      var rawName2 = (a.textContent || '').replace(/^📎\s*/,'').trim() || ('첨부파일_' + no);
 
       if(a.nextElementSibling && a.nextElementSibling.classList && a.nextElementSibling.classList.contains('file-save-btn')){
         return;
       }
 
       var save = document.createElement('a');
-      save.href = makeRavebicDownloadUrl(href, '첨부파일_' + no);
+      save.href = makeRavebicDownloadUrl(href, rawName2);
       save.target = '_blank';
-      save.download = '첨부파일_' + no;
+      save.download = rawName2;
       save.className = 'file-save-btn';
       save.textContent = '저장';
       a.insertAdjacentElement('afterend', save);
