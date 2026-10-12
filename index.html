@@ -3900,6 +3900,7 @@ function makeRavebicDownloadUrl(url, filename){
 (function(){
   function addSaveButtons(){
     document.querySelectorAll('#rbcGenericModal a, .rbc-leader-modal a, .store-history-modal a, .correction-modal a').forEach(function(a, idx){
+      if(a.classList.contains('rbc-attachment-save-link')) return;
       var href = a.getAttribute('href') || '';
       if(!href || href === '#') return;
       if(!a.classList.contains('rbc-attachment-open-link')){
