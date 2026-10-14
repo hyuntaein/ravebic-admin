@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAVEBIC 카드·차량일지</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-storage-compat.js"></script>
+<style>
+*{box-sizing:border-box}
+body{margin:0;padding:18px;background:#f4f7fb;font-family:Arial,'Malgun Gothic',sans-serif;color:#10213f}
+.wrap{max-width:900px;margin:0 auto}
+.card{background:#fff;border:1px solid #cfe0f8;border-radius:24px;padding:22px;box-shadow:0 8px 24px rgba(15,23,42,.06);margin-bottom:18px}
+h1{margin:0;color:#123f7a;font-size:24px}
+h2{margin:0 0 4px;color:#123f7a;font-size:18px}
+.sub{color:#64748b;margin:6px 0 14px;font-size:14px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.who{font-size:13px;color:#475569}
+button,.btn{font:inherit;border:0;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:#123f7a;color:#fff;text-decoration:none;display:inline-block}
+button.ghost{background:#e8f0fb;color:#123f7a}
+button.danger{background:#fee2e2;color:#991b1b;padding:6px 10px;font-size:12px}
+button:disabled{opacity:.5;cursor:default}
+input{font:inherit;width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;margin:6px 0 12px}
+#login{max-width:380px;margin:60px auto}
+.err{color:#b91c1c;font-size:14px;min-height:18px}
+#drop{border:2px dashed #93b4e0;border-radius:18px;padding:34px 16px;text-align:center;background:#f8fbff;cursor:pointer;transition:.15s}
+#drop.over{background:#e6f0ff;border-color:#123f7a}
+#drop b{color:#123f7a;font-size:17px}
+#drop .hint{color:#64748b;font-size:13px;margin-top:6px}
+.msg{margin-top:12px;font-size:14px}
+.list{margin-top:14px;border-top:1px solid #e2e8f0}
+.row{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:12px 2px;border-bottom:1px solid #eef2f7;flex-wrap:wrap}
+.row .name{font-weight:700;word-break:break-all}
+.row .meta{font-size:12px;color:#64748b;margin-top:3px}
+.tag{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:4px 10px;white-space:nowrap}
+.t-done{background:#dcfce7;color:#166534}
+.t-wait{background:#fef9c3;color:#713f12}
+.t-new{background:#e0e7ff;color:#3730a3}
+.t-err{background:#fee2e2;color:#991b1b}
+.empty{color:#94a3b8;font-size:14px;padding:16px 2px}
+.hidden{display:none}
+@media (max-width:560px){body{padding:10px}.card{padding:16px;border-radius:18px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div id="login" class="card hidden">
+    <h1>카드·차량일지</h1>
+    <p class="sub">지정된 계정으로 로그인하세요.</p>
+    <label>이메일</label>
+    <input id="email" type="email" autocomplete="username">
+    <label>비밀번호</label>
+    <input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="loginErr"></div>
+    <button id="loginBtn" style="width:100%">로그인</button>
+  </div>
+
+  <div id="app" class="hidden">
+    <div class="card top">
+      <div>
+        <h1>카드·차량일지</h1>
+        <div class="who" id="who"></div>
+      </div>
+      <button class="ghost" id="logoutBtn">로그아웃</button>
+    </div>
+
+    <div class="card">
+      <h2>차량일지 올리기</h2>
+      <p class="sub">한 달에 한 번, 받은 차량일지 엑셀을 올려주세요. 여러 개를 한꺼번에 올려도 됩니다.</p>
+      <div id="drop">
+        <b>여기에 엑셀 파일을 끌어다 놓기</b>
+        <div class="hint">또는 눌러서 파일 선택 (.xlsx / .xls)</div>
+      </div>
+      <input id="file" type="file" accept=".xlsx,.xls,.xlsm" multiple class="hidden">
+      <div class="msg" id="upMsg"></div>
+      <div class="list" id="logList"><div class="empty">불러오는 중…</div></div>
+    </div>
+
+    <div class="card hidden" id="resultCard">
+      <div class="top">
+        <h2>카드청구 결과 파일</h2>
+        <button class="ghost" id="reloadBtn">새로고침</button>
+      </div>
+      <p class="sub">사무실 PC가 1시간마다 차량일지를 반영해 새로 만들어 올립니다. 매달 1일 자동수집분도 여기에 올라옵니다.</p>
+      <div class="list" id="resList"><div class="empty">불러오는 중…</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {apiKey:"AIzaSyBmvE4sKxvO0OWTz2Nt70o-RuCKBTPds_0",authDomain:"ravebic-app.firebaseapp.com",projectId:"ravebic-app",storageBucket:"ravebic-app.firebasestorage.app",messagingSenderId:"44012584810",appId:"1:44012584810:web:540cd8aba9ca8bbf2baf13"};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const storage = firebase.storage();
+const OWNER = "hyuntaein@naver.com";
+const LOGS = "card/vehicleLogs";
+const RESULTS = "card/results";
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const won = n => Number(n).toLocaleString("ko-KR") + "원";
+const fmt = d => { const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+let isOwner = false;
+
+// ── 로그인 ──
+auth.onAuthStateChanged(u => {
+  if (!u) { $("app").classList.add("hidden"); $("login").classList.remove("hidden"); return; }
+  isOwner = (u.email || "").toLowerCase() === OWNER;
+  $("who").textContent = u.email + (isOwner ? " · 관리자" : " · 차량일지 담당");
+  $("login").classList.add("hidden"); $("app").classList.remove("hidden");
+  $("resultCard").classList.toggle("hidden", !isOwner);
+  loadLogs(); if (isOwner) loadResults();
+});
+async function doLogin() {
+  $("loginErr").textContent = ""; $("loginBtn").disabled = true;
+  try { await auth.signInWithEmailAndPassword($("email").value.trim(), $("pw").value); }
+  catch (e) {
+    const m = {"auth/invalid-credential":"이메일 또는 비밀번호가 맞지 않습니다.","auth/invalid-email":"이메일 형식이 맞지 않습니다.","auth/too-many-requests":"여러 번 틀려 잠시 막혔습니다. 잠시 후 다시 시도하세요."};
+    $("loginErr").textContent = m[e.code] || "로그인 실패: " + e.message;
+  }
+  $("loginBtn").disabled = false;
+}
+$("loginBtn").onclick = doLogin;
+$("pw").addEventListener("keydown", e => { if (e.key === "Enter") doLogin(); });
+$("logoutBtn").onclick = () => auth.signOut();
+
+// ── 차량일지 올리기 ──
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+$("file").onchange = e => { upload([...e.target.files]); e.target.value = ""; };
+["dragenter","dragover"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave","drop"].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => upload([...e.dataTransfer.files]));
+
+async function upload(files) {
+  const ok = files.filter(f => /\.(xlsx|xls|xlsm)$/i.test(f.name));
+  const bad = files.length - ok.length;
+  if (!ok.length) { $("upMsg").innerHTML = '<span class="tag t-err">엑셀 파일(.xlsx, .xls)만 올릴 수 있습니다</span>'; return; }
+  const me = (auth.currentUser.email || "").split("@")[0];
+  let done = 0;
+  for (const f of ok) {
+    $("upMsg").textContent = `올리는 중… (${done + 1}/${ok.length}) ${f.name}`;
+    const d = new Date(), p = n => String(n).padStart(2, "0");
+    const stamp = `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+    const safe = f.name.replace(/[\/\\#\[\]*?"<>|:]/g, "_");
+    try {
+      await storage.ref(`${LOGS}/${stamp}_${me}_${safe}`).put(f, {customMetadata: {uploader: auth.currentUser.email, original: f.name}});
+      done++;
+    } catch (e) {
+      $("upMsg").innerHTML = `<span class="tag t-err">${esc(f.name)} 올리기 실패: ${esc(e.code || e.message)}</span>`;
+      loadLogs(); return;
+    }
+  }
+  $("upMsg").innerHTML = `<span class="tag t-done">${done}개 올림 완료</span> 사무실 PC가 1시간 안에 반영합니다.` + (bad ? ` (엑셀이 아닌 파일 ${bad}개는 제외)` : "");
+  loadLogs();
+}
+
+function statusTag(md) {
+  const s = md.status;
+  if (s === "done") return `<span class="tag t-done">반영됨</span>`;
+  if (s === "wait") return `<span class="tag t-wait">받음 · ${esc(md.month)} 카드청구 대기</span>`;
+  if (s === "error") return `<span class="tag t-err">확인 필요: ${esc(md.error)}</span>`;
+  return `<span class="tag t-new">PC 반영 대기</span>`;
+}
+
+async function loadLogs() {
+  const box = $("logList");
+  try {
+    const res = await storage.ref(LOGS).listAll();
+    const items = await Promise.all(res.items.map(async r => ({ref: r, meta: await r.getMetadata()})));
+    items.sort((a, b) => b.meta.timeCreated.localeCompare(a.meta.timeCreated));
+    if (!items.length) { box.innerHTML = '<div class="empty">아직 올린 차량일지가 없습니다.</div>'; return; }
+    box.innerHTML = "";
+    for (const it of items) {
+      const md = it.meta.customMetadata || {};
+      const info = md.person ? `${esc(md.person)} · ${esc(md.month)} · ${esc(md.car)} · 가격합계 ${won(md.total)}` : "";
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<div style="flex:1;min-width:220px"><div class="name">${esc(md.original || it.ref.name)}</div>
+        <div class="meta">${info ? info + "<br>" : ""}올린 시각 ${fmt(new Date(it.meta.timeCreated))} · ${esc(md.uploader || "")}</div></div>
+        <div style="display:flex;gap:8px;align-items:center">${statusTag(md)}<button class="danger">삭제</button></div>`;
+      row.querySelector("button").onclick = async () => {
+        if (!confirm(`'${md.original || it.ref.name}' 을(를) 삭제할까요?\n(잘못 올린 경우에만 삭제하세요)`)) return;
+        try { await it.ref.delete(); loadLogs(); } catch (e) { $("upMsg").textContent = "삭제 실패: " + (e.code || e.message); }
+      };
+      box.appendChild(row);
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="empty">목록을 불러오지 못했습니다 (${esc(e.code || e.message)})</div>`;
+  }
+}
+
+// ── 결과 파일 (관리자만) ──
+$("reloadBtn").onclick = () => { loadResults(); loadLogs(); };
+async function loadResults() {
+  const box = $("resList");
+  try {
+    const res = await storage.ref(RESULTS).listAll();
+    const items = await Promise.all(res.items.map(async r => ({ref: r, meta: await r.getMetadata()})));
+    items.sort((a, b) => b.ref.name.localeCompare(a.ref.name));
+    if (!items.length) { box.innerHTML = '<div class="empty">아직 올라온 결과 파일이 없습니다. 사무실 PC에서 동기화가 한 번 돌면 나타납니다.</div>'; return; }
+    box.innerHTML = "";
+    for (const it of items) {
+      const md = it.meta.customMetadata || {};
+      const row = document.createElement("div");
+      row.className = "row";
+      row.innerHTML = `<div style="flex:1;min-width:220px"><div class="name">${esc(md.month || "")} 카드청구</div>
+        <div class="meta">${esc(it.ref.name)} · 만든 시각 ${esc(md.madeAt || fmt(new Date(it.meta.updated)))} · ${(it.meta.size/1024).toFixed(0)}KB</div></div>
+        <button>다운로드</button>`;
+      row.querySelector("button").onclick = async (ev) => {
+        ev.target.disabled = true;
+        try { location.href = await it.ref.getDownloadURL(); }
+        catch (e) { alert("다운로드 실패: " + (e.code || e.message)); }
+        ev.target.disabled = false;
+      };
+      box.appendChild(row);
+    }
+  } catch (e) {
+    box.innerHTML = `<div class="empty">목록을 불러오지 못했습니다 (${esc(e.code || e.message)})</div>`;
+  }
+}
+</script>
+</body>
+</html>
