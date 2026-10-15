@@ -14064,5 +14064,25 @@ window.debugTeamScheduleDate = async function(dateStr){
   setTimeout(ensureTabButton5, 2000);
   setInterval(ensureTabButton5, 2500);
 })();
+
+  <!-- RAVEBIC_CARD_TAB_V1 -->
+<script>
+(function(){
+  function addCardTab(){
+    var tabs=document.getElementById('rbcPageTabs');
+    if(!tabs || document.getElementById('rbcCardBtn')) return;
+    var b=document.createElement('button');
+    b.id='rbcCardBtn';
+    b.type='button';
+    b.className='rbc-page-tab';
+    b.textContent='카드·차량일지';
+    b.onclick=function(){ window.open('card.html','_blank'); };
+    tabs.appendChild(b);
+  }
+  setTimeout(addCardTab, 1000);
+  setInterval(addCardTab, 3000);
+})();
+</script>
+<!-- /RAVEBIC_CARD_TAB_V1 -->
 </script>
 <!-- /RAVEBIC_PAGE5_INVENTORY_TOOL_V1 -->
