@@ -14064,26 +14064,23 @@ window.debugTeamScheduleDate = async function(dateStr){
   setTimeout(ensureTabButton5, 2000);
   setInterval(ensureTabButton5, 2500);
 })();
-
 </script>
 <!-- /RAVEBIC_PAGE5_INVENTORY_TOOL_V1 -->
 
-<!-- RAVEBIC_CARD_TAB_V1 -->
 <script>
+/* RAVEBIC_HIDE_SCORE_AND_MONTHLY_BOX_V1 */
 (function(){
-  function addCardTab(){
-    var tabs=document.getElementById('rbcPageTabs');
-    if(!tabs || document.getElementById('rbcCardBtn')) return;
-    var b=document.createElement('button');
-    b.id='rbcCardBtn';
-    b.type='button';
-    b.className='rbc-page-tab';
-    b.textContent='카드·차량일지';
-    b.onclick=function(){ window.open('card.html','_blank'); };
-    tabs.appendChild(b);
+  function hideBoxes(){
+    var ids = ['rbcScoreBox','rbcMonthlyBox'];
+    ids.forEach(function(id){
+      var el = document.getElementById(id);
+      if(el) el.style.display='none';
+    });
   }
-  setTimeout(addCardTab, 1000);
-  setInterval(addCardTab, 3000);
+  document.addEventListener('DOMContentLoaded', hideBoxes);
+  setTimeout(hideBoxes, 300);
+  setTimeout(hideBoxes, 1000);
+  setTimeout(hideBoxes, 2000);
+  setInterval(hideBoxes, 2500);
 })();
 </script>
-<!-- /RAVEBIC_CARD_TAB_V1 -->
