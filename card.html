@@ -19,6 +19,7 @@ h2{margin:0 0 4px;color:#123f7a;font-size:18px}
 .who{font-size:13px;color:#475569}
 button,.btn{font:inherit;border:0;border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;background:#123f7a;color:#fff;text-decoration:none;display:inline-block}
 button.ghost{background:#e8f0fb;color:#123f7a}
+button.dl{padding:6px 10px;font-size:12px}
 button.danger{background:#fee2e2;color:#991b1b;padding:6px 10px;font-size:12px}
 button:disabled{opacity:.5;cursor:default}
 input{font:inherit;width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;margin:6px 0 12px}
@@ -99,6 +100,7 @@ const LOGS = "card/vehicleLogs";
 const RESULTS = "card/results";
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const dispo = name => "attachment; filename*=UTF-8''" + encodeURIComponent(name);
 const won = n => Number(n).toLocaleString("ko-KR") + "원";
 const fmt = d => { const p = n => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`; };
 let isOwner = false;
@@ -145,7 +147,7 @@ async function upload(files) {
     const stamp = `${d.getFullYear()}${p(d.getMonth()+1)}${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
     const safe = f.name.replace(/[\/\\#\[\]*?"<>|:]/g, "_");
     try {
-      await storage.ref(`${LOGS}/${stamp}_${me}_${safe}`).put(f, {customMetadata: {uploader: auth.currentUser.email, original: f.name}});
+      await storage.ref(`${LOGS}/${stamp}_${me}_${safe}`).put(f, {contentDisposition: dispo(f.name), customMetadata: {uploader: auth.currentUser.email, original: f.name}});
       done++;
     } catch (e) {
       $("upMsg").innerHTML = `<span class="tag t-err">${esc(f.name)} 올리기 실패: ${esc(e.code || e.message)}</span>`;
@@ -174,13 +176,24 @@ async function loadLogs() {
     box.innerHTML = "";
     for (const it of items) {
       const md = it.meta.customMetadata || {};
-      const info = md.person ? `${esc(md.person)} · ${esc(md.month)} · ${esc(md.car)} · 가격합계 ${won(md.total)}` : "";
+      const amt = md.kind === "킬로수" ? `킬로수 확인용${md.km ? " · " + Number(md.km).toLocaleString("ko-KR") + "km" : ""}`
+        : `가격합계 ${won(md.total)}${md.km ? " · " + Number(md.km).toLocaleString("ko-KR") + "km" : ""}`;
+      const info = md.person ? `${esc(md.person)} · ${esc(md.month)} · ${esc(md.car)} · ${amt}` : "";
       const row = document.createElement("div");
       row.className = "row";
       row.innerHTML = `<div style="flex:1;min-width:220px"><div class="name">${esc(md.original || it.ref.name)}</div>
         <div class="meta">${info ? info + "<br>" : ""}올린 시각 ${fmt(new Date(it.meta.timeCreated))} · ${esc(md.uploader || "")}</div></div>
-        <div style="display:flex;gap:8px;align-items:center">${statusTag(md)}<button class="danger">삭제</button></div>`;
-      row.querySelector("button").onclick = async () => {
+        <div style="display:flex;gap:8px;align-items:center">${statusTag(md)}<button class="dl">다운로드</button><button class="danger">삭제</button></div>`;
+      row.querySelector("button.dl").onclick = async (ev) => {
+        ev.target.disabled = true;
+        try {
+          const want = dispo(md.original || it.ref.name);
+          if (it.meta.contentDisposition !== want) { it.meta = await it.ref.updateMetadata({contentDisposition: want}); }
+          location.href = await it.ref.getDownloadURL();
+        } catch (e) { $("upMsg").textContent = "다운로드 실패: " + (e.code || e.message); }
+        ev.target.disabled = false;
+      };
+      row.querySelector("button.danger").onclick = async () => {
         if (!confirm(`'${md.original || it.ref.name}' 을(를) 삭제할까요?\n(잘못 올린 경우에만 삭제하세요)`)) return;
         try { await it.ref.delete(); loadLogs(); } catch (e) { $("upMsg").textContent = "삭제 실패: " + (e.code || e.message); }
       };
