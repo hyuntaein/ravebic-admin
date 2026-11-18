@@ -13740,7 +13740,7 @@ window.debugTeamScheduleDate = async function(dateStr){
         tabs.appendChild(b);
       }
       // 페이지3 탭이 나중에 추가되는 경우가 있어서, 매번 페이지4를 맨 뒤로 재배치합니다.
-      if(tabs.lastElementChild !== b) tabs.appendChild(b);
+      /* 순서는 RAVEBIC_TAB_ORDER_V1 이 정함 */
     }
 
     var bottom=document.getElementById('rbcBottomPageTabs');
@@ -13766,7 +13766,7 @@ window.debugTeamScheduleDate = async function(dateStr){
         b3.onclick=function(){ window.__rbcCurrentPage=4; window.showRbcPage(4,{manual:true}); };
         inflow.appendChild(b3);
       }
-      if(inflow.lastElementChild !== b3) inflow.appendChild(b3);
+      /* 순서는 RAVEBIC_TAB_ORDER_V1 이 정함 */
       b3.classList.toggle('active', (window.__rbcCurrentPage||1)===4);
     }
   }
@@ -13995,7 +13995,7 @@ window.debugTeamScheduleDate = async function(dateStr){
         b.onclick=function(){ window.showRbcPage(5,{manual:true}); };
         tabs.appendChild(b);
       }
-      if(tabs.lastElementChild !== b) tabs.appendChild(b);
+      /* 순서는 RAVEBIC_TAB_ORDER_V1 이 정함 */
     }
 
     var inflow=document.getElementById('rbcInFlowBottomNav');
@@ -14009,7 +14009,7 @@ window.debugTeamScheduleDate = async function(dateStr){
         b3.onclick=function(){ window.__rbcCurrentPage=5; window.showRbcPage(5,{manual:true}); };
         inflow.appendChild(b3);
       }
-      if(inflow.lastElementChild !== b3) inflow.appendChild(b3);
+      /* 순서는 RAVEBIC_TAB_ORDER_V1 이 정함 */
       b3.classList.toggle('active', (window.__rbcCurrentPage||1)===5);
     }
   }
@@ -14105,3 +14105,57 @@ window.debugTeamScheduleDate = async function(dateStr){
 })();
 </script>
 <!-- /RAVEBIC_CARD_TAB_V1 -->
+
+<!-- RAVEBIC_TAB_ORDER_V1 : 탭 이름을 1. 2. 3. … 번호로 통일하고 순서를 고정 -->
+<script>
+(function(){
+  var ORDER=[
+    ['rbcPage1Btn',1,'제출관리'],
+    ['rbcPage2Btn',2,'분석/직원관리'],
+    ['rbcPage3Btn',3,'가까운 점포검색'],
+    ['rbcPage4Btn',4,'알바관리'],
+    ['rbcPage5Btn',5,'점포수관리'],
+    ['rbcCardBtn',6,'카드·차량일지']
+  ];
+  var NAME={}; ORDER.forEach(function(o){ NAME[o[1]]=o[2]; });
+  function setText(el,t){ if(el && el.textContent!==t) el.textContent=t; }
+  function sortInto(box, list){
+    var cur=Array.prototype.filter.call(box.children,function(c){ return list.indexOf(c)>=0; });
+    for(var i=0;i<list.length;i++){ if(cur[i]!==list[i]){ list.forEach(function(b){ box.appendChild(b); }); return; } }
+  }
+  function tidy(){
+    var tabs=document.getElementById('rbcPageTabs');
+    if(tabs){
+      var list=[];
+      ORDER.forEach(function(o){
+        var b=document.getElementById(o[0]);
+        if(!b) return;
+        setText(b, o[1]+'. '+o[2]);
+        list.push(b);
+      });
+      sortInto(tabs, list);
+    }
+    var bar=document.getElementById('rbcInFlowBottomNav');
+    if(bar){
+      var bl=[];
+      for(var n=1;n<=6;n++){
+        var x=bar.querySelector('[data-page="'+n+'"]');
+        if(x){ setText(x, '▲ '+n+'. '+NAME[n]); bl.push(x); }
+      }
+      sortInto(bar, bl);
+    }
+    var bottom=document.getElementById('rbcBottomPageTabs');
+    if(bottom){
+      Array.prototype.forEach.call(bottom.querySelectorAll('.rbc-page-tab'),function(b){
+        var t=b.textContent;
+        ORDER.forEach(function(o){ if(t.indexOf(o[2])>=0) setText(b, o[1]+'. '+o[2]); });
+      });
+    }
+  }
+  document.addEventListener('DOMContentLoaded', tidy);
+  setTimeout(tidy, 300);
+  setTimeout(tidy, 1200);
+  setInterval(tidy, 700);
+})();
+</script>
+<!-- /RAVEBIC_TAB_ORDER_V1 -->
