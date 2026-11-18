@@ -42,6 +42,12 @@ input{font:inherit;width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-
 .empty{color:#94a3b8;font-size:14px;padding:16px 2px}
 .note{background:#f1f6fd;border:1px solid #d7e5f7;border-radius:14px;padding:12px 14px;font-size:13px;color:#334155;line-height:1.6;margin-bottom:6px}
 .note b{color:#123f7a}
+button.gray{background:#f1f5f9;color:#334155;padding:6px 10px;font-size:12px}
+.trash .row{opacity:.85}
+.trash summary{cursor:pointer;font-weight:700;color:#123f7a;font-size:18px;list-style:none}
+.trash summary::-webkit-details-marker{display:none}
+.trash summary .cnt{font-size:13px;color:#64748b;font-weight:400;margin-left:6px}
+#trashFind{margin:12px 0 0}
 .hidden{display:none}
 @media (max-width:560px){body{padding:10px}.card{padding:16px;border-radius:18px}}
 </style>
@@ -80,6 +86,15 @@ input{font:inherit;width:100%;padding:12px 14px;border:1px solid #cbd5e1;border-
       <input id="file" type="file" accept=".xlsx,.xls,.xlsm" multiple class="hidden">
       <div class="msg" id="upMsg"></div>
       <div class="list" id="logList"><div class="empty">불러오는 중…</div></div>
+    </div>
+
+    <div class="card trash">
+      <details id="trashBox">
+        <summary>🗑 휴지통 (지난 차량일지) <span class="cnt" id="trashCnt"></span></summary>
+        <p class="sub">휴지통으로 옮긴 차량일지입니다. 카드 비교에는 쓰이지 않지만 언제든 내려받거나 되살릴 수 있습니다.</p>
+        <input id="trashFind" placeholder="이름·월·파일명으로 찾기 (예: 박성호, 2026-09)">
+        <div class="list" id="trashList"><div class="empty">불러오는 중…</div></div>
+      </details>
     </div>
 
     <div class="card hidden" id="resultCard">
@@ -174,8 +189,12 @@ async function loadLogs() {
   const box = $("logList");
   try {
     const res = await storage.ref(LOGS).listAll();
-    const items = await Promise.all(res.items.map(async r => ({ref: r, meta: await r.getMetadata()})));
-    items.sort((a, b) => b.meta.timeCreated.localeCompare(a.meta.timeCreated));
+    const all = await Promise.all(res.items.map(async r => ({ref: r, meta: await r.getMetadata()})));
+    all.sort((a, b) => b.meta.timeCreated.localeCompare(a.meta.timeCreated));
+    const items = all.filter(it => (it.meta.customMetadata || {}).trash !== "1");
+    trashItems = all.filter(it => (it.meta.customMetadata || {}).trash === "1")
+      .sort((a, b) => String(b.meta.customMetadata.trashedAt || "").localeCompare(String(a.meta.customMetadata.trashedAt || "")));
+    renderTrash();
     if (!items.length) { box.innerHTML = '<div class="empty">아직 올린 차량일지가 없습니다.</div>'; return; }
     box.innerHTML = "";
     for (const it of items) {
@@ -187,19 +206,11 @@ async function loadLogs() {
       row.className = "row";
       row.innerHTML = `<div style="flex:1;min-width:220px"><div class="name">${esc(md.original || it.ref.name)}</div>
         <div class="meta">${info ? info + "<br>" : ""}올린 시각 ${fmt(new Date(it.meta.timeCreated))} · ${esc(md.uploader || "")}</div></div>
-        <div style="display:flex;gap:8px;align-items:center">${statusTag(md)}<button class="dl">다운로드</button><button class="danger">삭제</button></div>`;
-      row.querySelector("button.dl").onclick = async (ev) => {
-        ev.target.disabled = true;
-        try {
-          const want = dispo(md.original || it.ref.name);
-          if (it.meta.contentDisposition !== want) { it.meta = await it.ref.updateMetadata({contentDisposition: want}); }
-          location.href = await it.ref.getDownloadURL();
-        } catch (e) { $("upMsg").textContent = "다운로드 실패: " + (e.code || e.message); }
-        ev.target.disabled = false;
-      };
+        <div style="display:flex;gap:8px;align-items:center">${statusTag(md)}<button class="dl">다운로드</button><button class="danger">휴지통으로</button></div>`;
+      row.querySelector("button.dl").onclick = ev => downloadLog(it, ev.target);
       row.querySelector("button.danger").onclick = async () => {
-        if (!confirm(`'${md.original || it.ref.name}' 을(를) 삭제할까요?\n(잘못 올린 경우에만 삭제하세요)`)) return;
-        try { await it.ref.delete(); loadLogs(); } catch (e) { $("upMsg").textContent = "삭제 실패: " + (e.code || e.message); }
+        if (!confirm(`'${md.original || it.ref.name}' 을(를) 휴지통으로 옮길까요?\n카드 비교에서는 빠지고, 휴지통에서 언제든 되살릴 수 있습니다.`)) return;
+        try { await setTrash(it, true); loadLogs(); } catch (e) { $("upMsg").textContent = "휴지통 옮기기 실패: " + (e.code || e.message); }
       };
       box.appendChild(row);
     }
@@ -207,6 +218,61 @@ async function loadLogs() {
     box.innerHTML = `<div class="empty">목록을 불러오지 못했습니다 (${esc(e.code || e.message)})</div>`;
   }
 }
+
+// ── 휴지통 ──
+let trashItems = [];
+async function downloadLog(it, btn) {
+  const md = it.meta.customMetadata || {};
+  btn.disabled = true;
+  try {
+    const want = dispo(md.original || it.ref.name);
+    if (it.meta.contentDisposition !== want) { it.meta = await it.ref.updateMetadata({contentDisposition: want}); }
+    location.href = await it.ref.getDownloadURL();
+  } catch (e) { $("upMsg").textContent = "다운로드 실패: " + (e.code || e.message); }
+  btn.disabled = false;
+}
+async function setTrash(it, on) {
+  const md = Object.assign({}, it.meta.customMetadata || {});
+  md.trash = on ? "1" : "0";
+  if (on) { md.trashedAt = fmt(new Date()); md.trashedBy = auth.currentUser.email || ""; }
+  it.meta = await it.ref.updateMetadata({customMetadata: md});
+}
+function renderTrash() {
+  const box = $("trashList");
+  $("trashCnt").textContent = trashItems.length ? `${trashItems.length}개` : "";
+  const q = ($("trashFind").value || "").trim().toLowerCase();
+  const list = trashItems.filter(it => {
+    if (!q) return true;
+    const md = it.meta.customMetadata || {};
+    return [md.original, it.ref.name, md.person, md.month, md.car, md.uploader].join(" ").toLowerCase().includes(q);
+  });
+  if (!list.length) { box.innerHTML = `<div class="empty">${trashItems.length ? "찾는 차량일지가 없습니다." : "휴지통이 비어 있습니다."}</div>`; return; }
+  box.innerHTML = "";
+  for (const it of list) {
+    const md = it.meta.customMetadata || {};
+    const amt = md.kind === "킬로수" ? `킬로수 확인용${md.km ? " · " + Number(md.km).toLocaleString("ko-KR") + "km" : ""}`
+      : (md.total ? `가격합계 ${won(md.total)}` : "");
+    const info = md.person ? `${esc(md.person)} · ${esc(md.month)} · ${esc(md.car)}${amt ? " · " + amt : ""}` : "";
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<div style="flex:1;min-width:220px"><div class="name">${esc(md.original || it.ref.name)}</div>
+      <div class="meta">${info ? info + "<br>" : ""}올린 시각 ${fmt(new Date(it.meta.timeCreated))} · 휴지통 ${esc(md.trashedAt || "")} ${esc(md.trashedBy ? "(" + md.trashedBy + ")" : "")}</div></div>
+      <div style="display:flex;gap:8px;align-items:center"><button class="dl">다운로드</button><button class="gray">되살리기</button>${isOwner ? '<button class="danger">영구삭제</button>' : ""}</div>`;
+    row.querySelector("button.dl").onclick = ev => downloadLog(it, ev.target);
+    row.querySelector("button.gray").onclick = async ev => {
+      ev.target.disabled = true;
+      try { await setTrash(it, false); $("upMsg").innerHTML = `<span class="tag t-done">되살림</span> 사무실 PC가 1시간 안에 카드 비교에 다시 반영합니다.`; loadLogs(); }
+      catch (e) { $("upMsg").textContent = "되살리기 실패: " + (e.code || e.message); ev.target.disabled = false; }
+    };
+    const del = row.querySelector("button.danger");
+    if (del) del.onclick = async () => {
+      if (!confirm(`'${md.original || it.ref.name}' 을(를) 영구삭제할까요?\n삭제하면 되돌릴 수 없습니다.`)) return;
+      try { await it.ref.delete(); loadLogs(); } catch (e) { $("upMsg").textContent = "삭제 실패: " + (e.code || e.message); }
+    };
+    box.appendChild(row);
+  }
+}
+$("trashFind").addEventListener("input", renderTrash);
 
 // ── 결과 파일 (관리자만) ──
 // 카드내역은 홈택스 기준: 'YYYY-MM' = 전달 23일~그 달 22일 사용분, 다음 달 15일경 완성 (한 달 늦게 완성)
